@@ -1,109 +1,82 @@
 
-import React, { useEffect, useState } from 'react';
-import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
+import React, { useState } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
 import AgreementChart from '@/components/charts/AgreementChart';
 import ClaimChart from '@/components/charts/ClaimChart';
 import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealersTable from '@/components/tables/DealersTable';
+import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
+import { Users, FileSignature, FileCheck, TrendingUp } from 'lucide-react';
 import { 
   mockAgreements, 
   mockClaims, 
   mockDealers, 
   calculateKPIs 
 } from '@/lib/mockData';
-import { 
-  FileText, 
-  AlertCircle, 
-  Users, 
-  DollarSign, 
-  BarChart3,
-  ClipboardCheck
-} from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('mtd'));
-  const [metrics, setMetrics] = useState(calculateKPIs(mockAgreements, mockClaims, mockDealers, dateRange));
   
-  useEffect(() => {
-    // Recalculate metrics when date range changes
-    setMetrics(calculateKPIs(mockAgreements, mockClaims, mockDealers, dateRange));
-  }, [dateRange]);
-
+  // Calculate KPIs based on the selected date range
+  const kpis = calculateKPIs(mockAgreements, mockClaims, mockDealers, dateRange);
+  
   const handleDateRangeChange = (range: DateRange) => {
     setDateRange(range);
+    // This will trigger a re-render with the new date range
+    // and all components will update accordingly
   };
 
-  // Filter data based on date range
-  const filteredClaims = mockClaims.filter(
-    claim => claim.dateReported >= dateRange.from && claim.dateReported <= dateRange.to
-  );
-
-  // KPI Section
+  // Render KPI section
   const kpiSection = (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <KPICard
         title="Active Agreements"
-        value={metrics.activeAgreements.toLocaleString()}
-        icon={FileText}
-        trend={{
-          value: 12,
-          isPositive: true,
-          label: "vs. previous period"
-        }}
+        value={kpis.activeAgreements.toLocaleString()}
+        description={`${kpis.totalAgreements.toLocaleString()} total agreements`}
+        icon={FileSignature}
         color="primary"
-      />
-      
-      <KPICard
-        title="Total Claims"
-        value={metrics.totalClaims.toLocaleString()}
-        icon={AlertCircle}
         trend={{
-          value: 5,
-          isPositive: false,
-          label: "vs. previous period"
+          value: 5.2,
+          isPositive: true,
+          label: "from last period"
         }}
-        color="warning"
       />
-      
       <KPICard
         title="Open Claims"
-        value={metrics.openClaims.toLocaleString()}
-        icon={ClipboardCheck}
-        description={`${metrics.closedClaims} claims closed`}
-        color="info"
+        value={kpis.openClaims.toLocaleString()}
+        description={`${kpis.totalClaims.toLocaleString()} total claims`}
+        icon={FileCheck}
+        color="warning"
+        trend={{
+          value: 2.8,
+          isPositive: false,
+          label: "from last period"
+        }}
       />
-      
       <KPICard
         title="Active Dealers"
-        value={metrics.activeDealers.toLocaleString()}
+        value={kpis.activeDealers.toLocaleString()}
+        description={`Across ${mockDealers.length} total dealers`}
         icon={Users}
         color="success"
-      />
-      
-      <KPICard
-        title="Total Agreement Value"
-        value={`$${metrics.totalAgreementsValue.toLocaleString()}`}
-        icon={DollarSign}
         trend={{
-          value: 8,
+          value: 1.5,
           isPositive: true,
-          label: "vs. previous period"
+          label: "from last period"
         }}
       />
-      
       <KPICard
         title="Avg. Claim Amount"
-        value={`$${Math.round(metrics.averageClaimAmount).toLocaleString()}`}
-        icon={BarChart3}
+        value={`$${Math.round(kpis.averageClaimAmount).toLocaleString()}`}
+        description={`$${Math.round(kpis.totalClaimsAmount).toLocaleString()} total claims amount`}
+        icon={TrendingUp}
+        color="info"
         trend={{
-          value: 3,
+          value: 3.7,
           isPositive: false,
-          label: "vs. previous period"
+          label: "from last period"
         }}
-        color="destructive"
       />
     </div>
   );
@@ -113,31 +86,24 @@ const Index = () => {
       onDateRangeChange={handleDateRangeChange}
       kpiSection={kpiSection}
     >
-      {/* Charts Section */}
+      {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <AgreementChart agreements={mockAgreements} dateRange={dateRange} />
         <ClaimChart claims={mockClaims} dateRange={dateRange} />
       </div>
       
-      {/* Tables Section */}
-      <Tabs defaultValue="claims" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="claims">Claims</TabsTrigger>
-          <TabsTrigger value="dealers">Dealers</TabsTrigger>
-        </TabsList>
-        <TabsContent value="claims" className="animate-fade-in">
-          <div className="bg-card rounded-lg p-6 shadow-sm">
-            <h2 className="section-title mb-4">Claims Details</h2>
-            <ClaimsTable claims={filteredClaims} />
-          </div>
-        </TabsContent>
-        <TabsContent value="dealers" className="animate-fade-in">
-          <div className="bg-card rounded-lg p-6 shadow-sm">
-            <h2 className="section-title mb-4">Dealer Performance</h2>
-            <DealersTable dealers={mockDealers} />
-          </div>
-        </TabsContent>
-      </Tabs>
+      {/* Tables section */}
+      <div className="space-y-8">
+        <section>
+          <h2 className="section-title mb-4">Claims Records</h2>
+          <ClaimsTable claims={mockClaims} />
+        </section>
+        
+        <section>
+          <h2 className="section-title mb-4">Dealer Performance</h2>
+          <DealersTable dealers={mockDealers} />
+        </section>
+      </div>
     </Dashboard>
   );
 };
