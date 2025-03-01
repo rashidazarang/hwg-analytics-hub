@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -7,7 +6,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 
-// Define a proper type for Agreement based on the Supabase schema
 type Agreement = {
   id: string;
   AgreementID: string;
@@ -29,34 +27,29 @@ type Agreement = {
   reserveAmount?: number;
 };
 
-// Define dealer data type
 type Dealer = {
   DealerUUID: string;
   PayeeID: string;
   Payee?: string | null;
 };
 
-// Helper function to format a name to title case
 const formatName = (name?: string | null): string => {
   if (!name) return '';
   return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-// Fetch agreements from Supabase with date range and pagination
 async function fetchAgreements(dateRange?: DateRange, page: number = 1, pageSize: number = 10): Promise<{data: Agreement[], count: number}> {
   try {
     let query = supabase
       .from("agreements")
       .select("*", { count: 'exact' });
     
-    // Apply date range filters if provided
     if (dateRange?.from && dateRange?.to) {
       query = query
         .gte("EffectiveDate", dateRange.from.toISOString())
         .lte("ExpireDate", dateRange.to.toISOString());
     }
     
-    // Apply pagination
     query = query.range((page - 1) * pageSize, page * pageSize - 1);
     
     const { data, count, error } = await query;
@@ -74,7 +67,6 @@ async function fetchAgreements(dateRange?: DateRange, page: number = 1, pageSize
   }
 }
 
-// Fetch dealers from Supabase
 async function fetchDealers(): Promise<Dealer[]> {
   try {
     const { data, error } = await supabase.from("dealers").select("*");
@@ -103,7 +95,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const [pageSize, setPageSize] = React.useState(10);
   const [totalCount, setTotalCount] = React.useState(0);
   
-  // Fetch agreements using React Query
   const { data: agreementsData, isLoading: isLoadingAgreements, error: agreementsError, refetch } = useQuery({
     queryKey: ["agreements", dateRange, page, pageSize],
     queryFn: async () => {
@@ -111,16 +102,14 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
       setTotalCount(result.count);
       return result.data;
     },
-    keepPreviousData: true,
+    placeholderData: (prevData) => prevData,
   });
 
-  // Fetch dealers using React Query
   const { data: dealers, isLoading: isLoadingDealers } = useQuery({
     queryKey: ["dealers"],
     queryFn: fetchDealers,
   });
 
-  // Create a lookup map for dealers by UUID
   const dealerMap = useMemo(() => {
     if (!dealers) return {};
     
@@ -132,7 +121,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     }, {});
   }, [dealers]);
 
-  // When date range changes, reset to page 1 and refetch
   React.useEffect(() => {
     setPage(1);
     refetch();
@@ -263,7 +251,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
-    setPage(1); // Reset to page 1 when changing page size
+    setPage(1);
   };
 
   return (
