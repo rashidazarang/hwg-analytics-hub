@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -49,6 +50,9 @@ async function fetchAgreements(dateRange?: DateRange, page: number = 1, pageSize
         .gte("EffectiveDate", dateRange.from.toISOString())
         .lte("ExpireDate", dateRange.to.toISOString());
     }
+    
+    // Sort by EffectiveDate descending (most recent first)
+    query = query.order('EffectiveDate', { ascending: false });
     
     query = query.range((page - 1) * pageSize, page * pageSize - 1);
     
@@ -130,13 +134,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'id',
       title: 'Agreement ID',
-      sortable: true,
+      sortable: false,
       render: (row) => row.AgreementID || '',
     },
     {
       key: 'customerName',
       title: 'Customer Name',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         const firstName = formatName(row.HolderFirstName);
         const lastName = formatName(row.HolderLastName);
@@ -146,7 +150,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'dealerName',
       title: 'Dealership',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         if (row.DealerUUID && dealerMap[row.DealerUUID]) {
           return dealerMap[row.DealerUUID].Payee || 'Unknown Dealership';
@@ -157,7 +161,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'dealerId',
       title: 'Dealer ID',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         if (row.DealerUUID && dealerMap[row.DealerUUID]) {
           return dealerMap[row.DealerUUID].PayeeID || 'Unknown';
@@ -168,7 +172,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'effectiveDate',
       title: 'Effective Date',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         const date = row.EffectiveDate || row.startDate;
         return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
@@ -177,7 +181,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'expireDate',
       title: 'Expire Date',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         const date = row.ExpireDate || row.endDate;
         return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
@@ -186,7 +190,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'status',
       title: 'Status',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         const status = row.AgreementStatus || row.status || 'UNKNOWN';
         const variants = {
@@ -208,7 +212,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'value',
       title: 'Total Value',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         const value = row.Total || row.value || 0;
         return `$${(value).toLocaleString()}`;
@@ -217,7 +221,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'dealerCost',
       title: 'Dealer Cost',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         const cost = row.DealerCost || row.dealerCost || 0;
         return `$${(cost).toLocaleString()}`;
@@ -226,7 +230,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     {
       key: 'reserveAmount',
       title: 'Reserve Amount',
-      sortable: true,
+      sortable: false,
       render: (row) => {
         const reserve = row.ReserveAmount || row.reserveAmount || 0;
         return `$${(reserve).toLocaleString()}`;

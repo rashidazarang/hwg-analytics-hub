@@ -17,7 +17,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
-  const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('mtd'));
+  // Set default date range to YTD (Year-to-Date)
+  const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [activeTab, setActiveTab] = useState('agreements');
   
   // Calculate KPIs based on the selected date range - we'll keep mock data for KPIs for now

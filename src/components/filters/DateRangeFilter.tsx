@@ -15,8 +15,9 @@ type DateRangeFilterProps = {
 };
 
 const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
-  const [preset, setPreset] = useState<DateRangePreset>('mtd');
-  const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('mtd'));
+  // Set default preset to 'ytd' instead of 'mtd'
+  const [preset, setPreset] = useState<DateRangePreset>('ytd');
+  const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [isOpen, setIsOpen] = useState(false);
 
   const handlePresetChange = (newPreset: DateRangePreset) => {
