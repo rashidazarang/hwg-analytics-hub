@@ -10,9 +10,6 @@ type DealersTableProps = {
 };
 
 const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) => {
-  // Add console logging to help debug
-  console.log('Dealers data:', dealers);
-  
   const columns: Column<Dealer>[] = [
     {
       key: 'DealerUUID',
@@ -28,10 +25,7 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
       key: 'location',
       title: 'Location',
       sortable: true,
-      render: (row) => {
-        const location = `${row.City || ''}, ${row.Region || ''}${row.Country ? `, ${row.Country}` : ''}`;
-        return location.replace(/^[,\s]+|[,\s]+$/g, '').length === 0 ? 'Unknown Location' : location.trim();
-      },
+      render: (row) => `${row.City || ''}, ${row.Region || ''}${row.Country ? `, ${row.Country}` : ''}`,
     },
     {
       key: 'activeAgreements',
@@ -68,19 +62,6 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
     },
   ];
 
-  // Generate location options, ensuring no empty values
-  const locationOptions = [...new Set(dealers.map(dealer => {
-    const location = `${dealer.City || ''}, ${dealer.Region || ''}${dealer.Country ? `, ${dealer.Country}` : ''}`;
-    // Return a default value if location is empty or just commas
-    return location.replace(/^[,\s]+|[,\s]+$/g, '').length === 0 ? 'Unknown Location' : location.trim();
-  }))].map(location => ({
-    label: location,
-    value: location,
-  }));
-
-  // Log filter options to debug
-  console.log('Location filter options:', locationOptions);
-
   return (
     <DataTable
       data={dealers}
@@ -93,21 +74,26 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
           key: 'location',
           title: 'Location',
           type: 'select',
-          options: locationOptions,
+          options: [...new Set(dealers.map(dealer => 
+            `${dealer.City || ''}, ${dealer.Region || ''}${dealer.Country ? `, ${dealer.Country}` : ''}`
+          ))].map(location => ({
+            label: location,
+            value: location,
+          })),
         },
         {
           key: 'activeAgreements',
           title: 'Active Agreements',
           type: 'range',
           min: 0,
-          max: Math.max(...dealers.map(dealer => dealer.activeAgreements || 0)),
+          max: Math.max(...dealers.map(dealer => dealer.activeAgreements)),
         },
         {
           key: 'totalClaims',
           title: 'Total Claims',
           type: 'range',
           min: 0,
-          max: Math.max(...dealers.map(dealer => dealer.totalClaims || 0)),
+          max: Math.max(...dealers.map(dealer => dealer.totalClaims)),
         },
         {
           key: 'totalRevenue',
