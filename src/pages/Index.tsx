@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
 import AgreementChart from '@/components/charts/AgreementChart';
@@ -15,19 +14,44 @@ import {
   calculateKPIs 
 } from '@/lib/mockData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Index = () => {
   // Set default date range to YTD (Year-to-Date)
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [activeTab, setActiveTab] = useState('agreements');
+  const queryClient = useQueryClient();
   
   // Calculate KPIs based on the selected date range - we'll keep mock data for KPIs for now
   const kpis = calculateKPIs([], mockClaims, mockDealers, dateRange);
   
+  // Log React Query cache for debugging
+  useEffect(() => {
+    console.log("React Query client:", queryClient);
+    // Add the query client to window for debugging
+    window.queryClient = queryClient;
+    
+    // Log the current date range when it changes
+    console.log("Current date range:", dateRange);
+  }, [queryClient, dateRange]);
+  
   const handleDateRangeChange = (range: DateRange) => {
-    setDateRange(range);
-    // This will trigger a re-render with the new date range
-    // and all components will update accordingly
+    console.log("Date range changed to:", range);
+    
+    // Force date objects to be consistent
+    const normalizedRange = {
+      from: range.from instanceof Date ? range.from : new Date(range.from),
+      to: range.to instanceof Date ? range.to : new Date(range.to),
+    };
+    
+    setDateRange(normalizedRange);
+    
+    // Invalidate the agreements query to force a refetch
+    queryClient.invalidateQueries({ 
+      queryKey: ["all-agreements"]
+    });
+    
+    console.log("Invalidated agreements queries");
   };
 
   // Render KPI section

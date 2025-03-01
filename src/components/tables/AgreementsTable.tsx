@@ -1,3 +1,4 @@
+
 import React, { useMemo, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -137,39 +138,63 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     setPage(1);
   }, [dateRange]);
   
+  // Updated React Query configuration with staleTime and cacheTime
   const { 
-    data: allAgreements, 
-    isLoading: isLoadingAgreements, 
+    data: allAgreements = [], 
+    isLoading: isLoadingAgreements,
     error: agreementsError,
     refetch: refetchAgreements,
     isRefetching
   } = useQuery({
-    queryKey: ["all-agreements", dateRange],
+    queryKey: ["all-agreements", dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: () => fetchAllAgreements(dateRange),
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,   // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
   });
   
+  // Force cast to array to ensure React Query always returns an array
+  const agreements = Array.isArray(allAgreements) ? allAgreements : [];
+  
+  // Log the data received from React Query
   useEffect(() => {
-    if (allAgreements) {
-      setTotalCount(allAgreements.length);
+    console.log("React Query agreements data: ", agreements);
+    console.log("React Query agreements length: ", agreements.length);
+    window.agreementsData = agreements; // For debugging
+  }, [agreements]);
+  
+  useEffect(() => {
+    if (agreements && agreements.length > 0) {
+      setTotalCount(agreements.length);
       
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
-      const slicedAgreements = allAgreements.slice(startIndex, endIndex);
+      const slicedAgreements = agreements.slice(startIndex, endIndex);
       
-      console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(allAgreements.length/pageSize)}`);
+      console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(agreements.length/pageSize)}`);
+      console.log("Sample agreement data:", slicedAgreements[0]);
       setDisplayAgreements(slicedAgreements);
+    } else {
+      setDisplayAgreements([]);
+      setTotalCount(0);
+      console.log("No agreements to display");
     }
-  }, [allAgreements, page, pageSize]);
+  }, [agreements, page, pageSize]);
   
-  const { data: dealers, isLoading: isLoadingDealers } = useQuery({
+  const { 
+    data: dealers = [],
+    isLoading: isLoadingDealers 
+  } = useQuery({
     queryKey: ["dealers"],
     queryFn: fetchDealers,
     staleTime: 300000,
+    gcTime: 600000, // 10 minutes
+    refetchOnWindowFocus: false,
   });
 
   const dealerMap = useMemo(() => {
-    if (!dealers) return {};
+    if (!dealers || dealers.length === 0) return {};
     
     return dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
       if (dealer.DealerUUID) {
@@ -313,11 +338,26 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     ? "Loading..." 
     : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
 
+  // Add a refetch button for testing and debugging
+  const handleManualRefetch = () => {
+    console.log("Manually refetching agreements...");
+    refetchAgreements();
+  };
+
   return (
     <>
-      <div className="text-sm text-muted-foreground mb-2">
-        {currentStatus}
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-sm text-muted-foreground">
+          {currentStatus}
+        </div>
+        <button 
+          onClick={handleManualRefetch} 
+          className="text-xs px-2 py-1 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors"
+        >
+          Refresh Data
+        </button>
       </div>
+      
       <DataTable
         data={displayAgreements}
         columns={columns}

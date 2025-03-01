@@ -20,15 +20,20 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [isOpen, setIsOpen] = useState(false);
   
-  // Ensure the date range is applied on mount
+  // Ensure the date range is applied on mount with a slight delay to ensure all components are ready
   useEffect(() => {
-    // Trigger onChange with the initial YTD range
-    onChange(dateRange);
+    const timer = setTimeout(() => {
+      console.log("Initial DateRange applied:", dateRange);
+      onChange(dateRange);
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   const handlePresetChange = (newPreset: DateRangePreset) => {
     setPreset(newPreset);
     const newRange = getPresetDateRange(newPreset);
+    console.log(`Preset changed to ${newPreset}:`, newRange);
     setDateRange(newRange);
     onChange(newRange);
     if (newPreset !== 'custom') {
@@ -38,11 +43,17 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
 
   const handleDateRangeChange = (range: DateRange | undefined) => {
     if (range?.from && range?.to) {
+      console.log("Custom date range selected:", range);
       setDateRange(range);
       setPreset('custom');
       onChange(range);
     }
   };
+
+  // Add a forced refresh whenever dateRange changes
+  useEffect(() => {
+    console.log("DateRange updated:", dateRange);
+  }, [dateRange]);
 
   return (
     <div className="flex items-center space-x-2">
@@ -109,7 +120,11 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
             <Button 
               variant="default" 
               size="sm"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                // Force reapply the current dateRange to trigger a refetch
+                onChange({...dateRange});
+                setIsOpen(false);
+              }}
             >
               Apply
             </Button>
