@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -38,17 +38,20 @@ const formatName = (name?: string | null): string => {
   return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-async function fetchAgreements(dateRange?: DateRange, page: number = 1, pageSize: number = 10): Promise<{data: Agreement[], count: number}> {
+const SUPABASE_PAGE_SIZE = 1000;
+
+async function fetchAgreementsPage(dateRange?: DateRange, page: number = 1): Promise<{data: Agreement[], hasMore: boolean}> {
   try {
     const from = dateRange?.from ? new Date(dateRange.from) : null;
     const to = dateRange?.to ? new Date(dateRange.to) : null;
     
-    console.log(`Fetching agreements with date range: ${from?.toISOString()} to ${to?.toISOString()}`);
-    console.log(`Page: ${page}, PageSize: ${pageSize}`);
+    console.log(`Fetching agreements page ${page} with date range: ${from?.toISOString()} to ${to?.toISOString()}`);
+    
+    const offset = (page - 1) * SUPABASE_PAGE_SIZE;
     
     let query = supabase
       .from("agreements")
-      .select("*", { count: 'exact' });
+      .select("*");
     
     if (from && to) {
       query = query
@@ -56,28 +59,49 @@ async function fetchAgreements(dateRange?: DateRange, page: number = 1, pageSize
         .lte("ExpireDate", to.toISOString());
     }
     
-    query = query.order('EffectiveDate', { ascending: false });
+    query = query
+      .order('EffectiveDate', { ascending: false })
+      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
     
-    const fromIndex = (page - 1) * pageSize;
-    const toIndex = fromIndex + pageSize - 1;
-    
-    query = query.range(fromIndex, toIndex);
-    
-    const { data, count, error } = await query;
+    const { data, error } = await query;
 
     if (error) {
       console.error("Supabase Error:", error);
-      return { data: [], count: 0 };
+      return { data: [], hasMore: false };
     }
 
-    console.log(`Fetched Agreements: ${data?.length || 0} records out of ${count || 0}`);
-    console.log("First few agreements:", data?.slice(0, 3));
+    const hasMore = data?.length === SUPABASE_PAGE_SIZE;
     
-    return { data: data || [], count: count || 0 };
+    console.log(`Fetched Agreements page ${page}: ${data?.length || 0} records. Has more: ${hasMore}`);
+    
+    return { data: data || [], hasMore };
   } catch (error) {
-    console.error("Error fetching agreements:", error);
-    return { data: [], count: 0 };
+    console.error("Error fetching agreements page:", error);
+    return { data: [], hasMore: false };
   }
+}
+
+async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
+  let allAgreements: Agreement[] = [];
+  let page = 1;
+  let hasMore = true;
+  
+  console.log("Starting to fetch all agreements...");
+  
+  while (hasMore) {
+    const result = await fetchAgreementsPage(dateRange, page);
+    allAgreements = [...allAgreements, ...result.data];
+    hasMore = result.hasMore;
+    page++;
+    
+    if (page > 10) {
+      console.warn("Reached maximum number of pages (10). Stopping pagination.");
+      break;
+    }
+  }
+  
+  console.log(`Completed fetching all agreements. Total: ${allAgreements.length}`);
+  return allAgreements;
 }
 
 async function fetchDealers(): Promise<Dealer[]> {
@@ -104,30 +128,40 @@ type AgreementsTableProps = {
 };
 
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange }) => {
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(10);
-  const [totalCount, setTotalCount] = React.useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   
   useEffect(() => {
     setPage(1);
   }, [dateRange]);
   
   const { 
-    data: agreementsData, 
+    data: allAgreements, 
     isLoading: isLoadingAgreements, 
-    error: agreementsError, 
-    refetch 
+    error: agreementsError,
+    refetch: refetchAgreements,
+    isRefetching
   } = useQuery({
-    queryKey: ["agreements", dateRange, page, pageSize],
-    queryFn: async () => {
-      const result = await fetchAgreements(dateRange, page, pageSize);
-      setTotalCount(result.count);
-      return result.data;
-    },
-    placeholderData: (prevData) => prevData,
-    staleTime: 30000,
+    queryKey: ["all-agreements", dateRange],
+    queryFn: () => fetchAllAgreements(dateRange),
+    staleTime: 60000,
   });
-
+  
+  useEffect(() => {
+    if (allAgreements) {
+      setTotalCount(allAgreements.length);
+      
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const slicedAgreements = allAgreements.slice(startIndex, endIndex);
+      
+      console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(allAgreements.length/pageSize)}`);
+      setDisplayAgreements(slicedAgreements);
+    }
+  }, [allAgreements, page, pageSize]);
+  
   const { data: dealers, isLoading: isLoadingDealers } = useQuery({
     queryKey: ["dealers"],
     queryFn: fetchDealers,
@@ -253,9 +287,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     },
   ];
 
-  const isLoading = isLoadingAgreements || isLoadingDealers;
+  const isLoading = isLoadingAgreements || isLoadingDealers || isRefetching;
 
-  if (isLoading && page === 1) {
+  if (isLoading && !displayAgreements.length) {
     return <div className="py-10 text-center">Loading agreements and dealer data...</div>;
   }
 
@@ -275,24 +309,31 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     setPage(1);
   };
 
-  console.log(`Rendering table with ${agreementsData?.length || 0} agreements, page ${page}/${Math.ceil(totalCount/pageSize)}`);
+  const currentStatus = isLoading 
+    ? "Loading..." 
+    : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
 
   return (
-    <DataTable
-      data={agreementsData || []}
-      columns={columns}
-      searchKey="id"
-      rowKey={(row) => row.id || row.AgreementID || ''}
-      className={className}
-      paginationProps={{
-        currentPage: page,
-        totalItems: totalCount,
-        pageSize: pageSize,
-        onPageChange: handlePageChange,
-        onPageSizeChange: handlePageSizeChange,
-      }}
-      loading={isLoading}
-    />
+    <>
+      <div className="text-sm text-muted-foreground mb-2">
+        {currentStatus}
+      </div>
+      <DataTable
+        data={displayAgreements}
+        columns={columns}
+        searchKey="id"
+        rowKey={(row) => row.id || row.AgreementID || ''}
+        className={className}
+        paginationProps={{
+          currentPage: page,
+          totalItems: totalCount,
+          pageSize: pageSize,
+          onPageChange: handlePageChange,
+          onPageSizeChange: handlePageSizeChange,
+        }}
+        loading={isLoading}
+      />
+    </>
   );
 };
 

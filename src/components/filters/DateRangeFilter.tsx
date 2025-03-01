@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { 
   Popover, 
@@ -18,6 +19,12 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   const [preset, setPreset] = useState<DateRangePreset>('ytd');
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Ensure the date range is applied on mount
+  useEffect(() => {
+    // Trigger onChange with the initial YTD range
+    onChange(dateRange);
+  }, []);
 
   const handlePresetChange = (newPreset: DateRangePreset) => {
     setPreset(newPreset);
