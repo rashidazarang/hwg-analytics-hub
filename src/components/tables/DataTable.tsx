@@ -1,294 +1,218 @@
 
-import React, { useState, useMemo } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, SortAsc, SortDesc, X } from 'lucide-react';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export type Column<T> = {
-  key: keyof T | string;
+  key: string;
   title: string;
-  sortable?: boolean;
   render?: (row: T) => React.ReactNode;
-};
-
-export type FilterOption = {
-  label: string;
-  value: string;
-};
-
-export type Filter<T = any> = {
-  key: keyof T | string;
-  title: string;
-  type: 'select' | 'date' | 'range';
-  options?: FilterOption[];
-  min?: number;
-  max?: number;
+  sortable?: boolean;
 };
 
 type DataTableProps<T> = {
   data: T[];
   columns: Column<T>[];
-  searchKey?: keyof T;
-  rowKey: (row: T) => string | number;
+  searchKey?: string;
+  rowKey: (row: T) => string;
+  onRowClick?: (row: T) => void;
   className?: string;
-  filters?: Filter<T>[];
 };
 
-const DataTable = <T extends object>({
+const DataTable = <T extends Record<string, any>>({
   data,
   columns,
   searchKey,
   rowKey,
+  onRowClick,
   className = '',
-  filters,
 }: DataTableProps<T>) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  const handleSort = (columnKey: string) => {
-    if (sortColumn === columnKey) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(columnKey);
-      setSortDirection('asc');
-    }
-  };
+  // Filter data based on search term
+  const filteredData = searchTerm && searchKey
+    ? data.filter(row => 
+        String(row[searchKey])
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      )
+    : data;
 
-  const handleFilterChange = (key: string, value: any) => {
-    setActiveFilters(prev => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
+  // Sort data
+  const sortedData = sortConfig 
+    ? [...filteredData].sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+        
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      })
+    : filteredData;
 
-  const clearFilter = (key: string) => {
-    setActiveFilters(prev => {
-      const newFilters = { ...prev };
-      delete newFilters[key];
-      return newFilters;
+  // Paginate data
+  const totalPages = Math.ceil(sortedData.length / pageSize);
+  const paginatedData = sortedData.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const handleSort = (key: string) => {
+    setSortConfig(prev => {
+      if (prev?.key === key) {
+        return prev.direction === 'asc'
+          ? { key, direction: 'desc' }
+          : null;
+      }
+      return { key, direction: 'asc' };
     });
   };
 
-  const filteredAndSortedData = useMemo(() => {
-    // First, filter by search term
-    let filteredData = [...data];
-    
-    if (searchKey && searchTerm) {
-      filteredData = filteredData.filter(item => {
-        const value = item[searchKey];
-        if (typeof value === 'string') {
-          return value.toLowerCase().includes(searchTerm.toLowerCase());
-        }
-        return String(value).toLowerCase().includes(searchTerm.toLowerCase());
-      });
-    }
-    
-    // Apply active filters
-    if (Object.keys(activeFilters).length > 0) {
-      filteredData = filteredData.filter(item => {
-        return Object.entries(activeFilters).every(([key, value]) => {
-          if (!value) return true;
-          
-          const filter = filters?.find(f => f.key === key);
-          const itemValue = item[key as keyof T];
-          
-          if (filter?.type === 'select') {
-            return itemValue === value;
-          }
-          
-          if (filter?.type === 'range' && Array.isArray(value)) {
-            const [min, max] = value;
-            const numValue = Number(itemValue);
-            return numValue >= min && numValue <= max;
-          }
-          
-          // Default case
-          return true;
-        });
-      });
-    }
-    
-    // Then sort the data
-    if (sortColumn) {
-      filteredData.sort((a, b) => {
-        const aValue = a[sortColumn as keyof T];
-        const bValue = b[sortColumn as keyof T];
-        
-        if (aValue === bValue) return 0;
-        
-        const compareResult = aValue < bValue ? -1 : 1;
-        return sortDirection === 'asc' ? compareResult : -compareResult;
-      });
-    }
-    
-    return filteredData;
-  }, [data, searchKey, searchTerm, sortColumn, sortDirection, activeFilters, filters]);
+  const getSortIcon = (key: string) => {
+    if (sortConfig?.key !== key) return <ChevronDown className="ml-1 h-4 w-4 opacity-50" />;
+    return sortConfig.direction === 'asc' 
+      ? <ChevronDown className="ml-1 h-4 w-4" />
+      : <ChevronDown className="ml-1 h-4 w-4 rotate-180 transform" />;
+  };
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <div className="flex flex-col md:flex-row gap-4 justify-between">
-        {searchKey && (
-          <div className="relative flex-1 max-w-sm">
+    <div className={`w-full ${className}`}>
+      {searchKey && (
+        <div className="flex justify-between items-center mb-4">
+          <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              type="search"
               placeholder="Search..."
-              className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 w-64"
             />
           </div>
-        )}
-        
-        {filters && filters.length > 0 && (
-          <div className="flex flex-wrap gap-2 items-center">
-            {filters.map((filter) => (
-              <div key={filter.key as string} className="flex items-center gap-1">
-                {filter.type === 'select' && filter.options && (
-                  <Select
-                    value={activeFilters[filter.key as string] || ''}
-                    onValueChange={(value) => handleFilterChange(filter.key as string, value)}
-                  >
-                    <SelectTrigger className="h-9 w-[180px]">
-                      <SelectValue placeholder={filter.title} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All {filter.title}</SelectItem>
-                      {filter.options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                
-                {filter.type === 'range' && (
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{filter.title}</span>
-                      {activeFilters[filter.key as string] && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => clearFilter(filter.key as string)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                    <Slider
-                      min={filter.min || 0}
-                      max={filter.max || 100}
-                      step={1}
-                      value={activeFilters[filter.key as string] || [filter.min || 0, filter.max || 100]}
-                      onValueChange={(value) => handleFilterChange(filter.key as string, value)}
-                      className="w-[180px]"
-                    />
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs">
-                        {activeFilters[filter.key as string]
-                          ? activeFilters[filter.key as string][0]
-                          : filter.min || 0}
-                      </span>
-                      <span className="text-xs">
-                        {activeFilters[filter.key as string]
-                          ? activeFilters[filter.key as string][1]
-                          : filter.max || 100}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                
-                {activeFilters[filter.key as string] && filter.type !== 'range' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 w-9 p-0"
-                    onClick={() => clearFilter(filter.key as string)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
+          
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" className="h-9">
+              <Filter className="mr-2 h-4 w-4" />
+              Filter
+            </Button>
+            
+            <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
+              <SelectTrigger className="w-[110px] h-9">
+                <SelectValue placeholder="10 per page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 per page</SelectItem>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="20">20 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        )}
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {columns.map((column) => (
-                <TableHead key={column.key as string} className="whitespace-nowrap">
-                  {column.sortable ? (
-                    <button
-                      className="flex items-center gap-1 hover:text-foreground font-medium"
-                      onClick={() => handleSort(column.key as string)}
-                    >
-                      {column.title}
-                      {sortColumn === column.key && (
-                        sortDirection === 'asc' ? (
-                          <SortAsc className="h-3 w-3" />
-                        ) : (
-                          <SortDesc className="h-3 w-3" />
-                        )
-                      )}
-                    </button>
-                  ) : (
-                    column.title
-                  )}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedData.length === 0 ? (
+        </div>
+      )}
+      
+      <div className="rounded-lg border overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results found.
-                </TableCell>
+                {columns.map((column) => (
+                  <TableHead 
+                    key={column.key}
+                    className={column.sortable ? 'cursor-pointer' : ''}
+                    onClick={() => column.sortable && handleSort(column.key)}
+                  >
+                    <div className="flex items-center">
+                      {column.title}
+                      {column.sortable && getSortIcon(column.key)}
+                    </div>
+                  </TableHead>
+                ))}
               </TableRow>
-            ) : (
-              filteredAndSortedData.map((row) => (
-                <TableRow key={rowKey(row)}>
-                  {columns.map((column) => (
-                    <TableCell key={`${rowKey(row)}-${column.key as string}`}>
-                      {column.render
-                        ? column.render(row)
-                        : row[column.key as keyof T] as React.ReactNode}
-                    </TableCell>
-                  ))}
+            </TableHeader>
+            <TableBody>
+              {paginatedData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="text-center h-32 text-muted-foreground">
+                    No results found
+                  </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                paginatedData.map((row) => (
+                  <TableRow 
+                    key={rowKey(row)} 
+                    className={onRowClick ? 'cursor-pointer hover:bg-accent/50' : ''}
+                    onClick={() => onRowClick && onRowClick(row)}
+                  >
+                    {columns.map((column) => (
+                      <TableCell key={`${rowKey(row)}-${column.key}`}>
+                        {column.render ? column.render(row) : row[column.key]}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
       
-      <div className="text-xs text-muted-foreground">
-        Showing {filteredAndSortedData.length} of {data.length} results
-      </div>
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <div className="text-sm text-muted-foreground">
+            Showing {Math.min(pageSize * (currentPage - 1) + 1, sortedData.length)} to {Math.min(pageSize * currentPage, sortedData.length)} of {sortedData.length} entries
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="text-sm">
+              Page {currentPage} of {totalPages}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
