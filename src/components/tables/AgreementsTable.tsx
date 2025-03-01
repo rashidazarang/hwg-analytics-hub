@@ -1,5 +1,5 @@
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -135,19 +135,23 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const [pageSize, setPageSize] = useState(10);
   const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const initialFetchDone = useRef(false);
   
   // Create a stable query key that includes dateRange string representations
   const agreementsQueryKey = useMemo(() => {
-    const fromStr = dateRange?.from ? new Date(dateRange.from).toISOString() : 'null';
-    const toStr = dateRange?.to ? new Date(dateRange.to).toISOString() : 'null';
+    if (!dateRange) return ["all-agreements", "default"];
+    
+    const fromStr = dateRange.from ? new Date(dateRange.from).toISOString() : 'null';
+    const toStr = dateRange.to ? new Date(dateRange.to).toISOString() : 'null';
     return ["all-agreements", fromStr, toStr];
-  }, [dateRange?.from, dateRange?.to]);
+  }, [dateRange]);
   
   useEffect(() => {
+    console.log("Date range changed in AgreementsTable, resetting to page 1");
     setPage(1);
   }, [dateRange]);
   
-  // Updated React Query configuration with longer staleTime and cacheTime
+  // React Query configuration with longer staleTime and cacheTime
   const { 
     data: allAgreements = [], 
     isLoading: isLoadingAgreements,
@@ -160,7 +164,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 30 * 60 * 1000,    // 30 minutes
     refetchOnWindowFocus: false,
-    refetchOnMount: true,
+    refetchOnMount: false,
   });
   
   // Force cast to array to ensure React Query always returns an array
@@ -168,11 +172,27 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   
   // Log the data received from React Query and save to window for debugging
   useEffect(() => {
-    console.log("React Query agreements data: ", agreements);
-    console.log("React Query agreements length: ", agreements.length);
-    console.log("React Query agreements query key: ", agreementsQueryKey);
-    // Don't expose on window to avoid TypeScript errors
-    console.log("QueryClient cache: ", queryClient.getQueriesData());
+    console.log("React Query agreements data received:", agreements);
+    console.log("React Query agreements length:", agreements.length);
+    console.log("React Query agreements query key:", agreementsQueryKey);
+    
+    // Immediately after fetching, check what's in the cache
+    setTimeout(() => {
+      const cachedData = queryClient.getQueryData(agreementsQueryKey);
+      console.log("Agreements from cache:", cachedData);
+      console.log("Cache size:", cachedData && Array.isArray(cachedData) ? (cachedData as Agreement[]).length : 0);
+      
+      if (!cachedData && agreements.length > 0) {
+        console.warn("Data exists but not in cache! Setting it explicitly.");
+        queryClient.setQueryData(agreementsQueryKey, agreements);
+      }
+    }, 100);
+    
+    // Set initial fetch flag
+    if (agreements.length > 0 && !initialFetchDone.current) {
+      initialFetchDone.current = true;
+      toast.success(`Successfully loaded ${agreements.length} agreements`);
+    }
   }, [agreements, agreementsQueryKey, queryClient]);
   
   useEffect(() => {
@@ -184,7 +204,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
       const slicedAgreements = agreements.slice(startIndex, endIndex);
       
       console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(agreements.length/pageSize)}`);
-      console.log("Sample agreement data:", slicedAgreements[0]);
+      if (slicedAgreements.length > 0) {
+        console.log("Sample agreement data:", slicedAgreements[0]);
+      }
       setDisplayAgreements(slicedAgreements);
     } else {
       setDisplayAgreements([]);
@@ -199,7 +221,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   } = useQuery({
     queryKey: ["dealers"],
     queryFn: fetchDealers,
-    staleTime: 300000,
+    staleTime: 300000, // 5 minutes
     gcTime: 600000, // 10 minutes
     refetchOnWindowFocus: false,
   });
@@ -354,8 +376,10 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     console.log("Manually refetching agreements...");
     toast.info("Refreshing agreements data...");
     
-    // Force invalidate the cache for this query
-    queryClient.invalidateQueries({ queryKey: agreementsQueryKey });
+    // Explicitly invalidate the cache for this query with proper arguments
+    queryClient.invalidateQueries({ 
+      queryKey: agreementsQueryKey 
+    });
     
     // Then refetch
     refetchAgreements().then((result) => {
