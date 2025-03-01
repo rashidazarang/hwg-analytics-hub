@@ -1,6 +1,5 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange } from "@/lib/dateUtils";
 import {
@@ -11,7 +10,7 @@ import {
   fetchDashboardKPIs
 } from "@/integrations/supabase/queries";
 
-// Hook for fetching agreements with real-time updates
+// Hook for fetching agreements
 export function useAgreements(filters: {
   dateRange?: DateRange;
   status?: string;
@@ -19,36 +18,14 @@ export function useAgreements(filters: {
   page?: number;
   pageSize?: number;
 }) {
-  const queryClient = useQueryClient();
-  
-  const query = useQuery({
+  return useQuery({
     queryKey: ["agreements", filters],
     queryFn: () => fetchAgreements(filters),
+    staleTime: 3600000, // Refresh once per hour (data updates infrequently)
   });
-
-  // Set up real-time listener for agreements table
-  useEffect(() => {
-    const channel = supabase
-      .channel("public:agreements")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "agreements" },
-        () => {
-          // Invalidate and refetch agreements data
-          queryClient.invalidateQueries({ queryKey: ["agreements"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
-  return query;
 }
 
-// Hook for fetching claims with real-time updates
+// Hook for fetching claims
 export function useClaims(filters: {
   dateRange?: DateRange;
   status?: string;
@@ -56,68 +33,24 @@ export function useClaims(filters: {
   page?: number;
   pageSize?: number;
 }) {
-  const queryClient = useQueryClient();
-  
-  const query = useQuery({
+  return useQuery({
     queryKey: ["claims", filters],
     queryFn: () => fetchClaims(filters),
+    staleTime: 3600000, // Refresh once per hour
   });
-
-  // Set up real-time listener for claims table
-  useEffect(() => {
-    const channel = supabase
-      .channel("public:claims")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "claims" },
-        () => {
-          // Invalidate and refetch claims data
-          queryClient.invalidateQueries({ queryKey: ["claims"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
-  return query;
 }
 
-// Hook for fetching dealers with real-time updates
+// Hook for fetching dealers
 export function useDealers(filters: {
   location?: string;
   page?: number;
   pageSize?: number;
 } = {}) {
-  const queryClient = useQueryClient();
-  
-  const query = useQuery({
+  return useQuery({
     queryKey: ["dealers", filters],
     queryFn: () => fetchDealers(filters),
+    staleTime: 3600000, // Refresh once per hour
   });
-
-  // Set up real-time listener for dealers table
-  useEffect(() => {
-    const channel = supabase
-      .channel("public:dealers")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "dealers" },
-        () => {
-          // Invalidate and refetch dealers data
-          queryClient.invalidateQueries({ queryKey: ["dealers"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
-  return query;
 }
 
 // Hook for fetching dealer metrics
@@ -126,49 +59,15 @@ export function useDealerMetrics(dealerId: string) {
     queryKey: ["dealerMetrics", dealerId],
     queryFn: () => fetchDealerMetrics(dealerId),
     enabled: !!dealerId,
+    staleTime: 3600000, // Refresh once per hour
   });
 }
 
 // Hook for fetching dashboard KPIs
 export function useDashboardKPIs(dateRange?: DateRange) {
-  const queryClient = useQueryClient();
-  
-  const query = useQuery({
+  return useQuery({
     queryKey: ["dashboardKPIs", dateRange],
     queryFn: () => fetchDashboardKPIs(dateRange),
+    staleTime: 3600000, // Refresh once per hour
   });
-
-  // Set up real-time listeners for tables that affect KPIs
-  useEffect(() => {
-    const agreementsChannel = supabase
-      .channel("public:agreements-kpis")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "agreements" },
-        () => {
-          // Invalidate and refetch KPI data
-          queryClient.invalidateQueries({ queryKey: ["dashboardKPIs"] });
-        }
-      )
-      .subscribe();
-
-    const claimsChannel = supabase
-      .channel("public:claims-kpis")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "claims" },
-        () => {
-          // Invalidate and refetch KPI data
-          queryClient.invalidateQueries({ queryKey: ["dashboardKPIs"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(agreementsChannel);
-      supabase.removeChannel(claimsChannel);
-    };
-  }, [queryClient]);
-
-  return query;
 }

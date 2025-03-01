@@ -2,6 +2,98 @@
 import { supabase } from "./client";
 import { DateRange } from "@/lib/dateUtils";
 
+// Type definitions to ensure proper typing
+export type AgreementResponse = {
+  AgreementID: string;
+  AgreementNumber: string | null;
+  AgreementStatus: string | null;
+  DealerCost: number | null;
+  DealerID: string | null;
+  DealerUUID: string | null;
+  DocumentURL: string | null;
+  EffectiveDate: string | null;
+  ExpireDate: string | null;
+  HolderEmail: string | null;
+  HolderFirstName: string | null;
+  HolderLastName: string | null;
+  id: string;
+  IsActive: boolean | null;
+  Md5: string;
+  ReserveAmount: number | null;
+  StatusChangeDate: string | null;
+  Total: number | null;
+};
+
+export type ClaimResponse = {
+  AgreementID: string;
+  Cause: string | null;
+  CauseID: string | null;
+  ClaimID: string;
+  Closed: string | null;
+  Complaint: string | null;
+  ComplaintID: string | null;
+  Correction: string | null;
+  CorrectionID: string | null;
+  Deductible: number | null;
+  id: string;
+  IncurredDate: string | null;
+  LastModified: string | null;
+  ReportedDate: string | null;
+};
+
+export type DealerResponse = {
+  Address: string | null;
+  City: string | null;
+  Contact: string | null;
+  Country: string | null;
+  DealerUUID: string;
+  EMail: string | null;
+  Fax: string | null;
+  Payee: string | null;
+  PayeeID: string;
+  PayeeType: string | null;
+  Phone: string | null;
+  PostalCode: string | null;
+  Region: string | null;
+};
+
+// Transformed types with proper Date objects
+export type Agreement = Omit<AgreementResponse, 'EffectiveDate' | 'ExpireDate' | 'StatusChangeDate'> & {
+  EffectiveDate: Date | null;
+  ExpireDate: Date | null;
+  StatusChangeDate: Date | null;
+};
+
+export type Claim = Omit<ClaimResponse, 'ReportedDate' | 'IncurredDate' | 'LastModified' | 'Closed'> & {
+  ReportedDate: Date | null;
+  IncurredDate: Date | null;
+  LastModified: Date | null;
+  Closed: Date | null;
+};
+
+export type Dealer = DealerResponse;
+
+export type QueryResult<T> = {
+  data: T[];
+  count: number | null;
+};
+
+// Utility function to convert date strings to Date objects
+const convertDateStringsToDate = <T extends object, K extends keyof T>(
+  obj: T,
+  dateFields: K[]
+): T => {
+  const result = { ...obj };
+  dateFields.forEach(field => {
+    if (result[field] && typeof result[field] === 'string') {
+      result[field] = new Date(result[field] as string) as any;
+    } else {
+      result[field] = null as any;
+    }
+  });
+  return result;
+};
+
 // Fetch Agreements with filtering
 export async function fetchAgreements({
   dateRange,
@@ -15,7 +107,7 @@ export async function fetchAgreements({
   dealerId?: string;
   page?: number;
   pageSize?: number;
-}) {
+}): Promise<QueryResult<Agreement>> {
   let query = supabase.from("agreements").select("*", { count: "exact" });
 
   // Apply date range filter if provided
@@ -49,7 +141,14 @@ export async function fetchAgreements({
     throw error;
   }
 
-  return { data, count };
+  const dateFields: (keyof AgreementResponse)[] = ['EffectiveDate', 'ExpireDate', 'StatusChangeDate'];
+  
+  return { 
+    data: data.map(agreement => 
+      convertDateStringsToDate(agreement, dateFields) as unknown as Agreement
+    ), 
+    count 
+  };
 }
 
 // Fetch Claims with filtering
@@ -65,7 +164,7 @@ export async function fetchClaims({
   dealerId?: string;
   page?: number;
   pageSize?: number;
-}) {
+}): Promise<QueryResult<Claim>> {
   let query = supabase.from("claims").select("*", { count: "exact" });
 
   // Apply date range filter if provided
@@ -94,7 +193,14 @@ export async function fetchClaims({
     throw error;
   }
 
-  return { data, count };
+  const dateFields: (keyof ClaimResponse)[] = ['ReportedDate', 'IncurredDate', 'LastModified', 'Closed'];
+  
+  return { 
+    data: data.map(claim => 
+      convertDateStringsToDate(claim, dateFields) as unknown as Claim
+    ), 
+    count 
+  };
 }
 
 // Fetch Dealers
@@ -106,7 +212,7 @@ export async function fetchDealers({
   location?: string;
   page?: number;
   pageSize?: number;
-} = {}) {
+} = {}): Promise<QueryResult<Dealer>> {
   let query = supabase.from("dealers").select("*", { count: "exact" });
 
   // Apply location filter if provided
