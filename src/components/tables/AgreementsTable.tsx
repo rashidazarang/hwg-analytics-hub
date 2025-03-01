@@ -3,9 +3,10 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
+import { toast } from 'sonner';
 
 type Agreement = {
   id: string;
@@ -129,16 +130,24 @@ type AgreementsTableProps = {
 };
 
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange }) => {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   
+  // Create a stable query key that includes dateRange string representations
+  const agreementsQueryKey = useMemo(() => {
+    const fromStr = dateRange?.from ? new Date(dateRange.from).toISOString() : 'null';
+    const toStr = dateRange?.to ? new Date(dateRange.to).toISOString() : 'null';
+    return ["all-agreements", fromStr, toStr];
+  }, [dateRange?.from, dateRange?.to]);
+  
   useEffect(() => {
     setPage(1);
   }, [dateRange]);
   
-  // Updated React Query configuration with staleTime and cacheTime
+  // Updated React Query configuration with longer staleTime and cacheTime
   const { 
     data: allAgreements = [], 
     isLoading: isLoadingAgreements,
@@ -146,10 +155,10 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     refetch: refetchAgreements,
     isRefetching
   } = useQuery({
-    queryKey: ["all-agreements", dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+    queryKey: agreementsQueryKey,
     queryFn: () => fetchAllAgreements(dateRange),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000,   // 10 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000,    // 30 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: true,
   });
@@ -157,12 +166,14 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   // Force cast to array to ensure React Query always returns an array
   const agreements = Array.isArray(allAgreements) ? allAgreements : [];
   
-  // Log the data received from React Query
+  // Log the data received from React Query and save to window for debugging
   useEffect(() => {
     console.log("React Query agreements data: ", agreements);
     console.log("React Query agreements length: ", agreements.length);
-    window.agreementsData = agreements; // For debugging
-  }, [agreements]);
+    console.log("React Query agreements query key: ", agreementsQueryKey);
+    // Don't expose on window to avoid TypeScript errors
+    console.log("QueryClient cache: ", queryClient.getQueriesData());
+  }, [agreements, agreementsQueryKey, queryClient]);
   
   useEffect(() => {
     if (agreements && agreements.length > 0) {
@@ -341,7 +352,19 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   // Add a refetch button for testing and debugging
   const handleManualRefetch = () => {
     console.log("Manually refetching agreements...");
-    refetchAgreements();
+    toast.info("Refreshing agreements data...");
+    
+    // Force invalidate the cache for this query
+    queryClient.invalidateQueries({ queryKey: agreementsQueryKey });
+    
+    // Then refetch
+    refetchAgreements().then((result) => {
+      if (result.isSuccess) {
+        toast.success(`Successfully loaded ${result.data.length} agreements`);
+      } else {
+        toast.error("Failed to refresh agreements data");
+      }
+    });
   };
 
   return (

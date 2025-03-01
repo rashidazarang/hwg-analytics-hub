@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -15,6 +16,7 @@ import {
 } from '@/lib/mockData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 const Index = () => {
   // Set default date range to YTD (Year-to-Date)
@@ -27,12 +29,13 @@ const Index = () => {
   
   // Log React Query cache for debugging
   useEffect(() => {
-    console.log("React Query client:", queryClient);
-    // Add the query client to window for debugging
-    window.queryClient = queryClient;
+    console.log("React Query client initialized");
     
     // Log the current date range when it changes
     console.log("Current date range:", dateRange);
+    
+    // Log the query client's queries
+    console.log("Active queries:", queryClient.getQueriesData());
   }, [queryClient, dateRange]);
   
   const handleDateRangeChange = (range: DateRange) => {
@@ -46,12 +49,23 @@ const Index = () => {
     
     setDateRange(normalizedRange);
     
-    // Invalidate the agreements query to force a refetch
+    // Create a query key using the same format as in AgreementsTable
+    const fromStr = normalizedRange.from.toISOString();
+    const toStr = normalizedRange.to.toISOString();
+    const queryKey = ["all-agreements", fromStr, toStr];
+    
+    // Invalidate the specific query with the new date range
     queryClient.invalidateQueries({ 
+      queryKey: queryKey
+    });
+    
+    // Also invalidate any previous queries to ensure clean state
+    queryClient.invalidateQueries({
       queryKey: ["all-agreements"]
     });
     
-    console.log("Invalidated agreements queries");
+    toast.info(`Date range updated: ${normalizedRange.from.toLocaleDateString()} to ${normalizedRange.to.toLocaleDateString()}`);
+    console.log("Invalidated agreements queries with key:", queryKey);
   };
 
   // Render KPI section
