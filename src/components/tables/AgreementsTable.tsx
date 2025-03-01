@@ -5,6 +5,7 @@ import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { DateRange } from '@/lib/dateUtils';
 
 // Define a proper type for Agreement based on the Supabase schema
 type Agreement = {
@@ -41,21 +42,35 @@ const formatName = (name?: string | null): string => {
   return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-// Fetch agreements from Supabase
-async function fetchAgreements(): Promise<Agreement[]> {
+// Fetch agreements from Supabase with date range and pagination
+async function fetchAgreements(dateRange?: DateRange, page: number = 1, pageSize: number = 10): Promise<{data: Agreement[], count: number}> {
   try {
-    const { data, error } = await supabase.from("agreements").select("*");
+    let query = supabase
+      .from("agreements")
+      .select("*", { count: 'exact' });
+    
+    // Apply date range filters if provided
+    if (dateRange?.from && dateRange?.to) {
+      query = query
+        .gte("EffectiveDate", dateRange.from.toISOString())
+        .lte("ExpireDate", dateRange.to.toISOString());
+    }
+    
+    // Apply pagination
+    query = query.range((page - 1) * pageSize, page * pageSize - 1);
+    
+    const { data, count, error } = await query;
 
     if (error) {
       console.error("Supabase Error:", error);
-      return [];
+      return { data: [], count: 0 };
     }
 
-    console.log("Fetched Agreements:", data); // Debugging log
-    return data || [];
+    console.log("Fetched Agreements:", data?.length || 0, "records out of", count);
+    return { data: data || [], count: count || 0 };
   } catch (error) {
     console.error("Error fetching agreements:", error);
-    return [];
+    return { data: [], count: 0 };
   }
 }
 
@@ -69,7 +84,7 @@ async function fetchDealers(): Promise<Dealer[]> {
       return [];
     }
 
-    console.log("Fetched Dealers:", data); // Debugging log
+    console.log("Fetched Dealers:", data?.length || 0, "records");
     return data || [];
   } catch (error) {
     console.error("Error fetching dealers:", error);
@@ -80,13 +95,23 @@ async function fetchDealers(): Promise<Dealer[]> {
 type AgreementsTableProps = {
   agreements?: Agreement[];
   className?: string;
+  dateRange?: DateRange;
 };
 
-const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => {
+const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange }) => {
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
+  const [totalCount, setTotalCount] = React.useState(0);
+  
   // Fetch agreements using React Query
-  const { data: agreements, isLoading: isLoadingAgreements, error: agreementsError } = useQuery({
-    queryKey: ["agreements"],
-    queryFn: fetchAgreements,
+  const { data: agreementsData, isLoading: isLoadingAgreements, error: agreementsError, refetch } = useQuery({
+    queryKey: ["agreements", dateRange, page, pageSize],
+    queryFn: async () => {
+      const result = await fetchAgreements(dateRange, page, pageSize);
+      setTotalCount(result.count);
+      return result.data;
+    },
+    keepPreviousData: true,
   });
 
   // Fetch dealers using React Query
@@ -107,6 +132,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => 
     }, {});
   }, [dealers]);
 
+  // When date range changes, reset to page 1 and refetch
+  React.useEffect(() => {
+    setPage(1);
+    refetch();
+  }, [dateRange, refetch]);
+
   const columns: Column<Agreement>[] = [
     {
       key: 'id',
@@ -126,13 +157,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => 
     },
     {
       key: 'dealerName',
-      title: 'Dealer Name',
+      title: 'Dealership',
       sortable: true,
       render: (row) => {
         if (row.DealerUUID && dealerMap[row.DealerUUID]) {
-          return dealerMap[row.DealerUUID].Payee || 'Unknown';
+          return dealerMap[row.DealerUUID].Payee || 'Unknown Dealership';
         }
-        return row.dealerName || 'Unknown';
+        return row.dealerName || 'Unknown Dealership';
       },
     },
     {
@@ -217,7 +248,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => 
 
   const isLoading = isLoadingAgreements || isLoadingDealers;
 
-  if (isLoading) {
+  if (isLoading && page === 1) {
     return <div className="py-10 text-center">Loading agreements and dealer data...</div>;
   }
 
@@ -226,13 +257,30 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => 
     return <div className="py-10 text-center text-destructive">Error loading agreements</div>;
   }
 
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setPage(1); // Reset to page 1 when changing page size
+  };
+
   return (
     <DataTable
-      data={agreements || []}
+      data={agreementsData || []}
       columns={columns}
       searchKey="id"
       rowKey={(row) => row.id || row.AgreementID || ''}
       className={className}
+      paginationProps={{
+        currentPage: page,
+        totalItems: totalCount,
+        pageSize: pageSize,
+        onPageChange: handlePageChange,
+        onPageSizeChange: handlePageSizeChange,
+      }}
+      loading={isLoading}
     />
   );
 };

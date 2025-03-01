@@ -13,6 +13,14 @@ export type Column<T> = {
   sortable?: boolean;
 };
 
+export type PaginationProps = {
+  currentPage: number;
+  pageSize: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+};
+
 type DataTableProps<T> = {
   data: T[];
   columns: Column<T>[];
@@ -20,6 +28,8 @@ type DataTableProps<T> = {
   rowKey: (row: T) => string;
   onRowClick?: (row: T) => void;
   className?: string;
+  loading?: boolean;
+  paginationProps?: PaginationProps;
 };
 
 const DataTable = <T extends Record<string, any>>({
@@ -29,10 +39,10 @@ const DataTable = <T extends Record<string, any>>({
   rowKey,
   onRowClick,
   className = '',
+  loading = false,
+  paginationProps,
 }: DataTableProps<T>) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   // Filter data based on search term
@@ -60,12 +70,11 @@ const DataTable = <T extends Record<string, any>>({
       })
     : filteredData;
 
-  // Paginate data
-  const totalPages = Math.ceil(sortedData.length / pageSize);
-  const paginatedData = sortedData.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  // If we're using server-side pagination, don't paginate locally
+  const displayData = paginationProps ? sortedData : sortedData;
+  const totalPages = paginationProps 
+    ? Math.ceil(paginationProps.totalItems / paginationProps.pageSize)
+    : Math.ceil(sortedData.length / 10);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -105,17 +114,22 @@ const DataTable = <T extends Record<string, any>>({
               Filter
             </Button>
             
-            <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
-              <SelectTrigger className="w-[110px] h-9">
-                <SelectValue placeholder="10 per page" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 per page</SelectItem>
-                <SelectItem value="10">10 per page</SelectItem>
-                <SelectItem value="20">20 per page</SelectItem>
-                <SelectItem value="50">50 per page</SelectItem>
-              </SelectContent>
-            </Select>
+            {paginationProps && (
+              <Select 
+                value={paginationProps.pageSize.toString()} 
+                onValueChange={(value) => paginationProps.onPageSizeChange(Number(value))}
+              >
+                <SelectTrigger className="w-[110px] h-9">
+                  <SelectValue placeholder="10 per page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 per page</SelectItem>
+                  <SelectItem value="10">10 per page</SelectItem>
+                  <SelectItem value="20">20 per page</SelectItem>
+                  <SelectItem value="50">50 per page</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
       )}
@@ -140,14 +154,23 @@ const DataTable = <T extends Record<string, any>>({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedData.length === 0 ? (
+              {loading && displayData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="text-center h-32">
+                    <div className="flex justify-center items-center h-full">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      <span className="ml-2">Loading...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : displayData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="text-center h-32 text-muted-foreground">
                     No results found
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedData.map((row) => (
+                displayData.map((row) => (
                   <TableRow 
                     key={rowKey(row)} 
                     className={onRowClick ? 'cursor-pointer hover:bg-accent/50' : ''}
@@ -166,47 +189,53 @@ const DataTable = <T extends Record<string, any>>({
         </div>
       </div>
       
-      {totalPages > 1 && (
+      {paginationProps && totalPages > 1 && (
         <div className="flex justify-between items-center mt-4">
           <div className="text-sm text-muted-foreground">
-            Showing {Math.min(pageSize * (currentPage - 1) + 1, sortedData.length)} to {Math.min(pageSize * currentPage, sortedData.length)} of {sortedData.length} entries
+            {loading ? (
+              <span>Loading records...</span>
+            ) : (
+              <span>
+                Showing {Math.min(paginationProps.pageSize * (paginationProps.currentPage - 1) + 1, paginationProps.totalItems)} to {Math.min(paginationProps.pageSize * paginationProps.currentPage, paginationProps.totalItems)} of {paginationProps.totalItems} entries
+              </span>
+            )}
           </div>
           
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
+              onClick={() => paginationProps.onPageChange(1)}
+              disabled={paginationProps.currentPage === 1 || loading}
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              onClick={() => paginationProps.onPageChange(paginationProps.currentPage - 1)}
+              disabled={paginationProps.currentPage === 1 || loading}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             
             <div className="text-sm">
-              Page {currentPage} of {totalPages}
+              Page {paginationProps.currentPage} of {totalPages}
             </div>
             
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              onClick={() => paginationProps.onPageChange(paginationProps.currentPage + 1)}
+              disabled={paginationProps.currentPage === totalPages || loading}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
+              onClick={() => paginationProps.onPageChange(totalPages)}
+              disabled={paginationProps.currentPage === totalPages || loading}
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

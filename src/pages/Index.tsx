@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -106,7 +107,7 @@ const Index = () => {
           </div>
           
           <TabsContent value="agreements" className="mt-0">
-            <AgreementsTable /> {/* Modified to fetch data from Supabase */}
+            <AgreementsTable dateRange={dateRange} />
           </TabsContent>
           
           <TabsContent value="claims" className="mt-0">
