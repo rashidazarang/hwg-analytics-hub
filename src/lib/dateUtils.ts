@@ -35,7 +35,7 @@ export function getPresetDateRange(preset: DateRangePreset): DateRange {
       };
     default:
       return {
-        from: addDays(today, -30),
+        from: startOfYear(today), // Default to year to date
         to: today
       };
   }

@@ -1,5 +1,4 @@
-
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -41,20 +40,28 @@ const formatName = (name?: string | null): string => {
 
 async function fetchAgreements(dateRange?: DateRange, page: number = 1, pageSize: number = 10): Promise<{data: Agreement[], count: number}> {
   try {
+    const from = dateRange?.from ? new Date(dateRange.from) : null;
+    const to = dateRange?.to ? new Date(dateRange.to) : null;
+    
+    console.log(`Fetching agreements with date range: ${from?.toISOString()} to ${to?.toISOString()}`);
+    console.log(`Page: ${page}, PageSize: ${pageSize}`);
+    
     let query = supabase
       .from("agreements")
       .select("*", { count: 'exact' });
     
-    if (dateRange?.from && dateRange?.to) {
+    if (from && to) {
       query = query
-        .gte("EffectiveDate", dateRange.from.toISOString())
-        .lte("ExpireDate", dateRange.to.toISOString());
+        .gte("EffectiveDate", from.toISOString())
+        .lte("ExpireDate", to.toISOString());
     }
     
-    // Sort by EffectiveDate descending (most recent first)
     query = query.order('EffectiveDate', { ascending: false });
     
-    query = query.range((page - 1) * pageSize, page * pageSize - 1);
+    const fromIndex = (page - 1) * pageSize;
+    const toIndex = fromIndex + pageSize - 1;
+    
+    query = query.range(fromIndex, toIndex);
     
     const { data, count, error } = await query;
 
@@ -63,7 +70,9 @@ async function fetchAgreements(dateRange?: DateRange, page: number = 1, pageSize
       return { data: [], count: 0 };
     }
 
-    console.log("Fetched Agreements:", data?.length || 0, "records out of", count);
+    console.log(`Fetched Agreements: ${data?.length || 0} records out of ${count || 0}`);
+    console.log("First few agreements:", data?.slice(0, 3));
+    
     return { data: data || [], count: count || 0 };
   } catch (error) {
     console.error("Error fetching agreements:", error);
@@ -99,7 +108,16 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const [pageSize, setPageSize] = React.useState(10);
   const [totalCount, setTotalCount] = React.useState(0);
   
-  const { data: agreementsData, isLoading: isLoadingAgreements, error: agreementsError, refetch } = useQuery({
+  useEffect(() => {
+    setPage(1);
+  }, [dateRange]);
+  
+  const { 
+    data: agreementsData, 
+    isLoading: isLoadingAgreements, 
+    error: agreementsError, 
+    refetch 
+  } = useQuery({
     queryKey: ["agreements", dateRange, page, pageSize],
     queryFn: async () => {
       const result = await fetchAgreements(dateRange, page, pageSize);
@@ -107,11 +125,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
       return result.data;
     },
     placeholderData: (prevData) => prevData,
+    staleTime: 30000,
   });
 
   const { data: dealers, isLoading: isLoadingDealers } = useQuery({
     queryKey: ["dealers"],
     queryFn: fetchDealers,
+    staleTime: 300000,
   });
 
   const dealerMap = useMemo(() => {
@@ -124,11 +144,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
       return acc;
     }, {});
   }, [dealers]);
-
-  React.useEffect(() => {
-    setPage(1);
-    refetch();
-  }, [dateRange, refetch]);
 
   const columns: Column<Agreement>[] = [
     {
@@ -246,17 +261,21 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
 
   if (agreementsError) {
     console.error("Failed to load agreements:", agreementsError);
-    return <div className="py-10 text-center text-destructive">Error loading agreements</div>;
+    return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
   }
 
   const handlePageChange = (newPage: number) => {
+    console.log(`Changing to page ${newPage}`);
     setPage(newPage);
   };
 
   const handlePageSizeChange = (newPageSize: number) => {
+    console.log(`Changing page size to ${newPageSize}`);
     setPageSize(newPageSize);
     setPage(1);
   };
+
+  console.log(`Rendering table with ${agreementsData?.length || 0} agreements, page ${page}/${Math.ceil(totalCount/pageSize)}`);
 
   return (
     <DataTable
