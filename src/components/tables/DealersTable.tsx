@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/mockData';
 import { Progress } from '@/components/ui/progress';
@@ -38,6 +37,18 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
       sortable: true,
     },
     {
+      key: 'totalRevenue',
+      title: 'Total Revenue',
+      sortable: true,
+      render: (row) => `$${row.totalRevenue?.toLocaleString() || '0'}`,
+    },
+    {
+      key: 'totalPayouts',
+      title: 'Total Payouts',
+      sortable: true,
+      render: (row) => `$${row.totalPayouts?.toLocaleString() || '0'}`,
+    },
+    {
       key: 'performanceScore',
       title: 'Performance Score',
       sortable: true,
@@ -57,6 +68,38 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
       searchKey="name"
       rowKey={(row) => row.id}
       className={className}
+      filters={[
+        {
+          key: 'location',
+          title: 'Location',
+          type: 'select',
+          options: [...new Set(dealers.map(dealer => dealer.location))].map(location => ({
+            label: location,
+            value: location,
+          })),
+        },
+        {
+          key: 'activeAgreements',
+          title: 'Active Agreements',
+          type: 'range',
+          min: 0,
+          max: Math.max(...dealers.map(dealer => dealer.activeAgreements)),
+        },
+        {
+          key: 'totalClaims',
+          title: 'Total Claims',
+          type: 'range',
+          min: 0,
+          max: Math.max(...dealers.map(dealer => dealer.totalClaims)),
+        },
+        {
+          key: 'totalRevenue',
+          title: 'Total Revenue',
+          type: 'range',
+          min: 0,
+          max: Math.max(...dealers.map(dealer => dealer.totalRevenue || 0)),
+        },
+      ]}
     />
   );
 };

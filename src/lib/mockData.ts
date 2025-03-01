@@ -6,28 +6,36 @@ export type AgreementStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PENDING' | '
 
 export interface Agreement {
   id: string;
-  dealerId: string;
+  AgreementID: string;
+  DealerUUID: string;
   dealerName: string;
-  customerId: string;
-  customerName: string;
-  startDate: Date;
-  endDate: Date;
+  HolderFirstName: string;
+  HolderLastName: string;
+  HolderEmail: string;
+  EffectiveDate: Date;
+  ExpireDate: Date;
+  DocumentURL: string;
   status: AgreementStatus;
-  value: number;
+  Total: number;
+  DealerCost: number;
+  ReserveAmount: number;
+  IsActive: boolean;
+  StatusChangeDate: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Claim {
   id: string;
+  ClaimID: string;
   agreementId: string;
-  customerId: string;
-  customerName: string;
+  AgreementID: string;
   dealerId: string;
   dealerName: string;
   dateReported: Date;
   dateIncurred: Date;
   amount: number;
+  deductible: number;
   status: 'OPEN' | 'CLOSED' | 'PENDING';
   description: string;
   createdAt: Date;
@@ -36,10 +44,20 @@ export interface Claim {
 
 export interface Dealer {
   id: string;
+  DealerUUID: string;
   name: string;
+  Payee: string;
   location: string;
+  City: string;
+  Region: string;
+  Country: string;
+  Contact: string;
+  Phone: string;
+  EMail: string;
   activeAgreements: number;
   totalClaims: number;
+  totalRevenue: number;
+  totalPayouts: number;
   performanceScore: number;
   createdAt: Date;
 }
@@ -55,21 +73,28 @@ export const generateMockAgreements = (count: number): Agreement[] => {
   const agreements: Agreement[] = [];
   
   for (let i = 0; i < count; i++) {
-    const startDate = randomDate(new Date(2020, 0, 1), new Date());
-    const endDate = randomDate(startDate, new Date(2025, 11, 31));
+    const effectiveDate = randomDate(new Date(2020, 0, 1), new Date());
+    const expireDate = randomDate(effectiveDate, new Date(2025, 11, 31));
     
     agreements.push({
       id: `AGR-${i.toString().padStart(5, '0')}`,
-      dealerId: `DLR-${Math.floor(Math.random() * 20).toString().padStart(3, '0')}`,
+      AgreementID: `AGR-${i.toString().padStart(5, '0')}`,
+      DealerUUID: `DLR-${Math.floor(Math.random() * 20).toString().padStart(3, '0')}`,
       dealerName: `Dealer ${Math.floor(Math.random() * 20) + 1}`,
-      customerId: `CUST-${i.toString().padStart(5, '0')}`,
-      customerName: `Customer ${i + 1}`,
-      startDate,
-      endDate,
+      HolderFirstName: `First${i + 1}`,
+      HolderLastName: `Last${i + 1}`,
+      HolderEmail: `customer${i + 1}@example.com`,
+      EffectiveDate: effectiveDate,
+      ExpireDate: expireDate,
+      DocumentURL: `https://example.com/documents/agreement-${i}.pdf`,
       status: statuses[Math.floor(Math.random() * statuses.length)],
-      value: Math.floor(Math.random() * 10000) + 1000,
-      createdAt: startDate,
-      updatedAt: randomDate(startDate, new Date())
+      Total: Math.floor(Math.random() * 10000) + 1000,
+      DealerCost: Math.floor(Math.random() * 5000) + 500,
+      ReserveAmount: Math.floor(Math.random() * 2000) + 100,
+      IsActive: Math.random() > 0.3,
+      StatusChangeDate: randomDate(effectiveDate, new Date()),
+      createdAt: effectiveDate,
+      updatedAt: randomDate(effectiveDate, new Date())
     });
   }
   
@@ -83,19 +108,22 @@ export const generateMockClaims = (count: number, agreements: Agreement[]): Clai
   
   for (let i = 0; i < count; i++) {
     const agreement = agreements[Math.floor(Math.random() * agreements.length)];
-    const dateIncurred = randomDate(agreement.startDate, new Date() < agreement.endDate ? new Date() : agreement.endDate);
+    const dateIncurred = randomDate(agreement.EffectiveDate, new Date() < agreement.ExpireDate ? new Date() : agreement.ExpireDate);
     const dateReported = randomDate(dateIncurred, new Date(dateIncurred.getTime() + 1000 * 60 * 60 * 24 * 14)); // Report within 14 days
+    const claimAmount = Math.floor(Math.random() * 5000) + 100;
+    const deductible = Math.floor(Math.random() * 500) + 50;
     
     claims.push({
       id: `CLM-${i.toString().padStart(5, '0')}`,
+      ClaimID: `CLM-${i.toString().padStart(5, '0')}`,
       agreementId: agreement.id,
-      customerId: agreement.customerId,
-      customerName: agreement.customerName,
-      dealerId: agreement.dealerId,
+      AgreementID: agreement.AgreementID,
+      dealerId: agreement.DealerUUID,
       dealerName: agreement.dealerName,
       dateIncurred,
       dateReported,
-      amount: Math.floor(Math.random() * 5000) + 100,
+      amount: claimAmount,
+      deductible: deductible,
       status: statuses[Math.floor(Math.random() * statuses.length)],
       description: `Claim for ${['repair', 'replacement', 'maintenance', 'damage', 'malfunction'][Math.floor(Math.random() * 5)]}`,
       createdAt: dateReported,
@@ -109,14 +137,30 @@ export const generateMockClaims = (count: number, agreements: Agreement[]): Clai
 // Generate mock dealers
 export const generateMockDealers = (count: number): Dealer[] => {
   const dealers: Dealer[] = [];
+  const regions = ['California', 'Texas', 'New York', 'Florida', 'Illinois'];
+  const cities = ['Los Angeles', 'Houston', 'New York City', 'Miami', 'Chicago'];
   
   for (let i = 0; i < count; i++) {
+    const regionIndex = i % regions.length;
+    const totalRevenue = Math.floor(Math.random() * 1000000) + 50000;
+    const totalPayouts = Math.floor(Math.random() * 500000) + 10000;
+    
     dealers.push({
       id: `DLR-${i.toString().padStart(3, '0')}`,
+      DealerUUID: `DLR-${i.toString().padStart(3, '0')}`,
       name: `Dealer ${i + 1}`,
-      location: `Location ${i + 1}`,
+      Payee: `Payee ${i + 1}`,
+      location: `${cities[regionIndex]}, ${regions[regionIndex]}`,
+      City: cities[regionIndex],
+      Region: regions[regionIndex],
+      Country: 'USA',
+      Contact: `Contact Person ${i + 1}`,
+      Phone: `(555) ${i.toString().padStart(3, '0')}-${(1000 + i).toString().padStart(4, '0')}`,
+      EMail: `dealer${i + 1}@example.com`,
       activeAgreements: Math.floor(Math.random() * 100) + 10,
       totalClaims: Math.floor(Math.random() * 50) + 5,
+      totalRevenue: totalRevenue,
+      totalPayouts: totalPayouts,
       performanceScore: Math.floor(Math.random() * 100),
       createdAt: randomDate(new Date(2018, 0, 1), new Date(2020, 0, 1))
     });
@@ -139,22 +183,22 @@ export const calculateKPIs = (
 ) => {
   // Filter agreements and claims by date range
   const filteredAgreements = agreements.filter(a => 
-    (a.createdAt >= dateRange.from && a.createdAt <= dateRange.to) ||
-    (a.status === 'ACTIVE' && a.startDate <= dateRange.to && a.endDate >= dateRange.from)
+    (a.EffectiveDate >= dateRange.from && a.EffectiveDate <= dateRange.to) ||
+    (a.IsActive && a.EffectiveDate <= dateRange.to && a.ExpireDate >= dateRange.from)
   );
   
   const filteredClaims = claims.filter(c => 
     c.dateReported >= dateRange.from && c.dateReported <= dateRange.to
   );
   
-  const activeAgreements = filteredAgreements.filter(a => a.status === 'ACTIVE').length;
-  const totalAgreementsValue = filteredAgreements.reduce((sum, a) => sum + a.value, 0);
+  const activeAgreements = filteredAgreements.filter(a => a.IsActive).length;
+  const totalAgreementsValue = filteredAgreements.reduce((sum, a) => sum + a.Total, 0);
   
   const openClaims = filteredClaims.filter(c => c.status === 'OPEN').length;
   const closedClaims = filteredClaims.filter(c => c.status === 'CLOSED').length;
   const totalClaimsAmount = filteredClaims.reduce((sum, c) => sum + c.amount, 0);
   
-  const activeDealers = [...new Set(filteredAgreements.map(a => a.dealerId))].length;
+  const activeDealers = [...new Set(filteredAgreements.map(a => a.DealerUUID))].length;
   
   return {
     activeAgreements,
@@ -172,8 +216,8 @@ export const calculateKPIs = (
 // Get agreement status distribution
 export const getAgreementStatusDistribution = (agreements: Agreement[], dateRange: { from: Date; to: Date }) => {
   const filteredAgreements = agreements.filter(a => 
-    (a.createdAt >= dateRange.from && a.createdAt <= dateRange.to) ||
-    (a.status === 'ACTIVE' && a.startDate <= dateRange.to && a.endDate >= dateRange.from)
+    (a.EffectiveDate >= dateRange.from && a.EffectiveDate <= dateRange.to) ||
+    (a.IsActive && a.EffectiveDate <= dateRange.to && a.ExpireDate >= dateRange.from)
   );
   
   const statusCount: Record<AgreementStatus, number> = {

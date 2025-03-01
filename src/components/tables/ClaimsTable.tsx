@@ -18,8 +18,8 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => 
       sortable: true,
     },
     {
-      key: 'customerName',
-      title: 'Customer',
+      key: 'agreementId',
+      title: 'Agreement ID',
       sortable: true,
     },
     {
@@ -29,15 +29,27 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => 
     },
     {
       key: 'dateReported',
-      title: 'Date Reported',
+      title: 'Reported Date',
       sortable: true,
       render: (row) => format(row.dateReported, 'MMM d, yyyy'),
     },
     {
-      key: 'amount',
-      title: 'Amount',
+      key: 'dateIncurred',
+      title: 'Incurred Date',
       sortable: true,
-      render: (row) => `$${row.amount.toLocaleString()}`,
+      render: (row) => format(row.dateIncurred, 'MMM d, yyyy'),
+    },
+    {
+      key: 'deductible',
+      title: 'Deductible',
+      sortable: true,
+      render: (row) => `$${row.deductible.toLocaleString()}`,
+    },
+    {
+      key: 'amount',
+      title: 'Payout Amount',
+      sortable: true,
+      render: (row) => `$${(row.amount - row.deductible).toLocaleString()}`,
     },
     {
       key: 'status',
@@ -66,6 +78,39 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => 
       searchKey="id"
       rowKey={(row) => row.id}
       className={className}
+      filters={[
+        {
+          key: 'dateReported',
+          title: 'Reported Date',
+          type: 'date',
+        },
+        {
+          key: 'dealerName',
+          title: 'Dealer',
+          type: 'select',
+          options: [...new Set(claims.map(claim => claim.dealerName))].map(name => ({
+            label: name,
+            value: name,
+          })),
+        },
+        {
+          key: 'status',
+          title: 'Status',
+          type: 'select',
+          options: [
+            { label: 'Open', value: 'OPEN' },
+            { label: 'Closed', value: 'CLOSED' },
+            { label: 'Pending', value: 'PENDING' },
+          ],
+        },
+        {
+          key: 'amount',
+          title: 'Claim Amount',
+          type: 'range',
+          min: 0,
+          max: Math.max(...claims.map(claim => claim.amount)),
+        },
+      ]}
     />
   );
 };
