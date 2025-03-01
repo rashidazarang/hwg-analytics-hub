@@ -2,21 +2,68 @@
 import React from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
-import { Agreement } from '@/lib/mockData';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+// Define a proper type for Agreement based on the Supabase schema
+type Agreement = {
+  id: string;
+  AgreementID: string;
+  HolderFirstName?: string | null;
+  HolderLastName?: string | null;
+  dealerName?: string;
+  DealerUUID?: string | null;
+  EffectiveDate?: string | null;
+  ExpireDate?: string | null;
+  AgreementStatus?: string | null;
+  Total?: number | null;
+  DealerCost?: number | null;
+  ReserveAmount?: number | null;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  value?: number;
+  dealerCost?: number;
+  reserveAmount?: number;
+};
+
+// Fetch agreements from Supabase
+async function fetchAgreements(): Promise<Agreement[]> {
+  try {
+    const { data, error } = await supabase.from("agreements").select("*");
+
+    if (error) {
+      console.error("Supabase Error:", error);
+      return [];
+    }
+
+    console.log("Fetched Agreements:", data); // Debugging log
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching agreements:", error);
+    return [];
+  }
+}
 
 type AgreementsTableProps = {
-  agreements: Agreement[];
+  agreements?: Agreement[];
   className?: string;
 };
 
-const AgreementsTable: React.FC<AgreementsTableProps> = ({ agreements, className = '' }) => {
+const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => {
+  // Fetch agreements using React Query
+  const { data: agreements, isLoading, error } = useQuery({
+    queryKey: ["agreements"],
+    queryFn: fetchAgreements,
+  });
+
   const columns: Column<Agreement>[] = [
     {
       key: 'id',
       title: 'Agreement ID',
       sortable: true,
-      render: (row) => row.id || row.AgreementID || '',
+      render: (row) => row.AgreementID || '',
     },
     {
       key: 'customerName',
@@ -32,7 +79,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ agreements, className
       key: 'dealerName',
       title: 'Dealer Name',
       sortable: true,
-      render: (row) => row.dealerName || '',
+      render: (row) => row.dealerName || row.DealerUUID || '',
     },
     {
       key: 'effectiveDate',
@@ -103,9 +150,18 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ agreements, className
     },
   ];
 
+  if (isLoading) {
+    return <div className="py-10 text-center">Loading agreements...</div>;
+  }
+
+  if (error) {
+    console.error("Failed to load agreements:", error);
+    return <div className="py-10 text-center text-destructive">Error loading agreements</div>;
+  }
+
   return (
     <DataTable
-      data={agreements}
+      data={agreements || []}
       columns={columns}
       searchKey="id"
       rowKey={(row) => row.id || row.AgreementID || ''}

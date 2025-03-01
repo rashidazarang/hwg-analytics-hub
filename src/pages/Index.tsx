@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -10,7 +9,6 @@ import AgreementsTable from '@/components/tables/AgreementsTable';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
 import { Users, FileSignature, FileCheck, TrendingUp } from 'lucide-react';
 import { 
-  mockAgreements, 
   mockClaims, 
   mockDealers, 
   calculateKPIs 
@@ -21,8 +19,8 @@ const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('mtd'));
   const [activeTab, setActiveTab] = useState('agreements');
   
-  // Calculate KPIs based on the selected date range
-  const kpis = calculateKPIs(mockAgreements, mockClaims, mockDealers, dateRange);
+  // Calculate KPIs based on the selected date range - we'll keep mock data for KPIs for now
+  const kpis = calculateKPIs([], mockClaims, mockDealers, dateRange);
   
   const handleDateRangeChange = (range: DateRange) => {
     setDateRange(range);
@@ -91,7 +89,7 @@ const Index = () => {
     >
       {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <AgreementChart agreements={mockAgreements} dateRange={dateRange} />
+        <AgreementChart agreements={[]} dateRange={dateRange} />
         <ClaimChart claims={mockClaims} dateRange={dateRange} />
       </div>
       
@@ -108,7 +106,7 @@ const Index = () => {
           </div>
           
           <TabsContent value="agreements" className="mt-0">
-            <AgreementsTable agreements={mockAgreements} />
+            <AgreementsTable /> {/* Modified to fetch data from Supabase */}
           </TabsContent>
           
           <TabsContent value="claims" className="mt-0">
