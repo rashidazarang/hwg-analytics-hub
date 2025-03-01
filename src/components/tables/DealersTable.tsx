@@ -10,6 +10,9 @@ type DealersTableProps = {
 };
 
 const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) => {
+  // Add console logging to help debug
+  console.log('Dealers data:', dealers);
+  
   const columns: Column<Dealer>[] = [
     {
       key: 'DealerUUID',
@@ -25,7 +28,10 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
       key: 'location',
       title: 'Location',
       sortable: true,
-      render: (row) => `${row.City || ''}, ${row.Region || ''}${row.Country ? `, ${row.Country}` : ''}`,
+      render: (row) => {
+        const location = `${row.City || ''}, ${row.Region || ''}${row.Country ? `, ${row.Country}` : ''}`;
+        return location.replace(/^[,\s]+|[,\s]+$/g, '').length === 0 ? 'Unknown Location' : location.trim();
+      },
     },
     {
       key: 'activeAgreements',
@@ -72,6 +78,9 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
     value: location,
   }));
 
+  // Log filter options to debug
+  console.log('Location filter options:', locationOptions);
+
   return (
     <DataTable
       data={dealers}
@@ -91,14 +100,14 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
           title: 'Active Agreements',
           type: 'range',
           min: 0,
-          max: Math.max(...dealers.map(dealer => dealer.activeAgreements)),
+          max: Math.max(...dealers.map(dealer => dealer.activeAgreements || 0)),
         },
         {
           key: 'totalClaims',
           title: 'Total Claims',
           type: 'range',
           min: 0,
-          max: Math.max(...dealers.map(dealer => dealer.totalClaims)),
+          max: Math.max(...dealers.map(dealer => dealer.totalClaims || 0)),
         },
         {
           key: 'totalRevenue',
