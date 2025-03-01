@@ -128,13 +128,14 @@ export async function fetchAgreements({
 
     console.log("Fetched agreements:", data?.length || 0, "records");
 
-    const transformedData = (data || []).map(agreement => {
+    // Explicitly define the transformation to prevent infinite type instantiation
+    const transformedData: Agreement[] = (data || []).map((agreement: AgreementResponse) => {
       return {
         ...agreement,
         EffectiveDate: agreement.EffectiveDate ? new Date(agreement.EffectiveDate) : null,
         ExpireDate: agreement.ExpireDate ? new Date(agreement.ExpireDate) : null,
         StatusChangeDate: agreement.StatusChangeDate ? new Date(agreement.StatusChangeDate) : null,
-      } as Agreement;
+      };
     });
     
     return { 
@@ -192,14 +193,15 @@ export async function fetchClaims({
 
     console.log("Fetched claims:", data?.length || 0, "records");
 
-    const transformedData = (data || []).map(claim => {
+    // Explicitly define the transformation to prevent infinite type instantiation
+    const transformedData: Claim[] = (data || []).map((claim: ClaimResponse) => {
       return {
         ...claim,
         ReportedDate: claim.ReportedDate ? new Date(claim.ReportedDate) : null,
         IncurredDate: claim.IncurredDate ? new Date(claim.IncurredDate) : null,
         LastModified: claim.LastModified ? new Date(claim.LastModified) : null,
         Closed: claim.Closed ? new Date(claim.Closed) : null,
-      } as Claim;
+      };
     });
     
     return { 
