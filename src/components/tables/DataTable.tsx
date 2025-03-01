@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export type Column<T> = {
   key: string;
@@ -20,6 +21,12 @@ type DataTableProps<T> = {
   rowKey: (row: T) => string;
   onRowClick?: (row: T) => void;
   className?: string;
+  isLoading?: boolean;
+  serverSidePagination?: boolean;
+  totalCount?: number;
+  currentPage?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 };
 
 const DataTable = <T extends Record<string, any>>({
@@ -29,14 +36,24 @@ const DataTable = <T extends Record<string, any>>({
   rowKey,
   onRowClick,
   className = '',
+  isLoading = false,
+  serverSidePagination = false,
+  totalCount = 0,
+  currentPage = 1,
+  pageSize = 10,
+  onPageChange,
 }: DataTableProps<T>) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [localCurrentPage, setLocalCurrentPage] = useState(1);
+  const [localPageSize, setLocalPageSize] = useState(10);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  // Filter data based on search term
-  const filteredData = searchTerm && searchKey
+  // Use either server-side or client-side pagination
+  const activePage = serverSidePagination ? currentPage : localCurrentPage;
+  const activePageSize = serverSidePagination ? pageSize : localPageSize;
+
+  // Filter data based on search term (client-side only)
+  const filteredData = !serverSidePagination && searchTerm && searchKey
     ? data.filter(row => 
         String(row[searchKey])
           .toLowerCase()
@@ -44,8 +61,8 @@ const DataTable = <T extends Record<string, any>>({
       )
     : data;
 
-  // Sort data
-  const sortedData = sortConfig 
+  // Sort data (client-side only)
+  const sortedData = !serverSidePagination && sortConfig 
     ? [...filteredData].sort((a, b) => {
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
@@ -60,14 +77,20 @@ const DataTable = <T extends Record<string, any>>({
       })
     : filteredData;
 
-  // Paginate data
-  const totalPages = Math.ceil(sortedData.length / pageSize);
-  const paginatedData = sortedData.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  // Paginate data (client-side only)
+  const totalItems = serverSidePagination ? totalCount : sortedData.length;
+  const totalPages = Math.ceil(totalItems / activePageSize);
+  
+  const paginatedData = serverSidePagination 
+    ? sortedData // For server-side, the data is already paginated
+    : sortedData.slice(
+        (activePage - 1) * activePageSize,
+        activePage * activePageSize
+      );
 
   const handleSort = (key: string) => {
+    if (serverSidePagination) return; // No client-side sorting for server-paginated tables
+    
     setSortConfig(prev => {
       if (prev?.key === key) {
         return prev.direction === 'asc'
@@ -85,6 +108,24 @@ const DataTable = <T extends Record<string, any>>({
       : <ChevronDown className="ml-1 h-4 w-4 rotate-180 transform" />;
   };
 
+  const handlePageSizeChange = (value: string) => {
+    const newSize = Number(value);
+    setLocalPageSize(newSize);
+    setLocalCurrentPage(1); // Reset to first page when changing page size
+    
+    if (serverSidePagination && onPageChange) {
+      onPageChange(1);
+    }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (serverSidePagination && onPageChange) {
+      onPageChange(newPage);
+    } else {
+      setLocalCurrentPage(newPage);
+    }
+  };
+
   return (
     <div className={`w-full ${className}`}>
       {searchKey && (
@@ -96,16 +137,26 @@ const DataTable = <T extends Record<string, any>>({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8 w-64"
+              disabled={serverSidePagination || isLoading}
             />
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" className="h-9">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-9"
+              disabled={isLoading}
+            >
               <Filter className="mr-2 h-4 w-4" />
               Filter
             </Button>
             
-            <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
+            <Select 
+              value={activePageSize.toString()} 
+              onValueChange={handlePageSizeChange}
+              disabled={isLoading}
+            >
               <SelectTrigger className="w-[110px] h-9">
                 <SelectValue placeholder="10 per page" />
               </SelectTrigger>
@@ -128,19 +179,30 @@ const DataTable = <T extends Record<string, any>>({
                 {columns.map((column) => (
                   <TableHead 
                     key={column.key}
-                    className={column.sortable ? 'cursor-pointer' : ''}
+                    className={column.sortable && !serverSidePagination ? 'cursor-pointer' : ''}
                     onClick={() => column.sortable && handleSort(column.key)}
                   >
                     <div className="flex items-center">
                       {column.title}
-                      {column.sortable && getSortIcon(column.key)}
+                      {column.sortable && !serverSidePagination && getSortIcon(column.key)}
                     </div>
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedData.length === 0 ? (
+              {isLoading ? (
+                // Loading state
+                Array.from({ length: activePageSize }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    {columns.map((column, colIndex) => (
+                      <TableCell key={`skeleton-${index}-${colIndex}`}>
+                        <Skeleton className="h-6 w-full" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="text-center h-32 text-muted-foreground">
                     No results found
@@ -169,44 +231,44 @@ const DataTable = <T extends Record<string, any>>({
       {totalPages > 1 && (
         <div className="flex justify-between items-center mt-4">
           <div className="text-sm text-muted-foreground">
-            Showing {Math.min(pageSize * (currentPage - 1) + 1, sortedData.length)} to {Math.min(pageSize * currentPage, sortedData.length)} of {sortedData.length} entries
+            Showing {Math.min(activePageSize * (activePage - 1) + 1, totalItems)} to {Math.min(activePageSize * activePage, totalItems)} of {totalItems} entries
           </div>
           
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
+              onClick={() => handlePageChange(1)}
+              disabled={activePage === 1 || isLoading}
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              onClick={() => handlePageChange(Math.max(activePage - 1, 1))}
+              disabled={activePage === 1 || isLoading}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             
             <div className="text-sm">
-              Page {currentPage} of {totalPages}
+              Page {activePage} of {totalPages}
             </div>
             
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(Math.min(activePage + 1, totalPages))}
+              disabled={activePage === totalPages || isLoading}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(totalPages)}
+              disabled={activePage === totalPages || isLoading}
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

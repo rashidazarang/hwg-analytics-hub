@@ -7,9 +7,14 @@ import { Progress } from '@/components/ui/progress';
 type DealersTableProps = {
   dealers: Dealer[];
   className?: string;
+  isLoading?: boolean;
 };
 
-const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) => {
+const DealersTable: React.FC<DealersTableProps> = ({ 
+  dealers, 
+  className = '',
+  isLoading = false
+}) => {
   const columns: Column<Dealer>[] = [
     {
       key: 'id',
@@ -41,11 +46,13 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
       key: 'activeAgreements',
       title: 'Active Agreements',
       sortable: true,
+      render: (row) => row.activeAgreements || 0,
     },
     {
       key: 'totalClaims',
       title: 'Total Claims',
       sortable: true,
+      render: (row) => row.totalClaims || 0,
     },
     {
       key: 'totalRevenue',
@@ -71,8 +78,8 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
       sortable: true,
       render: (row) => (
         <div className="w-full flex items-center gap-2">
-          <Progress value={row.performanceScore} className="h-2" />
-          <span className="text-sm">{row.performanceScore}%</span>
+          <Progress value={row.performanceScore || 0} className="h-2" />
+          <span className="text-sm">{row.performanceScore || 0}%</span>
         </div>
       ),
     },
@@ -85,6 +92,7 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
       searchKey="name"
       rowKey={(row) => row.id || row.DealerUUID || ''}
       className={className}
+      isLoading={isLoading}
     />
   );
 };

@@ -8,9 +8,22 @@ import { Badge } from '@/components/ui/badge';
 type AgreementsTableProps = {
   agreements: Agreement[];
   className?: string;
+  isLoading?: boolean;
+  totalCount?: number;
+  currentPage?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 };
 
-const AgreementsTable: React.FC<AgreementsTableProps> = ({ agreements, className = '' }) => {
+const AgreementsTable: React.FC<AgreementsTableProps> = ({ 
+  agreements, 
+  className = '',
+  isLoading = false,
+  totalCount = 0,
+  currentPage = 1,
+  pageSize = 10,
+  onPageChange
+}) => {
   const columns: Column<Agreement>[] = [
     {
       key: 'id',
@@ -110,6 +123,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ agreements, className
       searchKey="id"
       rowKey={(row) => row.id || row.AgreementID || ''}
       className={className}
+      isLoading={isLoading}
+      totalCount={totalCount}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      onPageChange={onPageChange}
+      serverSidePagination={!!onPageChange}
     />
   );
 };

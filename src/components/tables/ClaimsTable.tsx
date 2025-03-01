@@ -8,9 +8,22 @@ import { Badge } from '@/components/ui/badge';
 type ClaimsTableProps = {
   claims: Claim[];
   className?: string;
+  isLoading?: boolean;
+  totalCount?: number;
+  currentPage?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 };
 
-const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => {
+const ClaimsTable: React.FC<ClaimsTableProps> = ({ 
+  claims, 
+  className = '',
+  isLoading = false,
+  totalCount = 0,
+  currentPage = 1,
+  pageSize = 10,
+  onPageChange
+}) => {
   const columns: Column<Claim>[] = [
     {
       key: 'id',
@@ -91,6 +104,12 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => 
       searchKey="id"
       rowKey={(row) => row.id || row.ClaimID || ''}
       className={className}
+      isLoading={isLoading}
+      totalCount={totalCount}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      onPageChange={onPageChange}
+      serverSidePagination={!!onPageChange}
     />
   );
 };
