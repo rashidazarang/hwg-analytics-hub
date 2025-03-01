@@ -12,20 +12,19 @@ type DealersTableProps = {
 const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) => {
   const columns: Column<Dealer>[] = [
     {
-      key: 'DealerUUID',
+      key: 'id',
       title: 'Dealer ID',
       sortable: true,
     },
     {
-      key: 'Payee',
-      title: 'Dealer Name',
+      key: 'name',
+      title: 'Name',
       sortable: true,
     },
     {
       key: 'location',
       title: 'Location',
       sortable: true,
-      render: (row) => `${row.City || ''}, ${row.Region || ''}${row.Country ? `, ${row.Country}` : ''}`,
     },
     {
       key: 'activeAgreements',
@@ -66,17 +65,15 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
     <DataTable
       data={dealers}
       columns={columns}
-      searchKey="Payee"
-      rowKey={(row) => row.DealerUUID}
+      searchKey="name"
+      rowKey={(row) => row.id}
       className={className}
       filters={[
         {
           key: 'location',
           title: 'Location',
           type: 'select',
-          options: [...new Set(dealers.map(dealer => 
-            `${dealer.City || ''}, ${dealer.Region || ''}${dealer.Country ? `, ${dealer.Country}` : ''}`
-          ))].map(location => ({
+          options: [...new Set(dealers.map(dealer => dealer.location))].map(location => ({
             label: location,
             value: location,
           })),
