@@ -1,18 +1,8 @@
-# Welcome to your Lovable project
-
-## Project info
-
-**URL**: https://lovable.dev/projects/23d7ef60-0626-4207-aa44-ee532238be60
+# Welcome to Claims Analytics Hub
 
 ## How can I edit this code?
 
 There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/23d7ef60-0626-4207-aa44-ee532238be60) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
@@ -59,10 +49,6 @@ This project is built with .
 - React
 - shadcn-ui
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/23d7ef60-0626-4207-aa44-ee532238be60) and click on Share -> Publish.
 
 ## I want to use a custom domain - is that possible?
 
