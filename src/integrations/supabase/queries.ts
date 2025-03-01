@@ -78,22 +78,6 @@ export type QueryResult<T> = {
   count: number | null;
 };
 
-// Utility function to convert date strings to Date objects
-const convertDateStringsToDate = <T extends Record<string, any>, K extends keyof T>(
-  obj: T,
-  dateFields: K[]
-): T => {
-  const result = { ...obj };
-  for (const field of dateFields) {
-    if (result[field] && typeof result[field] === 'string') {
-      result[field] = new Date(result[field] as string) as any;
-    } else {
-      result[field] = null as any;
-    }
-  }
-  return result;
-};
-
 // Fetch Agreements with filtering
 export async function fetchAgreements({
   dateRange,
@@ -144,8 +128,6 @@ export async function fetchAgreements({
 
     console.log("Fetched agreements:", data?.length || 0, "records");
 
-    const dateFields = ['EffectiveDate', 'ExpireDate', 'StatusChangeDate'];
-    
     const transformedData = (data || []).map(agreement => {
       return {
         ...agreement,
