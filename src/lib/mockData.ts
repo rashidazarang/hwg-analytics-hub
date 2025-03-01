@@ -1,47 +1,103 @@
-
 // Mock data for development purposes
 // This will be replaced with real Supabase data
 
 export type AgreementStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PENDING' | 'TERMINATED';
 
 export interface Agreement {
-  id: string;
-  dealerId: string;
-  dealerName: string;
-  customerId: string;
-  customerName: string;
-  startDate: Date;
-  endDate: Date;
-  status: AgreementStatus;
-  value: number;
-  createdAt: Date;
-  updatedAt: Date;
+  // Original mock data fields
+  id?: string;
+  dealerId?: string;
+  dealerName?: string;
+  customerId?: string;
+  customerName?: string;
+  startDate?: Date;
+  endDate?: Date;
+  status?: AgreementStatus;
+  value?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+  dealerCost?: number;
+  reserveAmount?: number;
+  
+  // Supabase schema fields
+  AgreementID?: string;
+  DealerUUID?: string;
+  HolderFirstName?: string;
+  HolderLastName?: string;
+  HolderEmail?: string;
+  EffectiveDate?: Date;
+  ExpireDate?: Date;
+  AgreementStatus?: string;
+  Total?: number;
+  DealerCost?: number;
+  ReserveAmount?: number;
+  DocumentURL?: string;
+  IsActive?: boolean;
 }
 
 export interface Claim {
-  id: string;
-  agreementId: string;
-  customerId: string;
-  customerName: string;
-  dealerId: string;
-  dealerName: string;
-  dateReported: Date;
-  dateIncurred: Date;
-  amount: number;
-  status: 'OPEN' | 'CLOSED' | 'PENDING';
-  description: string;
-  createdAt: Date;
-  updatedAt: Date;
+  // Original mock data fields
+  id?: string;
+  agreementId?: string;
+  customerId?: string;
+  customerName?: string;
+  dealerId?: string;
+  dealerName?: string;
+  dateReported?: Date;
+  dateIncurred?: Date;
+  amount?: number;
+  status?: 'OPEN' | 'CLOSED' | 'PENDING';
+  description?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  deductible?: number;
+  
+  // Supabase schema fields
+  ClaimID?: string;
+  AgreementID?: string;
+  ReportedDate?: Date;
+  IncurredDate?: Date;
+  LastModified?: Date;
+  Complaint?: string;
+  Cause?: string;
+  Correction?: string;
+  Deductible?: number;
+  CauseID?: string;
+  CorrectionID?: string;
+  ComplaintID?: string;
 }
 
 export interface Dealer {
-  id: string;
-  name: string;
-  location: string;
-  activeAgreements: number;
-  totalClaims: number;
-  performanceScore: number;
-  createdAt: Date;
+  // Original mock data fields
+  id?: string;
+  name?: string;
+  location?: string;
+  activeAgreements?: number;
+  totalClaims?: number;
+  performanceScore?: number;
+  createdAt?: Date;
+  totalRevenue?: number;
+  totalPayouts?: number;
+  city?: string;
+  region?: string;
+  country?: string;
+  
+  // Supabase schema fields
+  DealerUUID?: string;
+  Payee?: string;
+  PayeeID?: string;
+  City?: string;
+  Region?: string;
+  Country?: string;
+  Address?: string;
+  PostalCode?: string;
+  Contact?: string;
+  Phone?: string;
+  Fax?: string;
+  EMail?: string;
+  PayeeType?: string;
+  Total?: number;
+  TotalPayouts?: number;
 }
 
 // Generate random date within a range
@@ -69,7 +125,9 @@ export const generateMockAgreements = (count: number): Agreement[] => {
       status: statuses[Math.floor(Math.random() * statuses.length)],
       value: Math.floor(Math.random() * 10000) + 1000,
       createdAt: startDate,
-      updatedAt: randomDate(startDate, new Date())
+      updatedAt: randomDate(startDate, new Date()),
+      dealerCost: Math.floor(Math.random() * 1000) + 100,
+      reserveAmount: Math.floor(Math.random() * 500) + 50
     });
   }
   
@@ -99,7 +157,8 @@ export const generateMockClaims = (count: number, agreements: Agreement[]): Clai
       status: statuses[Math.floor(Math.random() * statuses.length)],
       description: `Claim for ${['repair', 'replacement', 'maintenance', 'damage', 'malfunction'][Math.floor(Math.random() * 5)]}`,
       createdAt: dateReported,
-      updatedAt: randomDate(dateReported, new Date())
+      updatedAt: randomDate(dateReported, new Date()),
+      deductible: Math.floor(Math.random() * 100) + 10
     });
   }
   
@@ -118,7 +177,21 @@ export const generateMockDealers = (count: number): Dealer[] => {
       activeAgreements: Math.floor(Math.random() * 100) + 10,
       totalClaims: Math.floor(Math.random() * 50) + 5,
       performanceScore: Math.floor(Math.random() * 100),
-      createdAt: randomDate(new Date(2018, 0, 1), new Date(2020, 0, 1))
+      createdAt: randomDate(new Date(2018, 0, 1), new Date(2020, 0, 1)),
+      totalRevenue: Math.floor(Math.random() * 100000) + 10000,
+      totalPayouts: Math.floor(Math.random() * 50000) + 5000,
+      city: `City ${i + 1}`,
+      region: `Region ${i + 1}`,
+      country: `Country ${i + 1}`,
+      Address: `Address ${i + 1}`,
+      PostalCode: `Postal Code ${i + 1}`,
+      Contact: `Contact ${i + 1}`,
+      Phone: `Phone ${i + 1}`,
+      Fax: `Fax ${i + 1}`,
+      EMail: `Email ${i + 1}`,
+      PayeeType: `Payee Type ${i + 1}`,
+      Total: Math.floor(Math.random() * 100000) + 10000,
+      TotalPayouts: Math.floor(Math.random() * 50000) + 5000
     });
   }
   

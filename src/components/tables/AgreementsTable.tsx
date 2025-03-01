@@ -16,38 +16,48 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ agreements, className
       key: 'id',
       title: 'Agreement ID',
       sortable: true,
-      render: (row) => row.id,
+      render: (row) => row.id || row.AgreementID || '',
     },
     {
       key: 'customerName',
       title: 'Customer Name',
       sortable: true,
-      render: (row) => `${row.customerName || (row.holderFirstName && row.holderLastName ? `${row.holderFirstName} ${row.holderLastName}` : 'N/A')}`,
+      render: (row) => {
+        const firstName = row.HolderFirstName || '';
+        const lastName = row.HolderLastName || '';
+        return firstName || lastName ? `${firstName} ${lastName}`.trim() : 'N/A';
+      },
     },
     {
       key: 'dealerName',
       title: 'Dealer Name',
       sortable: true,
-      render: (row) => row.dealerName,
+      render: (row) => row.dealerName || '',
     },
     {
-      key: 'startDate',
+      key: 'effectiveDate',
       title: 'Effective Date',
       sortable: true,
-      render: (row) => format(row.startDate || row.effectiveDate || new Date(), 'MMM d, yyyy'),
+      render: (row) => {
+        const date = row.EffectiveDate || row.startDate;
+        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
+      },
     },
     {
-      key: 'endDate',
+      key: 'expireDate',
       title: 'Expire Date',
       sortable: true,
-      render: (row) => format(row.endDate || row.expireDate || new Date(), 'MMM d, yyyy'),
+      render: (row) => {
+        const date = row.ExpireDate || row.endDate;
+        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
+      },
     },
     {
       key: 'status',
       title: 'Status',
       sortable: true,
       render: (row) => {
-        const status = row.status || row.agreementStatus || 'UNKNOWN';
+        const status = row.AgreementStatus || row.status || 'UNKNOWN';
         const variants = {
           ACTIVE: 'bg-success/15 text-success border-success/20',
           EXPIRED: 'bg-muted/30 text-muted-foreground border-muted/40',
@@ -68,19 +78,28 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ agreements, className
       key: 'value',
       title: 'Total Value',
       sortable: true,
-      render: (row) => `$${(row.value || row.total || 0).toLocaleString()}`,
+      render: (row) => {
+        const value = row.Total || row.value || 0;
+        return `$${(value).toLocaleString()}`;
+      },
     },
     {
       key: 'dealerCost',
       title: 'Dealer Cost',
       sortable: true,
-      render: (row) => `$${(row.dealerCost || 0).toLocaleString()}`,
+      render: (row) => {
+        const cost = row.DealerCost || row.dealerCost || 0;
+        return `$${(cost).toLocaleString()}`;
+      },
     },
     {
       key: 'reserveAmount',
       title: 'Reserve Amount',
       sortable: true,
-      render: (row) => `$${(row.reserveAmount || 0).toLocaleString()}`,
+      render: (row) => {
+        const reserve = row.ReserveAmount || row.reserveAmount || 0;
+        return `$${(reserve).toLocaleString()}`;
+      },
     },
   ];
 
@@ -89,7 +108,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ agreements, className
       data={agreements}
       columns={columns}
       searchKey="id"
-      rowKey={(row) => row.id}
+      rowKey={(row) => row.id || row.AgreementID || ''}
       className={className}
     />
   );

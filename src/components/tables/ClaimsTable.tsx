@@ -16,13 +16,13 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => 
       key: 'id',
       title: 'Claim ID',
       sortable: true,
-      render: (row) => row.id || row.claimID || '',
+      render: (row) => row.id || row.ClaimID || '',
     },
     {
       key: 'agreementId',
       title: 'Agreement ID',
       sortable: true,
-      render: (row) => row.agreementId || row.agreementID || '',
+      render: (row) => row.agreementId || row.AgreementID || '',
     },
     {
       key: 'dealerName',
@@ -33,19 +33,28 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => 
       key: 'dateReported',
       title: 'Date Reported',
       sortable: true,
-      render: (row) => format(row.dateReported || row.reportedDate || new Date(), 'MMM d, yyyy'),
+      render: (row) => {
+        const date = row.ReportedDate || row.dateReported;
+        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
+      },
     },
     {
       key: 'dateIncurred',
       title: 'Date Incurred',
       sortable: true,
-      render: (row) => format(row.dateIncurred || row.incurredDate || new Date(), 'MMM d, yyyy'),
+      render: (row) => {
+        const date = row.IncurredDate || row.dateIncurred;
+        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
+      },
     },
     {
       key: 'deductible',
       title: 'Deductible',
       sortable: true,
-      render: (row) => `$${(row.deductible || 0).toLocaleString()}`,
+      render: (row) => {
+        const deductible = row.Deductible || row.deductible || 0;
+        return `$${(deductible).toLocaleString()}`;
+      },
     },
     {
       key: 'amount',
@@ -80,7 +89,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => 
       data={claims}
       columns={columns}
       searchKey="id"
-      rowKey={(row) => row.id || row.claimID || ''}
+      rowKey={(row) => row.id || row.ClaimID || ''}
       className={className}
     />
   );
