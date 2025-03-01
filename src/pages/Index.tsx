@@ -6,6 +6,7 @@ import AgreementChart from '@/components/charts/AgreementChart';
 import ClaimChart from '@/components/charts/ClaimChart';
 import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealersTable from '@/components/tables/DealersTable';
+import AgreementsTable from '@/components/tables/AgreementsTable';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
 import { Users, FileSignature, FileCheck, TrendingUp } from 'lucide-react';
 import { 
@@ -14,9 +15,11 @@ import {
   mockDealers, 
   calculateKPIs 
 } from '@/lib/mockData';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('mtd'));
+  const [activeTab, setActiveTab] = useState('agreements');
   
   // Calculate KPIs based on the selected date range
   const kpis = calculateKPIs(mockAgreements, mockClaims, mockDealers, dateRange);
@@ -92,17 +95,30 @@ const Index = () => {
         <ClaimChart claims={mockClaims} dateRange={dateRange} />
       </div>
       
-      {/* Tables section */}
-      <div className="space-y-8">
-        <section>
-          <h2 className="section-title mb-4">Claims Records</h2>
-          <ClaimsTable claims={mockClaims} />
-        </section>
-        
-        <section>
-          <h2 className="section-title mb-4">Dealer Performance</h2>
-          <DealersTable dealers={mockDealers} />
-        </section>
+      {/* Tables section with tabs */}
+      <div className="space-y-6">
+        <Tabs defaultValue="agreements" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="section-title">Records & Performance</h2>
+            <TabsList>
+              <TabsTrigger value="agreements">Agreements</TabsTrigger>
+              <TabsTrigger value="claims">Claims</TabsTrigger>
+              <TabsTrigger value="dealers">Dealers</TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <TabsContent value="agreements" className="mt-0">
+            <AgreementsTable agreements={mockAgreements} />
+          </TabsContent>
+          
+          <TabsContent value="claims" className="mt-0">
+            <ClaimsTable claims={mockClaims} />
+          </TabsContent>
+          
+          <TabsContent value="dealers" className="mt-0">
+            <DealersTable dealers={mockDealers} />
+          </TabsContent>
+        </Tabs>
       </div>
     </Dashboard>
   );
