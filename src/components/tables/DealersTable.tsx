@@ -62,6 +62,16 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
     },
   ];
 
+  // Generate location options, ensuring no empty values
+  const locationOptions = [...new Set(dealers.map(dealer => {
+    const location = `${dealer.City || ''}, ${dealer.Region || ''}${dealer.Country ? `, ${dealer.Country}` : ''}`;
+    // Return a default value if location is empty or just commas
+    return location.replace(/^[,\s]+|[,\s]+$/g, '').length === 0 ? 'Unknown Location' : location.trim();
+  }))].map(location => ({
+    label: location,
+    value: location,
+  }));
+
   return (
     <DataTable
       data={dealers}
@@ -74,12 +84,7 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
           key: 'location',
           title: 'Location',
           type: 'select',
-          options: [...new Set(dealers.map(dealer => 
-            `${dealer.City || ''}, ${dealer.Region || ''}${dealer.Country ? `, ${dealer.Country}` : ''}`
-          ))].map(location => ({
-            label: location,
-            value: location,
-          })),
+          options: locationOptions,
         },
         {
           key: 'activeAgreements',
