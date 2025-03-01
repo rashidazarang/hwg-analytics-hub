@@ -2,7 +2,7 @@
 import { supabase } from "./client";
 import { DateRange } from "@/lib/dateUtils";
 
-// Type definitions to ensure proper typing
+// Clear and explicit type definitions to prevent infinite recursion
 export type AgreementResponse = {
   AgreementID: string;
   AgreementNumber: string | null;
@@ -91,7 +91,7 @@ export async function fetchAgreements({
   dealerId?: string;
   page?: number;
   pageSize?: number;
-}): Promise<QueryResult<Agreement>> {
+} = {}): Promise<QueryResult<Agreement>> {
   try {
     let query = supabase.from("agreements").select("*", { count: "exact" });
 
@@ -160,7 +160,7 @@ export async function fetchClaims({
   dealerId?: string;
   page?: number;
   pageSize?: number;
-}): Promise<QueryResult<Claim>> {
+} = {}): Promise<QueryResult<Claim>> {
   try {
     let query = supabase.from("claims").select("*", { count: "exact" });
 
