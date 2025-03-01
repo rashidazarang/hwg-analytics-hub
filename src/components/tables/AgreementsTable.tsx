@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,19 @@ type Agreement = {
   reserveAmount?: number;
 };
 
+// Define dealer data type
+type Dealer = {
+  DealerUUID: string;
+  PayeeID: string;
+  Payee?: string | null;
+};
+
+// Helper function to format a name to title case
+const formatName = (name?: string | null): string => {
+  if (!name) return '';
+  return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 // Fetch agreements from Supabase
 async function fetchAgreements(): Promise<Agreement[]> {
   try {
@@ -46,6 +59,24 @@ async function fetchAgreements(): Promise<Agreement[]> {
   }
 }
 
+// Fetch dealers from Supabase
+async function fetchDealers(): Promise<Dealer[]> {
+  try {
+    const { data, error } = await supabase.from("dealers").select("*");
+
+    if (error) {
+      console.error("Supabase Error fetching dealers:", error);
+      return [];
+    }
+
+    console.log("Fetched Dealers:", data); // Debugging log
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching dealers:", error);
+    return [];
+  }
+}
+
 type AgreementsTableProps = {
   agreements?: Agreement[];
   className?: string;
@@ -53,10 +84,28 @@ type AgreementsTableProps = {
 
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => {
   // Fetch agreements using React Query
-  const { data: agreements, isLoading, error } = useQuery({
+  const { data: agreements, isLoading: isLoadingAgreements, error: agreementsError } = useQuery({
     queryKey: ["agreements"],
     queryFn: fetchAgreements,
   });
+
+  // Fetch dealers using React Query
+  const { data: dealers, isLoading: isLoadingDealers } = useQuery({
+    queryKey: ["dealers"],
+    queryFn: fetchDealers,
+  });
+
+  // Create a lookup map for dealers by UUID
+  const dealerMap = useMemo(() => {
+    if (!dealers) return {};
+    
+    return dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
+      if (dealer.DealerUUID) {
+        acc[dealer.DealerUUID] = dealer;
+      }
+      return acc;
+    }, {});
+  }, [dealers]);
 
   const columns: Column<Agreement>[] = [
     {
@@ -70,8 +119,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => 
       title: 'Customer Name',
       sortable: true,
       render: (row) => {
-        const firstName = row.HolderFirstName || '';
-        const lastName = row.HolderLastName || '';
+        const firstName = formatName(row.HolderFirstName);
+        const lastName = formatName(row.HolderLastName);
         return firstName || lastName ? `${firstName} ${lastName}`.trim() : 'N/A';
       },
     },
@@ -79,7 +128,23 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => 
       key: 'dealerName',
       title: 'Dealer Name',
       sortable: true,
-      render: (row) => row.dealerName || row.DealerUUID || '',
+      render: (row) => {
+        if (row.DealerUUID && dealerMap[row.DealerUUID]) {
+          return dealerMap[row.DealerUUID].Payee || 'Unknown';
+        }
+        return row.dealerName || 'Unknown';
+      },
+    },
+    {
+      key: 'dealerId',
+      title: 'Dealer ID',
+      sortable: true,
+      render: (row) => {
+        if (row.DealerUUID && dealerMap[row.DealerUUID]) {
+          return dealerMap[row.DealerUUID].PayeeID || 'Unknown';
+        }
+        return 'N/A';
+      },
     },
     {
       key: 'effectiveDate',
@@ -150,12 +215,14 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '' }) => 
     },
   ];
 
+  const isLoading = isLoadingAgreements || isLoadingDealers;
+
   if (isLoading) {
-    return <div className="py-10 text-center">Loading agreements...</div>;
+    return <div className="py-10 text-center">Loading agreements and dealer data...</div>;
   }
 
-  if (error) {
-    console.error("Failed to load agreements:", error);
+  if (agreementsError) {
+    console.error("Failed to load agreements:", agreementsError);
     return <div className="py-10 text-center text-destructive">Error loading agreements</div>;
   }
 
