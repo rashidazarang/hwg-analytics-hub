@@ -79,18 +79,18 @@ export type QueryResult<T> = {
 };
 
 // Utility function to convert date strings to Date objects
-const convertDateStringsToDate = <T extends object, K extends keyof T>(
+const convertDateStringsToDate = <T extends Record<string, any>, K extends keyof T>(
   obj: T,
   dateFields: K[]
 ): T => {
   const result = { ...obj };
-  dateFields.forEach(field => {
+  for (const field of dateFields) {
     if (result[field] && typeof result[field] === 'string') {
       result[field] = new Date(result[field] as string) as any;
     } else {
       result[field] = null as any;
     }
-  });
+  }
   return result;
 };
 
@@ -108,47 +108,61 @@ export async function fetchAgreements({
   page?: number;
   pageSize?: number;
 }): Promise<QueryResult<Agreement>> {
-  let query = supabase.from("agreements").select("*", { count: "exact" });
+  try {
+    let query = supabase.from("agreements").select("*", { count: "exact" });
 
-  // Apply date range filter if provided
-  if (dateRange?.from && dateRange?.to) {
-    query = query
-      .gte("EffectiveDate", dateRange.from.toISOString())
-      .lte("EffectiveDate", dateRange.to.toISOString());
+    // Apply date range filter if provided
+    if (dateRange?.from && dateRange?.to) {
+      query = query
+        .gte("EffectiveDate", dateRange.from.toISOString())
+        .lte("EffectiveDate", dateRange.to.toISOString());
+    }
+
+    // Apply status filter if provided
+    if (status) {
+      query = query.eq("AgreementStatus", status);
+    }
+
+    // Apply dealer filter if provided
+    if (dealerId) {
+      query = query.eq("DealerUUID", dealerId);
+    }
+
+    // Calculate pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Apply pagination
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error("Error fetching agreements:", error);
+      throw error;
+    }
+
+    console.log("Fetched agreements:", data?.length || 0, "records");
+
+    const dateFields = ['EffectiveDate', 'ExpireDate', 'StatusChangeDate'];
+    
+    const transformedData = (data || []).map(agreement => {
+      return {
+        ...agreement,
+        EffectiveDate: agreement.EffectiveDate ? new Date(agreement.EffectiveDate) : null,
+        ExpireDate: agreement.ExpireDate ? new Date(agreement.ExpireDate) : null,
+        StatusChangeDate: agreement.StatusChangeDate ? new Date(agreement.StatusChangeDate) : null,
+      } as Agreement;
+    });
+    
+    return { 
+      data: transformedData, 
+      count 
+    };
+  } catch (err) {
+    console.error("Failed to fetch agreements:", err);
+    return { data: [], count: 0 };
   }
-
-  // Apply status filter if provided
-  if (status) {
-    query = query.eq("AgreementStatus", status);
-  }
-
-  // Apply dealer filter if provided
-  if (dealerId) {
-    query = query.eq("DealerUUID", dealerId);
-  }
-
-  // Calculate pagination
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  // Apply pagination
-  query = query.range(from, to);
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error("Error fetching agreements:", error);
-    throw error;
-  }
-
-  const dateFields: (keyof AgreementResponse)[] = ['EffectiveDate', 'ExpireDate', 'StatusChangeDate'];
-  
-  return { 
-    data: data.map(agreement => 
-      convertDateStringsToDate(agreement, dateFields) as unknown as Agreement
-    ), 
-    count 
-  };
 }
 
 // Fetch Claims with filtering
@@ -165,42 +179,55 @@ export async function fetchClaims({
   page?: number;
   pageSize?: number;
 }): Promise<QueryResult<Claim>> {
-  let query = supabase.from("claims").select("*", { count: "exact" });
+  try {
+    let query = supabase.from("claims").select("*", { count: "exact" });
 
-  // Apply date range filter if provided
-  if (dateRange?.from && dateRange?.to) {
-    query = query
-      .gte("ReportedDate", dateRange.from.toISOString())
-      .lte("ReportedDate", dateRange.to.toISOString());
+    // Apply date range filter if provided
+    if (dateRange?.from && dateRange?.to) {
+      query = query
+        .gte("ReportedDate", dateRange.from.toISOString())
+        .lte("ReportedDate", dateRange.to.toISOString());
+    }
+
+    // Apply status filter if provided
+    if (status) {
+      query = query.eq("Status", status);
+    }
+
+    // Calculate pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Apply pagination
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error("Error fetching claims:", error);
+      throw error;
+    }
+
+    console.log("Fetched claims:", data?.length || 0, "records");
+
+    const transformedData = (data || []).map(claim => {
+      return {
+        ...claim,
+        ReportedDate: claim.ReportedDate ? new Date(claim.ReportedDate) : null,
+        IncurredDate: claim.IncurredDate ? new Date(claim.IncurredDate) : null,
+        LastModified: claim.LastModified ? new Date(claim.LastModified) : null,
+        Closed: claim.Closed ? new Date(claim.Closed) : null,
+      } as Claim;
+    });
+    
+    return { 
+      data: transformedData, 
+      count 
+    };
+  } catch (err) {
+    console.error("Failed to fetch claims:", err);
+    return { data: [], count: 0 };
   }
-
-  // Apply status filter if provided
-  if (status) {
-    query = query.eq("Status", status);
-  }
-
-  // Calculate pagination
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  // Apply pagination
-  query = query.range(from, to);
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error("Error fetching claims:", error);
-    throw error;
-  }
-
-  const dateFields: (keyof ClaimResponse)[] = ['ReportedDate', 'IncurredDate', 'LastModified', 'Closed'];
-  
-  return { 
-    data: data.map(claim => 
-      convertDateStringsToDate(claim, dateFields) as unknown as Claim
-    ), 
-    count 
-  };
 }
 
 // Fetch Dealers
@@ -213,72 +240,89 @@ export async function fetchDealers({
   page?: number;
   pageSize?: number;
 } = {}): Promise<QueryResult<Dealer>> {
-  let query = supabase.from("dealers").select("*", { count: "exact" });
+  try {
+    let query = supabase.from("dealers").select("*", { count: "exact" });
 
-  // Apply location filter if provided
-  if (location) {
-    query = query.or(`City.ilike.%${location}%,Region.ilike.%${location}%,Country.ilike.%${location}%`);
+    // Apply location filter if provided
+    if (location) {
+      query = query.or(`City.ilike.%${location}%,Region.ilike.%${location}%,Country.ilike.%${location}%`);
+    }
+
+    // Calculate pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Apply pagination
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error("Error fetching dealers:", error);
+      throw error;
+    }
+
+    console.log("Fetched dealers:", data?.length || 0, "records");
+
+    return { data: data || [], count };
+  } catch (err) {
+    console.error("Failed to fetch dealers:", err);
+    return { data: [], count: 0 };
   }
-
-  // Calculate pagination
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  // Apply pagination
-  query = query.range(from, to);
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error("Error fetching dealers:", error);
-    throw error;
-  }
-
-  return { data, count };
 }
 
 // Fetch aggregated dealer metrics
 export async function fetchDealerMetrics(dealerId: string) {
-  // Get active agreements count
-  const { data: activeAgreements, error: agreementError } = await supabase
-    .from("agreements")
-    .select("id")
-    .eq("DealerUUID", dealerId)
-    .eq("AgreementStatus", "ACTIVE");
+  try {
+    // Get active agreements count
+    const { data: activeAgreements, error: agreementError } = await supabase
+      .from("agreements")
+      .select("id")
+      .eq("DealerUUID", dealerId)
+      .eq("AgreementStatus", "ACTIVE");
 
-  // Get total claims count
-  const { data: totalClaims, error: claimsError } = await supabase
-    .from("claims")
-    .select("id, Deductible")
-    .eq("DealerUUID", dealerId);
+    // Get total claims count
+    const { data: totalClaims, error: claimsError } = await supabase
+      .from("claims")
+      .select("id, Deductible")
+      .eq("DealerUUID", dealerId);
 
-  // Get total revenue
-  const { data: totalRevenue, error: revenueError } = await supabase
-    .from("agreements")
-    .select("Total")
-    .eq("DealerUUID", dealerId);
+    // Get total revenue
+    const { data: totalRevenue, error: revenueError } = await supabase
+      .from("agreements")
+      .select("Total")
+      .eq("DealerUUID", dealerId);
 
-  if (agreementError || claimsError || revenueError) {
-    console.error("Error fetching dealer metrics:", agreementError || claimsError || revenueError);
-    throw agreementError || claimsError || revenueError;
+    if (agreementError || claimsError || revenueError) {
+      console.error("Error fetching dealer metrics:", agreementError || claimsError || revenueError);
+      throw agreementError || claimsError || revenueError;
+    }
+
+    // Calculate metrics
+    const activeAgreementsCount = activeAgreements?.length || 0;
+    const totalClaimsCount = totalClaims?.length || 0;
+    
+    // Sum up total revenue
+    const revenue = totalRevenue?.reduce((sum: number, agreement: any) => sum + (agreement.Total || 0), 0) || 0;
+    
+    // Sum up total payouts (assume a payout amount in claims)
+    const payouts = totalClaims?.reduce((sum: number, claim: any) => sum + (claim.Deductible || 0), 0) || 0;
+
+    return {
+      activeAgreements: activeAgreementsCount,
+      totalClaims: totalClaimsCount,
+      totalRevenue: revenue,
+      totalPayouts: payouts
+    };
+  } catch (err) {
+    console.error("Failed to fetch dealer metrics:", err);
+    return {
+      activeAgreements: 0,
+      totalClaims: 0,
+      totalRevenue: 0,
+      totalPayouts: 0
+    };
   }
-
-  // Calculate metrics
-  const activeAgreementsCount = activeAgreements?.length || 0;
-  const totalClaimsCount = totalClaims?.length || 0;
-  
-  // Sum up total revenue
-  const revenue = totalRevenue?.reduce((sum: number, agreement: any) => sum + (agreement.Total || 0), 0) || 0;
-  
-  // Sum up total payouts (assume a payout amount in claims)
-  const payouts = totalClaims?.reduce((sum: number, claim: any) => sum + (claim.Deductible || 0), 0) || 0;
-
-  return {
-    activeAgreements: activeAgreementsCount,
-    totalClaims: totalClaimsCount,
-    totalRevenue: revenue,
-    totalPayouts: payouts
-  };
 }
 
 // Calculate KPIs based on data
@@ -316,6 +360,8 @@ export async function fetchDashboardKPIs(dateRange?: DateRange) {
       throw activeAgreementsError || totalAgreementsError || openClaimsError || claimsError || dealersError;
     }
 
+    console.log("Fetched KPI data successfully");
+
     // Calculate metrics
     const activeAgreementsCount = activeAgreements?.length || 0;
     const totalAgreementsCount = totalAgreements?.length || 0;
@@ -339,6 +385,14 @@ export async function fetchDashboardKPIs(dateRange?: DateRange) {
     };
   } catch (error) {
     console.error("Error calculating KPIs:", error);
-    throw error;
+    return {
+      activeAgreements: 0,
+      totalAgreements: 0,
+      openClaims: 0,
+      totalClaims: 0,
+      activeDealers: 0,
+      totalClaimsAmount: 0,
+      averageClaimAmount: 0
+    };
   }
 }
