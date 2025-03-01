@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -28,21 +29,22 @@ const Index = () => {
   
   // Log React Query cache for debugging
   useEffect(() => {
-    console.log("React Query client initialized");
+    console.log("React Query client initialized on Index");
     
     // Log the current date range when it changes
     console.log("Current date range:", dateRange);
     
-    // Log the query client's queries - fix TypeScript error by providing proper arguments
-    console.log("Active queries:", queryClient.getQueriesData({}));
+    // Create the same query key that's used in AgreementsTable
+    const fromStr = dateRange.from.toISOString();
+    const toStr = dateRange.to.toISOString();
+    const agreementsQueryKey = ["agreements-data", fromStr, toStr];
     
     // Debug React Query cache
     setTimeout(() => {
-      const agreementsQueryKey = ["all-agreements", dateRange.from.toISOString(), dateRange.to.toISOString()];
       const data = queryClient.getQueryData(agreementsQueryKey);
-      console.log("Agreements in React Query cache:", data);
-      console.log("Cache size:", data && Array.isArray(data) ? data.length : 0);
-    }, 2000);
+      console.log("Agreements in React Query cache (Index.tsx):", data);
+      console.log("Cache size from Index:", data && Array.isArray(data) ? data.length : 0);
+    }, 1000);
   }, [queryClient, dateRange]);
   
   const handleDateRangeChange = (range: DateRange) => {
@@ -56,23 +58,27 @@ const Index = () => {
     
     setDateRange(normalizedRange);
     
-    // Create a query key using the same format as in AgreementsTable
+    // Create a query key using the SAME format as in AgreementsTable
     const fromStr = normalizedRange.from.toISOString();
     const toStr = normalizedRange.to.toISOString();
-    const queryKey = ["all-agreements", fromStr, toStr];
+    const agreementsQueryKey = ["agreements-data", fromStr, toStr];
     
-    // Invalidate the specific query with the new date range - fix TypeScript error
+    // Log the key we're invalidating
+    console.log("Invalidating with key:", agreementsQueryKey);
+    
+    // Invalidate the specific query with the new date range
     queryClient.invalidateQueries({ 
-      queryKey: queryKey
+      queryKey: agreementsQueryKey,
+      exact: true
     });
     
-    // Also invalidate any previous queries to ensure clean state - fix TypeScript error
-    queryClient.invalidateQueries({
-      queryKey: ["all-agreements"]
-    });
+    // Check if invalidation worked
+    setTimeout(() => {
+      const dataAfterInvalidation = queryClient.getQueryData(agreementsQueryKey);
+      console.log("Cache after invalidation:", dataAfterInvalidation);
+    }, 500);
     
     toast.info(`Date range updated: ${normalizedRange.from.toLocaleDateString()} to ${normalizedRange.to.toLocaleDateString()}`);
-    console.log("Invalidated agreements queries with key:", queryKey);
   };
 
   // Render KPI section
