@@ -72,14 +72,10 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
 
     if (!data || data.length < SUPABASE_PAGE_SIZE) {
       hasMore = false;
+    } else {
+      allAgreements = [...allAgreements, ...data];
+      page++; // Increment page here
     }
-
-    allAgreements = [...allAgreements, ...data];
-
-    if (!data || data.length < SUPABASE_PAGE_SIZE) {
-      hasMore = false;
-    }
-  }
 
   console.log(`✅ Total agreements fetched: ${allAgreements.length}`);
   return allAgreements;
@@ -169,43 +165,23 @@ const agreementsQueryKey = useMemo(() => {
 useEffect(() => {
   if (agreements.length > 0) {
     setTotalCount(agreements.length);
-    console.log("✅ Agreements Updated:", agreements.length);
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    if (agreements.length > 0) {
-  setDisplayAgreements(agreements.slice(startIndex, endIndex));
-  console.log("✅ Agreements Loaded on Page:", page, agreements.slice(startIndex, endIndex));
-} else {
-  console.warn("⚠️ No agreements to display, double-check Supabase.");
-  setDisplayAgreements([]);
-}
+    const slicedAgreements = agreements.slice(startIndex, endIndex);
+    console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(agreements.length / pageSize)}`);
+    if (slicedAgreements.length > 0) {
+      console.log("Sample agreement data:", slicedAgreements[0]);
+    }
+    setDisplayAgreements(slicedAgreements);
   } else {
+    console.warn("⚠️ No agreements to display, double-check Supabase.");
     setDisplayAgreements([]);
     setTotalCount(0);
   }
-}, [agreements, page, pageSize]); // ✅ Only track relevant state changes
+}, [agreements, page, pageSize]);
 
-  // Update displayed agreements when data changes
-  useEffect(() => {
-    if (agreements && agreements.length > 0) {
-      setTotalCount(agreements.length);
-      
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const slicedAgreements = agreements.slice(startIndex, endIndex);
-      
-      console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(agreements.length/pageSize)}`);
-      if (slicedAgreements.length > 0) {
-        console.log("Sample agreement data:", slicedAgreements[0]);
-      }
-      setDisplayAgreements(slicedAgreements);
-    } else {
-      setDisplayAgreements([]);
-      setTotalCount(0);
-      console.log("No agreements to display");
-    }
-  }, [agreements, page, pageSize]);
-  
+
+
   // Fetch dealers data
   const { 
     data: dealers = [],
@@ -269,10 +245,7 @@ useEffect(() => {
     {
       key: 'DealerID',
       title: 'Dealer ID',
-      render: (row) =>
-        row.DealerUUID
-          ? dealerMap[row.DealerUUID]?.PayeeID || row.DealerUUID
-          : 'No Dealer Assigned',
+      render: (row) => row.DealerUUID || 'No Dealer Assigned',
     },
     {
       key: 'effectiveDate',
