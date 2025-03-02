@@ -41,7 +41,7 @@ const formatName = (name?: string | null): string => {
   return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-const SUPABASE_PAGE_SIZE = 1000;
+const SUPABASE_PAGE_SIZE = 500;
 
 async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
   console.log("🔍 Fetching agreements...");
@@ -53,7 +53,7 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
   while (hasMore) {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    const offset = (page - 1) * 1000;
+    const offset = (page - 1) * SUPABASE_PAGE_SIZE;
 
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
 
@@ -63,18 +63,18 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to)
       .order("EffectiveDate", { ascending: false })
-      .range(offset, offset + 999); // Fetching in batches of 1000
+      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
 
     if (error) {
       console.error("❌ Supabase Fetch Error:", error);
       return allAgreements;
     }
 
-    if (!data || data.length < SUPABASE_PAGE_SIZE) {
-      hasMore = false;
+    allAgreements = [...allAgreements, ...data];
+    if (data && data.length >= SUPABASE_PAGE_SIZE) {
+      page++; // Move to the next page
     } else {
-      allAgreements = [...allAgreements, ...data];
-      page++; // Increment page here
+      hasMore = false;
     }
 
   console.log(`✅ Total agreements fetched: ${allAgreements.length}`);
