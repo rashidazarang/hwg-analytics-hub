@@ -103,14 +103,23 @@ async function fetchDealers(): Promise<Dealer[]> {
   }
 }
 
+type AgreementsTableProps = {
+  className?: string;
+  dateRange?: DateRange;
+};
+
+
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const initialFetchDone = useRef(false);
+  const initialFetchDone = useRef<boolean>(false);
+
   
+
+
   // Create a stable query key that will be consistent with what's used in Index.tsx
   const agreementsQueryKey = useMemo(() => [
     "agreements-data",
@@ -146,6 +155,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
     refetchOnWindowFocus: false,
   });
+
+  if (agreementsError) {
+    console.error("Failed to load agreements:", agreementsError);
+    return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
+  }
   
   // Force cast to array to ensure React Query always returns an array
   const agreements = Array.isArray(allAgreements) ? allAgreements : [];
@@ -159,7 +173,7 @@ useEffect(() => {
     setTotalCount(agreements.length);
     queryClient.setQueryData(agreementsQueryKey, agreements);
     console.log("✅ Cached agreements in React Query:", agreements.length);
-  
+
     // Paginate the agreements list
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -172,36 +186,22 @@ useEffect(() => {
     setTotalCount(0);
     console.log("⚠️ No agreements to display");
   }
-}, [agreements, page, pageSize, queryClient, agreementsQueryKey]); // ⬅️ Included necessary dependencies
-    
-    // Check what's in the cache and manually set if needed
-    if (agreements.length > 0) {
-      // Check if the data is properly stored in the cache
-      const cachedData = queryClient.getQueryData(agreementsQueryKey);
-      console.log("Checking agreements from cache:", cachedData);
-      console.log("Cache size:", cachedData && Array.isArray(cachedData) ? (cachedData as Agreement[]).length : 0);
-      
-      // Explicitly set the data in the cache if it's not there
-      if (!cachedData && agreements.length > 0) {
-        console.warn("Data exists but not in cache! Setting it explicitly.");
-        queryClient.setQueryData(agreementsQueryKey, agreements);
-        
-        // Verify data was set correctly
-        setTimeout(() => {
-          const verifiedData = queryClient.getQueryData(agreementsQueryKey);
-          console.log("Verified cache after manual set:", verifiedData);
-          console.log("Verified cache size:", verifiedData && Array.isArray(verifiedData) ? (verifiedData as Agreement[]).length : 0);
-        }, 500);
-      }
+
+  // Check what's in the cache and manually set if needed
+  if (agreements.length > 0) {
+    const cachedData = queryClient.getQueryData(agreementsQueryKey);
+    if (!cachedData) {
+      queryClient.setQueryData(agreementsQueryKey, agreements);
     }
-    
-    // Show toast on successful fetch
-    if (agreements.length > 0 && !initialFetchDone.current) {
-      initialFetchDone.current = true;
-      toast.success(`Successfully loaded ${agreements.length} agreements`);
-    }
-  }, [agreements, agreementsQueryKey, queryClient]);
-  
+  }
+
+  // Show toast on successful fetch
+  if (agreements.length > 0 && !initialFetchDone.current) {
+    initialFetchDone.current = true;
+    toast.success(`Successfully loaded ${agreements.length} agreements`);
+  }
+}, [agreements, agreementsQueryKey, queryClient]); // ✅ Ensure this closes correctly
+
   // Update displayed agreements when data changes
   useEffect(() => {
     if (agreements && agreements.length > 0) {
@@ -236,16 +236,10 @@ useEffect(() => {
   });
 
   // Create a dealer map for quick lookup
-  const dealerMap = useMemo(() => {
-    if (!dealers || dealers.length === 0) return {};
-    
-    return dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
-      if (dealer.DealerUUID) {
-        acc[dealer.DealerUUID] = dealer;
-      }
-      return acc;
-    }, {});
-  }, [dealers]);
+  const dealerMap = useMemo(() => Object.fromEntries(
+    dealers.map(dealer => [dealer.DealerUUID, dealer])
+  ), [dealers]);
+  
 
   // Define columns for the data table
   const columns: Column<Agreement>[] = [
@@ -357,13 +351,10 @@ useEffect(() => {
   ];
 
   // Track loading state
-  const isLoading = isLoadingAgreements || isLoadingDealers || isRefetching;
+  const isFetching = isLoadingAgreements || isLoadingDealers || refetchAgreements.isFetching;
 
-  // Handle errors
-  if (agreementsError) {
-    console.error("Failed to load agreements:", agreementsError);
-    return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
-  }
+
+
 
   // Handle pagination
   const handlePageChange = (newPage: number) => {
@@ -392,7 +383,12 @@ useEffect(() => {
     console.log("Cache before invalidation:", beforeInvalidation);
     
     // Explicitly invalidate the cache for this query
-    queryClient.invalidateQueries({ queryKey: agreementsQueryKey });
+    if (agreementsQueryKey.length) {
+      queryClient.invalidateQueries(agreementsQueryKey);
+    }
+    
+
+
     
     // Then refetch
     refetchAgreements().then((result) => {
