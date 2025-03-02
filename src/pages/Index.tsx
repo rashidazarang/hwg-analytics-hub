@@ -15,6 +15,7 @@ import {
 } from '@/lib/mockData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 const Index = () => {
   // Set default date range to YTD (Year-to-Date)
@@ -70,6 +71,8 @@ const Index = () => {
       const dataAfterInvalidation = queryClient.getQueryData(agreementsQueryKey);
       console.log("🗑️ Cache after invalidation:", dataAfterInvalidation);
     }, 500);
+    
+    toast.info(`Date range updated: ${normalizedRange.from.toLocaleDateString()} to ${normalizedRange.to.toLocaleDateString()}`);
   };
 
   // KPI Section

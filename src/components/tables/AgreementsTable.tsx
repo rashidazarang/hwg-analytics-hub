@@ -1,3 +1,4 @@
+
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -5,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
+import { toast } from 'sonner';
 
 type Agreement = {
   id: string;
@@ -60,7 +62,7 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to)
       .order("EffectiveDate", { ascending: false })
-      .range(offset, offset + 999);
+      .range(offset, offset + 999); // Fetching in batches of 1000
 
     if (error) {
       console.error("❌ Supabase Fetch Error:", error);
@@ -106,6 +108,7 @@ type AgreementsTableProps = {
   dateRange?: DateRange;
 };
 
+
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -114,6 +117,10 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const [totalCount, setTotalCount] = useState(0);
   const initialFetchDone = useRef<boolean>(false);
 
+  
+
+
+  // Create a stable query key that will be consistent with what's used in Index.tsx
   const agreementsQueryKey = useMemo(() => [
     "agreements-data",
     dateRange?.from?.toISOString() || "null",
@@ -126,6 +133,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     }
   }, [dateRange]);
   
+  // React Query configuration with longer staleTime and cacheTime
   const { 
     data: allAgreements = [], 
     isFetching: isFetchingAgreements,
@@ -143,8 +151,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
       queryClient.setQueryData(["agreements-data", dateRange?.from?.toISOString(), dateRange?.to?.toISOString()], agreements);
       return agreements;
     },
-    staleTime: 1000 * 60 * 10,
-    gcTime: 1000 * 60 * 30,
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
     refetchOnWindowFocus: false,
   });
 
@@ -153,52 +161,87 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
   }
   
+  // Force cast to array to ensure React Query always returns an array
   const agreements = Array.isArray(allAgreements) ? allAgreements : [];
   
-  useEffect(() => {
-    console.log("📥 Agreements received:", agreements.length);
-    console.log("📊 Displaying page:", page, "of", Math.ceil(agreements.length / pageSize));
+// Log the data received from React Query and update the displayed agreements
+useEffect(() => {
+  console.log("📥 Agreements received:", agreements.length);
+  console.log("📊 Displaying page:", page, "of", Math.ceil(agreements.length / pageSize));
 
-    if (agreements.length > 0) {
-      setTotalCount(agreements.length);
+  if (agreements.length > 0) {
+    setTotalCount(agreements.length);
+    queryClient.setQueryData(agreementsQueryKey, agreements);
+    console.log("✅ Cached agreements in React Query:", agreements.length);
+
+    // Paginate the agreements list
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const slicedAgreements = agreements.slice(startIndex, endIndex);
+
+    console.log(`📊 Displaying ${slicedAgreements.length} agreements on page ${page}`);
+    setDisplayAgreements(slicedAgreements);
+  } else {
+    setDisplayAgreements([]);
+    setTotalCount(0);
+    console.log("⚠️ No agreements to display");
+  }
+
+  // Check what's in the cache and manually set if needed
+  if (agreements.length > 0) {
+    const cachedData = queryClient.getQueryData(agreementsQueryKey);
+    if (!cachedData) {
       queryClient.setQueryData(agreementsQueryKey, agreements);
-      console.log("✅ Cached agreements in React Query:", agreements.length);
+    }
+  }
 
+  // Show toast on successful fetch
+  if (agreements.length > 0 && !initialFetchDone.current) {
+    initialFetchDone.current = true;
+    toast.success(`Successfully loaded ${agreements.length} agreements`);
+  }
+}, [agreements, agreementsQueryKey, queryClient]); // ✅ Ensure this closes correctly
+
+  // Update displayed agreements when data changes
+  useEffect(() => {
+    if (agreements && agreements.length > 0) {
+      setTotalCount(agreements.length);
+      
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const slicedAgreements = agreements.slice(startIndex, endIndex);
-
-      console.log(`📊 Displaying ${slicedAgreements.length} agreements on page ${page}`);
+      
+      console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(agreements.length/pageSize)}`);
+      if (slicedAgreements.length > 0) {
+        console.log("Sample agreement data:", slicedAgreements[0]);
+      }
       setDisplayAgreements(slicedAgreements);
     } else {
       setDisplayAgreements([]);
       setTotalCount(0);
-      console.log("⚠️ No agreements to display");
+      console.log("No agreements to display");
     }
-
-    if (agreements.length > 0) {
-      const cachedData = queryClient.getQueryData(agreementsQueryKey);
-      if (!cachedData) {
-        queryClient.setQueryData(agreementsQueryKey, agreements);
-      }
-    }
-  }, [agreements, agreementsQueryKey, queryClient, page, pageSize]);
-
+  }, [agreements, page, pageSize]);
+  
+  // Fetch dealers data
   const { 
     data: dealers = [],
     isFetching: isFetchingDealers 
   } = useQuery({
     queryKey: ["dealers-data"],
     queryFn: fetchDealers,
-    staleTime: 1000 * 60 * 60,
-    gcTime: 1000 * 60 * 60 * 2,
+    staleTime: 1000 * 60 * 60, // 1 hour
+    gcTime: 1000 * 60 * 60 * 2, // 2 hours
     refetchOnWindowFocus: false,
   });
 
+  // Create a dealer map for quick lookup
   const dealerMap = useMemo(() => Object.fromEntries(
     dealers.map(dealer => [dealer.DealerUUID, dealer])
   ), [dealers]);
+  
 
+  // Define columns for the data table
   const columns: Column<Agreement>[] = [
     {
       key: 'id',
@@ -307,8 +350,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     },
   ];
 
+  // Track loading state
   const isFetching = isFetchingAgreements || isFetchingDealers || refetchAgreements.isFetching;
 
+
+
+
+  // Handle pagination
   const handlePageChange = (newPage: number) => {
     console.log(`Changing to page ${newPage}`);
     setPage(newPage);
@@ -320,31 +368,41 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     setPage(1);
   };
 
-  const currentStatus = isFetching
-    ? "Loading..."
-    : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
+  // Display status
+const currentStatus = isFetching
+  ? "Loading..."
+  : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
 
+  // Manual refetch function for testing and debugging
   const handleManualRefetch = () => {
     console.log("Manually refetching agreements...");
+    toast.info("Refreshing agreements data...");
     
+    // First, check what's in the cache before invalidation
     const beforeInvalidation = queryClient.getQueryData(agreementsQueryKey);
     console.log("Cache before invalidation:", beforeInvalidation);
     
+    // Explicitly invalidate the cache for this query
     if (agreementsQueryKey.length) {
       queryClient.invalidateQueries(agreementsQueryKey);
     }
     
+
+
+    
+    // Then refetch
     refetchAgreements().then((result) => {
       if (result.isSuccess) {
-        console.log(`Successfully loaded ${result.data.length} agreements`);
+        toast.success(`Successfully loaded ${result.data.length} agreements`);
         
+        // Verify data is properly stored after refetch
         setTimeout(() => {
           const afterRefetch = queryClient.getQueryData(agreementsQueryKey);
           console.log("Cache after refetch:", afterRefetch);
           console.log("Cache size after refetch:", afterRefetch && Array.isArray(afterRefetch) ? (afterRefetch as Agreement[]).length : 0);
         }, 500);
       } else {
-        console.error("Failed to refresh agreements data");
+        toast.error("Failed to refresh agreements data");
       }
     });
   };
