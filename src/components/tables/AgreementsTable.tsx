@@ -57,8 +57,8 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
 
     const { data, error } = await supabase
-      .from("agreements")
-      .select("*, DealerUUID")
+    .from("agreements")
+    .select("id, AgreementID, HolderFirstName, HolderLastName, DealerUUID, EffectiveDate, ExpireDate, AgreementStatus, Total, DealerCost, ReserveAmount")
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to)
       .order("EffectiveDate", { ascending: false })
@@ -198,7 +198,6 @@ useEffect(() => {
   // Show toast on successful fetch
   if (agreements.length > 0 && !initialFetchDone.current) {
     initialFetchDone.current = true;
-    toast.success(`Successfully loaded ${agreements.length} agreements`);
   }
 }, [agreements, agreementsQueryKey, queryClient]); // ✅ Ensure this closes correctly
 
@@ -284,14 +283,21 @@ useEffect(() => {
       },
     },
     {
+      key: 'dealerName',
+      title: 'Dealership',
+      sortable: false,
+      render: (row) => {
+        console.log("🛠️ Debugging DealerUUID:", row.DealerUUID, dealerMap[row.DealerUUID]); // Debugging
+        return row.DealerUUID && dealerMap[row.DealerUUID]
+          ? dealerMap[row.DealerUUID].Payee || 'Unknown Dealership'
+          : 'Unknown Dealership';
+      },
+    },
+    {
       key: 'DealerUUID',
       title: 'Dealer ID',
-      render: (row) => {
-        console.log("🧐 Debugging DealerUUID:", row.DealerUUID); // Debugging
-        return row.DealerUUID && dealerMap[row.DealerUUID]
-          ? dealerMap[row.DealerUUID].Payee || row.DealerUUID
-          : 'Unknown Dealer';
-      },
+      render: (row) => row.DealerUUID || 'Unknown Dealer',
+    },
     },
     {
       key: 'effectiveDate',
@@ -388,7 +394,7 @@ const currentStatus = isFetching
   // Manual refetch function for testing and debugging
   const handleManualRefetch = () => {
     console.log("Manually refetching agreements...");
-    toast.info("Refreshing agreements data...");
+
     
     // First, check what's in the cache before invalidation
     const beforeInvalidation = queryClient.getQueryData(agreementsQueryKey);
@@ -414,7 +420,7 @@ const currentStatus = isFetching
           console.log("Cache size after refetch:", afterRefetch && Array.isArray(afterRefetch) ? (afterRefetch as Agreement[]).length : 0);
         }, 500);
       } else {
-        toast.error("Failed to refresh agreements data");
+
       }
     });
   };
