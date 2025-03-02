@@ -136,7 +136,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   // React Query configuration with longer staleTime and cacheTime
   const { 
     data: allAgreements = [], 
-    isLoading: isLoadingAgreements,
+    isFetching: isFetchingAgreements,
     error: agreementsError,
     refetch: refetchAgreements
   } = useQuery({
@@ -226,7 +226,7 @@ useEffect(() => {
   // Fetch dealers data
   const { 
     data: dealers = [],
-    isLoading: isLoadingDealers 
+    isFetching: isFetchingDealers 
   } = useQuery({
     queryKey: ["dealers-data"],
     queryFn: fetchDealers,
@@ -351,7 +351,7 @@ useEffect(() => {
   ];
 
   // Track loading state
-  const isFetching = isLoadingAgreements || isLoadingDealers || refetchAgreements.isFetching;
+  const isFetching = isFetchingAgreements || isFetchingDealers || refetchAgreements.isFetching;
 
 
 
@@ -369,7 +369,6 @@ useEffect(() => {
   };
 
   // Display status
-// Correct:
 const currentStatus = isFetching
   ? "Loading..."
   : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
@@ -435,7 +434,7 @@ const currentStatus = isFetching
           onPageChange: handlePageChange,
           onPageSizeChange: handlePageSizeChange,
         }}
-        loading={isLoading}
+        loading={isFetching}
       />
     </>
   );
