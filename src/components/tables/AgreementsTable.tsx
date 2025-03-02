@@ -69,16 +69,14 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
       return allAgreements;
     }
 
-    if (!data || data.length === 0) {
+    if (!data || data.length < SUPABASE_PAGE_SIZE) {
       hasMore = false;
-    } else {
-      allAgreements = [...allAgreements, ...data];
-      page++;
     }
 
-    if (!hasMore) {
-      console.warn("⚠️ No more data found. Stopping fetch.");
-      break;
+    allAgreements = [...allAgreements, ...data];
+
+    if (!data || data.length < SUPABASE_PAGE_SIZE) {
+      hasMore = false;
     }
   }
 
@@ -88,7 +86,9 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
 
 async function fetchDealers(): Promise<Dealer[]> {
   try {
-    const { data, error } = await supabase.from("dealers").select("*");
+    const { data, error } = await supabase
+      .from("dealers")
+      .select("DealerUUID, PayeeID, Payee"); // ✅ Keep only this one
 
     if (error) {
       console.error("Supabase Error fetching dealers:", error);
@@ -121,11 +121,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
 
 
   // Create a stable query key that will be consistent with what's used in Index.tsx
-  const agreementsQueryKey = useMemo(() => [
-    "agreements-data",
-    dateRange?.from?.toISOString() || "null",
-    dateRange?.to?.toISOString() || "null"
-  ], [dateRange]);
+const agreementsQueryKey = useMemo(() => {
+  const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
+  const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+  return ["agreements-data", from, to];
+}, [dateRange]);
   
   useEffect(() => {
     if (dateRange) {
@@ -166,40 +166,17 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   
 // Log the data received from React Query and update the displayed agreements
 useEffect(() => {
-  console.log("📥 Agreements received:", agreements.length);
-  console.log("📊 Displaying page:", page, "of", Math.ceil(agreements.length / pageSize));
-
   if (agreements.length > 0) {
     setTotalCount(agreements.length);
-    queryClient.setQueryData(agreementsQueryKey, agreements);
-    console.log("✅ Cached agreements in React Query:", agreements.length);
-
-    // Paginate the agreements list
+    console.log("✅ Agreements Updated:", agreements.length);
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    const slicedAgreements = agreements.slice(startIndex, endIndex);
-
-    console.log(`📊 Displaying ${slicedAgreements.length} agreements on page ${page}`);
-    setDisplayAgreements(slicedAgreements);
+    setDisplayAgreements(agreements.slice(startIndex, endIndex));
   } else {
     setDisplayAgreements([]);
     setTotalCount(0);
-    console.log("⚠️ No agreements to display");
   }
-
-  // Check what's in the cache and manually set if needed
-  if (agreements.length > 0) {
-    const cachedData = queryClient.getQueryData(agreementsQueryKey);
-    if (!cachedData) {
-      queryClient.setQueryData(agreementsQueryKey, agreements);
-    }
-  }
-
-  // Show toast on successful fetch
-  if (agreements.length > 0 && !initialFetchDone.current) {
-    initialFetchDone.current = true;
-  }
-}, [agreements, agreementsQueryKey, queryClient]); // ✅ Ensure this closes correctly
+}, [agreements, page, pageSize]); // ✅ Only track relevant state changes
 
   // Update displayed agreements when data changes
   useEffect(() => {
@@ -235,21 +212,18 @@ useEffect(() => {
   });
 
   // Create a dealer map for quick lookup
-  const dealerMap = useMemo(() => {
-    if (!dealers || dealers.length === 0) return {};
-    
-    return dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
-      if (dealer.DealerUUID) {
-        acc[dealer.DealerUUID] = dealer;
-      }
+  const dealerMap = useMemo(() => (
+    dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
+      if (dealer.DealerUUID) acc[dealer.DealerUUID] = dealer;
       return acc;
-    }, {});
-  }, [dealers]);
-  
+    }, {})
+  ), [dealers]);
 
   useEffect(() => {
-    console.log("🔍 Agreements Data:", agreements);
-    console.log("🔍 Dealers Data:", dealers);
+    if (process.env.NODE_ENV === 'development') {
+      console.log("🔍 Agreements Data:", agreements);
+      console.log("🔍 Dealers Data:", dealers);
+    }
   }, [agreements, dealers]);
 
 
@@ -272,32 +246,14 @@ useEffect(() => {
       },
     },
     {
-      key: 'dealerName',
+      key: 'dealership',
       title: 'Dealership',
-      sortable: false,
-      render: (row) => {
-        if (row.DealerUUID && dealerMap[row.DealerUUID]) {
-          return dealerMap[row.DealerUUID].Payee || 'Unknown Dealership';
-        }
-        return row.dealerName || 'Unknown Dealership';
-      },
+      render: (row) => row.DealerUUID ? dealerMap[row.DealerUUID]?.Payee || 'Unknown Dealership' : '',
     },
     {
-      key: 'dealerName',
-      title: 'Dealership',
-      sortable: false,
-      render: (row) => {
-        console.log("🛠️ Debugging DealerUUID:", row.DealerUUID, dealerMap[row.DealerUUID]); // Debugging
-        return row.DealerUUID && dealerMap[row.DealerUUID]
-          ? dealerMap[row.DealerUUID].Payee || 'Unknown Dealership'
-          : 'Unknown Dealership';
-      },
-    },
-    {
-      key: 'DealerUUID',
+      key: 'DealerID',
       title: 'Dealer ID',
-      render: (row) => row.DealerUUID || 'Unknown Dealer',
-    },
+      render: (row) => (row.DealerUUID && dealerMap[row.DealerUUID]?.PayeeID) || 'Unknown Dealer ID',
     },
     {
       key: 'effectiveDate',
@@ -380,11 +336,12 @@ useEffect(() => {
     setPage(newPage);
   };
 
-  const handlePageSizeChange = (newPageSize: number) => {
-    console.log(`Changing page size to ${newPageSize}`);
-    setPageSize(newPageSize);
-    setPage(1);
-  };
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    if (newPageSize !== pageSize) {
+      setPageSize(newPageSize);
+      setPage(1); // ✅ Reset to first page
+    }
+  }, [pageSize, setPage]);
 
   // Display status
 const currentStatus = isFetching
@@ -409,9 +366,9 @@ const currentStatus = isFetching
 
     
     // Then refetch
-    refetchAgreements().then((result) => {
-      if (result.isSuccess) {
-        toast.success(`Successfully loaded ${result.data.length} agreements`);
+    refetchAgreements().then(({ data }) => {
+      if (Array.isArray(data)) {
+
         
         // Verify data is properly stored after refetch
         setTimeout(() => {
