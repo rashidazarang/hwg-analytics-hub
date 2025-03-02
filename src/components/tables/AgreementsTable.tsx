@@ -172,7 +172,13 @@ useEffect(() => {
     console.log("✅ Agreements Updated:", agreements.length);
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    setDisplayAgreements(agreements.slice(startIndex, endIndex));
+    if (agreements.length > 0) {
+  setDisplayAgreements(agreements.slice(startIndex, endIndex));
+  console.log("✅ Agreements Loaded on Page:", page, agreements.slice(startIndex, endIndex));
+} else {
+  console.warn("⚠️ No agreements to display, double-check Supabase.");
+  setDisplayAgreements([]);
+}
   } else {
     setDisplayAgreements([]);
     setTotalCount(0);
@@ -212,13 +218,22 @@ useEffect(() => {
     refetchOnWindowFocus: false,
   });
 
-  // Create a dealer map for quick lookup
-  const dealerMap = useMemo(() => (
-    dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
-      if (dealer.DealerUUID) acc[dealer.DealerUUID] = dealer;
+  const dealerMap = useMemo(() => {
+    if (!dealers || dealers.length === 0) {
+      console.warn("⚠️ No dealers found, returning empty map.");
+      return {};
+    }
+    
+    const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
+      if (dealer.DealerUUID) {
+        acc[dealer.DealerUUID] = dealer;
+      }
       return acc;
-    }, {})
-  ), [dealers]);
+    }, {});
+  
+    console.log("✅ Dealer Map Created:", map);
+    return map;
+  }, [dealers]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -254,7 +269,10 @@ useEffect(() => {
     {
       key: 'DealerID',
       title: 'Dealer ID',
-      render: (row) => (row.DealerUUID && dealerMap[row.DealerUUID]?.PayeeID) || 'Unknown Dealer ID',
+      render: (row) =>
+        row.DealerUUID
+          ? dealerMap[row.DealerUUID]?.PayeeID || row.DealerUUID
+          : 'No Dealer Assigned',
     },
     {
       key: 'effectiveDate',
@@ -363,22 +381,14 @@ const currentStatus = isFetching
       queryClient.invalidateQueries({ queryKey: agreementsQueryKey });
     }
     
-
-
-    
-    // Then refetch
     refetchAgreements().then(({ data }) => {
       if (Array.isArray(data)) {
-
-        
-        // Verify data is properly stored after refetch
+        // Toast removed!
         setTimeout(() => {
           const afterRefetch = queryClient.getQueryData(agreementsQueryKey);
           console.log("Cache after refetch:", afterRefetch);
-          console.log("Cache size after refetch:", afterRefetch && Array.isArray(afterRefetch) ? (afterRefetch as Agreement[]).length : 0);
+          console.log("Cache size after refetch:", Array.isArray(afterRefetch) ? (afterRefetch as Agreement[]).length : 0);
         }, 500);
-      } else {
-
       }
     });
   };
