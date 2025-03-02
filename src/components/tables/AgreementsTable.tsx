@@ -58,7 +58,7 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
 
     const { data, error } = await supabase
       .from("agreements")
-      .select("*")
+      .select("*, DealerUUID")
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to)
       .order("EffectiveDate", { ascending: false })
@@ -236,10 +236,23 @@ useEffect(() => {
   });
 
   // Create a dealer map for quick lookup
-  const dealerMap = useMemo(() => Object.fromEntries(
-    dealers.map(dealer => [dealer.DealerUUID, dealer])
-  ), [dealers]);
+  const dealerMap = useMemo(() => {
+    if (!dealers || dealers.length === 0) return {};
+    
+    return dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
+      if (dealer.DealerUUID) {
+        acc[dealer.DealerUUID] = dealer;
+      }
+      return acc;
+    }, {});
+  }, [dealers]);
   
+
+  useEffect(() => {
+    console.log("🔍 Agreements Data:", agreements);
+    console.log("🔍 Dealers Data:", dealers);
+  }, [agreements, dealers]);
+
 
   // Define columns for the data table
   const columns: Column<Agreement>[] = [
@@ -271,14 +284,13 @@ useEffect(() => {
       },
     },
     {
-      key: 'dealerId',
+      key: 'DealerUUID',
       title: 'Dealer ID',
-      sortable: false,
       render: (row) => {
-        if (row.DealerUUID && dealerMap[row.DealerUUID]) {
-          return dealerMap[row.DealerUUID].PayeeID || 'Unknown';
-        }
-        return 'N/A';
+        console.log("🧐 Debugging DealerUUID:", row.DealerUUID); // Debugging
+        return row.DealerUUID && dealerMap[row.DealerUUID]
+          ? dealerMap[row.DealerUUID].Payee || row.DealerUUID
+          : 'Unknown Dealer';
       },
     },
     {
