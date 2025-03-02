@@ -76,8 +76,8 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
       page++;
     }
 
-    if (page > 10 || !hasMore) {
-      console.warn("⚠️ No more data found OR max pages reached. Stopping fetch.");
+    if (!hasMore) {
+      console.warn("⚠️ No more data found. Stopping fetch.");
       break;
     }
   }
