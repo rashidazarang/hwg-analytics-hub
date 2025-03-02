@@ -58,8 +58,8 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
 
     const { data, error } = await supabase
-    .from("agreements")
-    .select("id, AgreementID, HolderFirstName, HolderLastName, DealerUUID, EffectiveDate, ExpireDate, AgreementStatus, Total, DealerCost, ReserveAmount")
+      .from("agreements")
+      .select("id, AgreementID, HolderFirstName, HolderLastName, DealerUUID, EffectiveDate, ExpireDate, AgreementStatus, Total, DealerCost, ReserveAmount")
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to)
       .order("EffectiveDate", { ascending: false })
@@ -71,11 +71,13 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
     }
 
     allAgreements = [...allAgreements, ...data];
-    if (data && data.length >= SUPABASE_PAGE_SIZE) {
-      page++; // Move to the next page
+
+    if (data && data.length === SUPABASE_PAGE_SIZE) {
+      page++; // Move to the next batch
     } else {
       hasMore = false;
     }
+  }
 
   console.log(`✅ Total agreements fetched: ${allAgreements.length}`);
   return allAgreements;
@@ -245,7 +247,8 @@ useEffect(() => {
     {
       key: 'DealerID',
       title: 'Dealer ID',
-      render: (row) => row.DealerUUID || 'No Dealer Assigned',
+      render: (row) =>
+        row.DealerUUID ? dealerMap[row.DealerUUID]?.PayeeID || row.DealerUUID : 'No Dealer Assigned',
     },
     {
       key: 'effectiveDate',
