@@ -369,9 +369,10 @@ useEffect(() => {
   };
 
   // Display status
-  const currentStatus = isLoading 
-    ? "Loading..." 
-    : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
+// Correct:
+const currentStatus = isFetching
+  ? "Loading..."
+  : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
 
   // Manual refetch function for testing and debugging
   const handleManualRefetch = () => {
