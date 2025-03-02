@@ -363,7 +363,7 @@ useEffect(() => {
   ];
 
   // Track loading state
-  const isFetching = isFetchingAgreements || isFetchingDealers || refetchAgreements.isFetching;
+  const isFetching = isFetchingAgreements || isFetchingDealers;
 
 
 
@@ -396,7 +396,7 @@ const currentStatus = isFetching
     
     // Explicitly invalidate the cache for this query
     if (agreementsQueryKey.length) {
-      queryClient.invalidateQueries(agreementsQueryKey);
+      queryClient.invalidateQueries({ queryKey: agreementsQueryKey });
     }
     
 
