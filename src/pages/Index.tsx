@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -24,64 +23,59 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('agreements');
   const queryClient = useQueryClient();
   
-  // Calculate KPIs based on the selected date range - we'll keep mock data for KPIs for now
+  // Calculate KPIs based on the selected date range
   const kpis = calculateKPIs([], mockClaims, mockDealers, dateRange);
   
+  // Create the query key (must match AgreementsTable)
+  const agreementsQueryKey = [
+    "agreements-data",
+    dateRange?.from?.toISOString() || "null",
+    dateRange?.to?.toISOString() || "null",
+  ];
+
   // Log React Query cache for debugging
   useEffect(() => {
-    console.log("React Query client initialized on Index");
-    
-    // Log the current date range when it changes
-    console.log("Current date range:", dateRange);
-    
-    // Create the same query key that's used in AgreementsTable
-    const fromStr = dateRange.from.toISOString();
-    const toStr = dateRange.to.toISOString();
-    const agreementsQueryKey = ["agreements-data", fromStr, toStr];
-    
-    // Debug React Query cache
+    console.log("🛠️ Debugging React Query on Index.tsx...");
+    console.log("📆 Current Date Range:", dateRange);
+    console.log("🔑 Query Key:", agreementsQueryKey);
+
     setTimeout(() => {
-      const data = queryClient.getQueryData(agreementsQueryKey);
-      console.log("Agreements in React Query cache (Index.tsx):", data);
-      console.log("Cache size from Index:", data && Array.isArray(data) ? data.length : 0);
-    }, 1000);
+      const cacheData = queryClient.getQueryData(agreementsQueryKey);
+      console.log("📥 Agreements in React Query Cache:", cacheData);
+      console.log("📏 Cache Size:", cacheData && Array.isArray(cacheData) ? cacheData.length : 0);
+    }, 2000);
   }, [queryClient, dateRange]);
-  
+
   const handleDateRangeChange = (range: DateRange) => {
-    console.log("Date range changed to:", range);
-    
-    // Force date objects to be consistent
+    console.log("📅 Date range changed to:", range);
+
+    // Normalize the date range
     const normalizedRange = {
       from: range.from instanceof Date ? range.from : new Date(range.from),
       to: range.to instanceof Date ? range.to : new Date(range.to),
     };
-    
+
     setDateRange(normalizedRange);
-    
-    // Create a query key using the SAME format as in AgreementsTable
-    const fromStr = normalizedRange.from.toISOString();
-    const toStr = normalizedRange.to.toISOString();
-    const agreementsQueryKey = ["agreements-data", fromStr, toStr];
-    
+
     // Log the key we're invalidating
-    console.log("Invalidating with key:", agreementsQueryKey);
-    
+    console.log("♻️ Invalidating query with key:", agreementsQueryKey);
+
     // Invalidate the specific query with the new date range
     queryClient.invalidateQueries({ 
       queryKey: agreementsQueryKey,
       exact: true
     });
-    
-    // Check if invalidation worked
+
+    // Verify cache after invalidation
     setTimeout(() => {
       const dataAfterInvalidation = queryClient.getQueryData(agreementsQueryKey);
-      console.log("Cache after invalidation:", dataAfterInvalidation);
+      console.log("🗑️ Cache after invalidation:", dataAfterInvalidation);
     }, 500);
     
     toast.info(`Date range updated: ${normalizedRange.from.toLocaleDateString()} to ${normalizedRange.to.toLocaleDateString()}`);
   };
 
-  // Render KPI section
+  // KPI Section
   const kpiSection = (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <KPICard

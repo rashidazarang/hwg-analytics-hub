@@ -42,67 +42,47 @@ const formatName = (name?: string | null): string => {
 
 const SUPABASE_PAGE_SIZE = 1000;
 
-async function fetchAgreementsPage(dateRange?: DateRange, page: number = 1): Promise<{data: Agreement[], hasMore: boolean}> {
-  try {
-    const from = dateRange?.from ? new Date(dateRange.from) : null;
-    const to = dateRange?.to ? new Date(dateRange.to) : null;
-    
-    console.log(`Fetching agreements page ${page} with date range: ${from?.toISOString()} to ${to?.toISOString()}`);
-    
-    const offset = (page - 1) * SUPABASE_PAGE_SIZE;
-    
-    let query = supabase
-      .from("agreements")
-      .select("*");
-    
-    if (from && to) {
-      query = query
-        .gte("EffectiveDate", from.toISOString())
-        .lte("ExpireDate", to.toISOString());
-    }
-    
-    query = query
-      .order('EffectiveDate', { ascending: false })
-      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
-    
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Supabase Error:", error);
-      return { data: [], hasMore: false };
-    }
-
-    const hasMore = data?.length === SUPABASE_PAGE_SIZE;
-    
-    console.log(`Fetched Agreements page ${page}: ${data?.length || 0} records. Has more: ${hasMore}`);
-    
-    return { data: data || [], hasMore };
-  } catch (error) {
-    console.error("Error fetching agreements page:", error);
-    return { data: [], hasMore: false };
-  }
-}
-
 async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
+  console.log("🔍 Fetching agreements...");
+
   let allAgreements: Agreement[] = [];
   let page = 1;
   let hasMore = true;
-  
-  console.log("Starting to fetch all agreements...");
-  
+
   while (hasMore) {
-    const result = await fetchAgreementsPage(dateRange, page);
-    allAgreements = [...allAgreements, ...result.data];
-    hasMore = result.hasMore;
-    page++;
-    
-    if (page > 10) {
-      console.warn("Reached maximum number of pages (10). Stopping pagination.");
+    const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
+    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+    const offset = (page - 1) * 1000;
+
+    console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
+
+    const { data, error } = await supabase
+      .from("agreements")
+      .select("*")
+      .gte("EffectiveDate", from)
+      .lte("EffectiveDate", to)
+      .order("EffectiveDate", { ascending: false })
+      .range(offset, offset + 999); // Fetching in batches of 1000
+
+    if (error) {
+      console.error("❌ Supabase Fetch Error:", error);
+      return allAgreements;
+    }
+
+    if (!data || data.length === 0) {
+      hasMore = false;
+    } else {
+      allAgreements = [...allAgreements, ...data];
+      page++;
+    }
+
+    if (page > 10 || !hasMore) {
+      console.warn("⚠️ No more data found OR max pages reached. Stopping fetch.");
       break;
     }
   }
-  
-  console.log(`Completed fetching all agreements. Total: ${allAgreements.length}`);
+
+  console.log(`✅ Total agreements fetched: ${allAgreements.length}`);
   return allAgreements;
 }
 
@@ -123,12 +103,6 @@ async function fetchDealers(): Promise<Dealer[]> {
   }
 }
 
-type AgreementsTableProps = {
-  agreements?: Agreement[];
-  className?: string;
-  dateRange?: DateRange;
-};
-
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -138,17 +112,16 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const initialFetchDone = useRef(false);
   
   // Create a stable query key that will be consistent with what's used in Index.tsx
-  const agreementsQueryKey = useMemo(() => {
-    if (!dateRange) return ["agreements-data"];
-    
-    const fromStr = dateRange.from ? dateRange.from.toISOString() : 'null';
-    const toStr = dateRange.to ? dateRange.to.toISOString() : 'null';
-    return ["agreements-data", fromStr, toStr];
-  }, [dateRange]);
+  const agreementsQueryKey = useMemo(() => [
+    "agreements-data",
+    dateRange?.from?.toISOString() || "null",
+    dateRange?.to?.toISOString() || "null"
+  ], [dateRange]);
   
   useEffect(() => {
-    console.log("Date range changed in AgreementsTable, resetting to page 1");
-    setPage(1);
+    if (dateRange) {
+      console.log("📆 Date range updated. Keeping page:", page);
+    }
   }, [dateRange]);
   
   // React Query configuration with longer staleTime and cacheTime
@@ -156,25 +129,50 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     data: allAgreements = [], 
     isLoading: isLoadingAgreements,
     error: agreementsError,
-    refetch: refetchAgreements,
-    isRefetching
+    refetch: refetchAgreements
   } = useQuery({
-    queryKey: agreementsQueryKey,
-    queryFn: () => fetchAllAgreements(dateRange),
-    staleTime: 1000 * 60 * 60, // 1 hour
-    gcTime: 1000 * 60 * 60 * 2, // 2 hours
+    queryKey: [
+      "agreements-data",
+      dateRange?.from?.toISOString() || "null",
+      dateRange?.to?.toISOString() || "null",
+    ],
+    queryFn: async () => {
+      const agreements = await fetchAllAgreements(dateRange);
+      console.log(`🟢 Storing ${agreements.length} agreements in React Query cache`);
+      queryClient.setQueryData(["agreements-data", dateRange?.from?.toISOString(), dateRange?.to?.toISOString()], agreements);
+      return agreements;
+    },
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
     refetchOnWindowFocus: false,
-    refetchOnMount: true,
   });
   
   // Force cast to array to ensure React Query always returns an array
   const agreements = Array.isArray(allAgreements) ? allAgreements : [];
   
-  // Log the data received from React Query
-  useEffect(() => {
-    console.log("React Query agreements data received:", agreements);
-    console.log("React Query agreements length:", agreements.length);
-    console.log("React Query agreements query key:", agreementsQueryKey);
+// Log the data received from React Query and update the displayed agreements
+useEffect(() => {
+  console.log("📥 Agreements received:", agreements.length);
+  console.log("📊 Displaying page:", page, "of", Math.ceil(agreements.length / pageSize));
+
+  if (agreements.length > 0) {
+    setTotalCount(agreements.length);
+    queryClient.setQueryData(agreementsQueryKey, agreements);
+    console.log("✅ Cached agreements in React Query:", agreements.length);
+  
+    // Paginate the agreements list
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const slicedAgreements = agreements.slice(startIndex, endIndex);
+
+    console.log(`📊 Displaying ${slicedAgreements.length} agreements on page ${page}`);
+    setDisplayAgreements(slicedAgreements);
+  } else {
+    setDisplayAgreements([]);
+    setTotalCount(0);
+    console.log("⚠️ No agreements to display");
+  }
+}, [agreements, page, pageSize, queryClient, agreementsQueryKey]); // ⬅️ Included necessary dependencies
     
     // Check what's in the cache and manually set if needed
     if (agreements.length > 0) {
@@ -394,10 +392,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     console.log("Cache before invalidation:", beforeInvalidation);
     
     // Explicitly invalidate the cache for this query
-    queryClient.invalidateQueries({ 
-      queryKey: agreementsQueryKey,
-      exact: true
-    });
+    queryClient.invalidateQueries({ queryKey: agreementsQueryKey });
     
     // Then refetch
     refetchAgreements().then((result) => {
