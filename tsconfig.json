@@ -5,6 +5,8 @@
     { "path": "./tsconfig.node.json" }
   ],
   "compilerOptions": {
+    "module": "ESNext",
+    "target": "ESNext",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
@@ -17,3 +19,4 @@
     "strictNullChecks": false
   }
 }
+
