@@ -284,9 +284,11 @@ const Index = () => {
             <button
               type="button"
               onClick={handleClearSearch}
-              className="absolute inset-y-0 right-10 px-2 flex items-center"
+              className="absolute inset-y-0 right-10 flex items-center justify-center w-8 h-full transition-colors hover:text-foreground"
+              aria-label="Clear search"
+              title="Clear search"
             >
-              <X className="h-4 w-4 text-muted-foreground" />
+              <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
             </button>
           )}
           
