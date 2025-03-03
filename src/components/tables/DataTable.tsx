@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Fi
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export type Column<T> = {
   key: string;
@@ -18,7 +19,7 @@ export type PaginationProps = {
   pageSize: number;
   totalItems: number;
   onPageChange: (page: number) => void;
-  onPageSizeChange?: (pageSize: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
 };
 
 export type SearchConfig = {
@@ -138,14 +139,14 @@ const DataTable = <T extends Record<string, any>>({
 
   const displayData = paginationProps 
     ? sortedData.slice(
-        (paginationProps.currentPage - 1) * paginationProps.pageSize, 
-        paginationProps.currentPage * paginationProps.pageSize
+        0, 
+        paginationProps.pageSize
       )
     : sortedData;
 
   const totalPages = paginationProps 
-    ? Math.ceil(paginationProps.totalItems / paginationProps.pageSize)
-    : 1;
+    ? Math.ceil(sortedData.length / paginationProps.pageSize)
+    : Math.ceil(sortedData.length / 10);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -184,6 +185,23 @@ const DataTable = <T extends Record<string, any>>({
               <Filter className="mr-2 h-4 w-4" />
               Filter
             </Button>
+            
+            {paginationProps && (
+              <Select 
+                value={paginationProps.pageSize.toString()} 
+                onValueChange={(value) => paginationProps.onPageSizeChange(Number(value))}
+              >
+                <SelectTrigger className="w-[110px] h-9">
+                  <SelectValue placeholder="10 per page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 per page</SelectItem>
+                  <SelectItem value="10">10 per page</SelectItem>
+                  <SelectItem value="20">20 per page</SelectItem>
+                  <SelectItem value="50">50 per page</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
       )}
@@ -243,7 +261,7 @@ const DataTable = <T extends Record<string, any>>({
         </div>
       </div>
       
-      {paginationProps && paginationProps.totalItems > paginationProps.pageSize && (
+      {paginationProps && totalPages > 1 && (
         <div className="flex justify-between items-center mt-4">
           <div className="text-sm text-muted-foreground">
             {loading ? (

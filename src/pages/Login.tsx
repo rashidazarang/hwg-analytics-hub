@@ -11,30 +11,21 @@ import { toast } from '@/components/ui/use-toast';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginAttempt, setLoginAttempt] = useState(0);
   const { signIn, signUp, isAdmin, session } = useAuth();
   const navigate = useNavigate();
 
-  console.log("Login component - MOUNT with session:", session ? "exists" : "null", "isAdmin:", isAdmin);
-
   useEffect(() => {
-    console.log("Login component - useEffect triggered with session:", session ? "exists" : "null", "isAdmin:", isAdmin);
-    
+    // Redirect to home if already logged in and is admin
     if (session && isAdmin) {
-      console.log("Login component - Attempting to redirect to dashboard from useEffect");
       navigate('/');
-      console.log("Login component - Navigation function called - did it work?");
-    } else {
-      console.log("Login component - Not redirecting because:", !session ? "No session" : "Not admin");
     }
   }, [session, isAdmin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login component - handleLogin triggered with email:", email);
     
     if (!email || !password) {
-      console.log("Login component - Missing email or password");
       toast({
         variant: "destructive",
         title: "Missing information",
@@ -44,41 +35,18 @@ const Login = () => {
     }
     
     try {
-      setIsSubmitting(true);
-      console.log("Login component - Setting isSubmitting to true");
-      
-      console.log("Login component - Calling signIn function");
-      const success = await signIn(email, password);
-      console.log("Login component - signIn returned:", success ? "Success" : "Failed");
-      
-      if (!success) {
-        console.log("Login component - Login unsuccessful, resetting submission state");
-        setIsSubmitting(false);
-      } else {
-        console.log("Login component - Login successful in handleLogin");
-        // Explicit navigation attempt as a backup
-        console.log("Login component - Attempting direct navigation to dashboard");
-        navigate('/');
-        console.log("Login component - Direct navigation called - did it execute?");
-      }
-      
+      setLoginAttempt(prev => prev + 1); // Increment login attempt counter
+      await signIn(email, password);
     } catch (error) {
-      console.error("Login component - Login error:", error);
-      setIsSubmitting(false);
-      toast({
-        variant: "destructive",
-        title: "Login error",
-        description: "An unexpected error occurred during login"
-      });
+      console.error("Login error:", error);
+      // signIn already shows a toast for errors
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login component - handleSignUp triggered");
     
     if (!email || !password) {
-      console.log("Login component - Missing email or password for signup");
       toast({
         variant: "destructive",
         title: "Missing information",
@@ -88,7 +56,6 @@ const Login = () => {
     }
     
     if (password.length < 6) {
-      console.log("Login component - Password too short for signup");
       toast({
         variant: "destructive",
         title: "Password too short",
@@ -98,24 +65,12 @@ const Login = () => {
     }
     
     try {
-      setIsSubmitting(true);
-      console.log("Login component - Calling signUp function");
       await signUp(email, password);
-      console.log("Login component - signUp completed");
-      setIsSubmitting(false);
     } catch (error) {
-      console.error("Login component - Signup error:", error);
-      setIsSubmitting(false);
-      toast({
-        variant: "destructive",
-        title: "Signup error",
-        description: "An unexpected error occurred during signup"
-      });
+      console.error("Signup error:", error);
+      // signUp already shows a toast for errors
     }
   };
-
-  // Log render state
-  console.log("Login component - Rendering with isSubmitting:", isSubmitting);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
@@ -173,9 +128,9 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={!email || !password || isSubmitting}
+                disabled={!email || !password}
               >
-                {isSubmitting ? (
+                {loginAttempt > 0 ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
@@ -227,16 +182,9 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={!email || !password || isSubmitting}
+                disabled={!email || !password}
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing up...
-                  </>
-                ) : (
-                  "Sign up"
-                )}
+                <span>Sign up</span>
               </Button>
               
               <p className="text-xs text-center text-muted-foreground mt-4">

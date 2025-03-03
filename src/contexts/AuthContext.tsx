@@ -4,23 +4,23 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Session, User } from '@supabase/supabase-js';
-import { Loader2 } from 'lucide-react';
 
+// Define the shape of our auth context
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<boolean>;
+  signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
+// Define the type for profile data to satisfy TypeScript
 type ProfileData = {
   is_admin: boolean;
   first_name?: string;
   last_name?: string;
-  email?: string;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,266 +31,136 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
-  console.log("AuthContext - Provider initializing");
-
+  // Function to fetch admin status
   const fetchAdminStatus = async (userId: string) => {
     try {
-      console.log("AuthContext - Fetching admin status for user:", userId);
       const { data: profileData, error } = await supabase
         .from('profiles')
-        .select('is_admin, first_name, last_name')
+        .select('is_admin')
         .eq('id', userId)
         .single();
         
       if (!error && profileData) {
-        console.log("AuthContext - Profile data fetched:", profileData);
-        const isUserAdmin = (profileData as ProfileData).is_admin || false;
-        console.log("AuthContext - Setting isAdmin to:", isUserAdmin);
-        setIsAdmin(isUserAdmin);
-        return isUserAdmin;
+        setIsAdmin((profileData as ProfileData).is_admin || false);
+        return (profileData as ProfileData).is_admin || false;
       } else {
-        console.error('AuthContext - Error fetching profile data:', error);
+        console.error('Error fetching profile data:', error);
         setIsAdmin(false);
         return false;
       }
     } catch (err) {
-      console.error('AuthContext - Exception fetching profile data:', err);
+      console.error('Exception fetching profile data:', err);
       setIsAdmin(false);
       return false;
     }
   };
 
-  const clearStaleSession = async () => {
-    try {
-      console.log("AuthContext - Starting stale session cleanup");
-      
-      localStorage.removeItem('supabase.auth.token');
-      
-      const keysToRemove = Object.keys(localStorage).filter(
-        key => key.startsWith('supabase.auth.')
-      );
-      
-      keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-        console.log("AuthContext - Removed localStorage key:", key);
-      });
-      
-      console.log("AuthContext - Cleared potential stale session data");
-    } catch (err) {
-      console.error("AuthContext - Error clearing stale session:", err);
-    }
-  };
-
-  const handleRedirection = (isAdmin: boolean, path: string) => {
-    try {
-      console.log(`AuthContext - Handling redirection with isAdmin: ${isAdmin}, current path: ${path}`);
-      
-      if (isAdmin) {
-        if (path === '/login' || path === '/signup-confirmation') {
-          console.log("AuthContext - Redirecting authenticated admin to dashboard");
-          console.log("AuthContext - Current navigate function:", navigate ? "exists" : "undefined");
-          
-          setTimeout(() => {
-            console.log("AuthContext - Executing delayed navigation to /");
-            window.location.href = '/';
-          }, 100);
-        }
-      } else {
-        const nonAuthPaths = ['/login', '/signup-confirmation'];
-        if (!nonAuthPaths.includes(path)) {
-          console.log("AuthContext - Not admin - redirecting to login");
-          navigate('/login');
-        }
-      }
-    } catch (err) {
-      console.error("AuthContext - Error in handleRedirection:", err);
-    }
-  };
-
   useEffect(() => {
-    console.log("AuthContext - setupAuth useEffect triggered");
-    
     const setupAuth = async () => {
       try {
-        console.log("AuthContext - Starting setupAuth");
-        
-        await clearStaleSession();
-        
-        setIsLoading(true);
-        
+        // Get the current session
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error("AuthContext - Error getting session:", error);
-          // Don't return early, continue to complete initialization
-          console.log("AuthContext - Continuing despite session error");
+          console.error("Error getting session:", error);
+          setIsLoading(false);
+          return;
         }
         
-        console.log("AuthContext - Session data:", data?.session ? "Session exists" : "No session");
+        setSession(data.session);
+        setUser(data.session?.user || null);
         
-        if (data?.session?.user) {
-          console.log("AuthContext - Session user found:", data.session.user.id);
-          setSession(data.session);
-          setUser(data.session.user);
-          
+        if (data.session?.user) {
           await fetchAdminStatus(data.session.user.id);
-          
-          console.log("AuthContext - Current pathname:", window.location.pathname);
-          handleRedirection(isAdmin, window.location.pathname);
-        } else {
-          console.log("AuthContext - No session user found");
-          // Explicitly set these values to ensure state is consistent
-          setSession(null);
-          setUser(null);
-          setIsAdmin(false);
         }
       } catch (err) {
-        console.error("AuthContext - Exception in setupAuth:", err);
-        // Reset states on error to ensure consistent state
-        setSession(null);
-        setUser(null);
-        setIsAdmin(false);
+        console.error("Exception in setupAuth:", err);
       } finally {
-        // Always complete initialization regardless of success or error
         setIsLoading(false);
-        setInitialCheckComplete(true);
-        console.log("AuthContext - setupAuth complete, isLoading set to false, initialCheckComplete set to true");
       }
     };
     
-    // Initialize auth
     setupAuth();
 
+    // Set up auth state change listener with error handling
     try {
-      console.log("AuthContext - Setting up auth state change listener");
       const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('AuthContext - Auth state changed:', event, session ? "Session exists" : "No session");
+        console.log('Auth state changed:', event);
         
-        // Always set loading to false and complete initialization when auth state changes
-        if (!initialCheckComplete) {
-          setInitialCheckComplete(true);
-          setIsLoading(false);
-        }
+        setSession(session);
+        setUser(session?.user || null);
         
         if (session?.user) {
-          console.log("AuthContext - Auth state change detected user:", session.user.id);
-          setSession(session);
-          setUser(session.user);
-          
           await fetchAdminStatus(session.user.id);
-          
-          console.log("AuthContext - Current pathname for auth state change:", window.location.pathname);
-          handleRedirection(isAdmin, window.location.pathname);
         } else {
-          console.log("AuthContext - Auth state change detected no user");
-          setSession(null);
-          setUser(null);
           setIsAdmin(false);
-          
-          const nonAuthPaths = ['/login', '/signup-confirmation'];
-          if (!nonAuthPaths.includes(window.location.pathname)) {
-            console.log("AuthContext - No session - redirecting to login");
-            navigate('/login');
-          }
         }
       });
 
       return () => {
-        console.log("AuthContext - Cleaning up auth listener subscription");
         data.subscription.unsubscribe();
       };
     } catch (err) {
-      console.error("AuthContext - Error setting up auth listener:", err);
-      // Ensure we don't get stuck in loading state even if auth listener setup fails
-      if (!initialCheckComplete) {
-        setInitialCheckComplete(true);
-        setIsLoading(false);
-      }
-      return () => {
-        console.log("AuthContext - Empty cleanup due to error");
-      };
+      console.error("Error setting up auth listener:", err);
+      return () => {};
     }
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      console.log("AuthContext - Starting signIn process for email:", email);
-      
-      await clearStaleSession();
-      
-      console.log("AuthContext - Making supabase.auth.signInWithPassword call");
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
-        console.error("AuthContext - Login error:", error.message);
         toast({
           variant: "destructive",
           title: "Login failed",
           description: error.message
         });
-        return false;
+        console.error("Login error:", error.message);
+        return;
       }
 
       if (data.user) {
-        console.log("AuthContext - Login successful for user:", data.user.id);
-        console.log("AuthContext - Checking admin status");
+        // Check if user is admin
         const isUserAdmin = await fetchAdminStatus(data.user.id);
         
         if (!isUserAdmin) {
-          console.log("AuthContext - User not admin, signing out");
           toast({
             variant: "destructive",
             title: "Access denied",
             description: "You don't have administrator privileges"
           });
           await supabase.auth.signOut();
-          return false;
+          throw new Error('Not an admin user');
         }
         
-        console.log("AuthContext - Admin login successful");
         toast({
           title: "Login successful",
           description: "Welcome back, admin!"
         });
-        
-        setTimeout(() => {
-          console.log("AuthContext - Executing forced navigation to homepage");
-          navigate('/');
-          window.location.href = '/';
-        }, 100);
-        
-        return true;
+        navigate('/');
       }
-      
-      console.log("AuthContext - No user data from login call");
-      return false;
     } catch (error) {
-      console.error('AuthContext - Sign in error:', error);
-      return false;
+      console.error('Sign in error:', error);
     } finally {
       setIsLoading(false);
-      console.log("AuthContext - signIn process complete, isLoading set to false");
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      console.log("AuthContext - Starting signUp process for email:", email);
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password
       });
 
       if (error) {
-        console.error("AuthContext - Registration error:", error.message);
         toast({
           variant: "destructive",
           title: "Registration failed",
@@ -299,34 +169,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
 
-      console.log("AuthContext - Registration successful:", data ? "Data returned" : "No data");
       toast({
         title: "Registration successful",
         description: "Account created successfully. Please check your email to confirm your account."
       });
       
+      // Redirect to confirmation page instead of staying on login
       navigate('/signup-confirmation');
+      
+      // Note: The user will need to be made an admin manually in the database
     } catch (error) {
-      console.error('AuthContext - Sign up error:', error);
+      console.error('Sign up error:', error);
     } finally {
       setIsLoading(false);
-      console.log("AuthContext - signUp process complete, isLoading set to false");
     }
   };
 
   const signOut = async () => {
     try {
-      console.log("AuthContext - Starting signOut process");
       await supabase.auth.signOut();
       setIsAdmin(false);
-      console.log("AuthContext - Redirecting to login after signOut");
       navigate('/login');
       toast({
         title: "Logged out",
         description: "You have been logged out successfully"
       });
     } catch (error) {
-      console.error('AuthContext - Sign out error:', error);
+      console.error('Sign out error:', error);
       toast({
         variant: "destructive",
         title: "Logout failed",
@@ -335,18 +204,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  console.log("AuthContext - Rendering provider with isAdmin:", isAdmin, "session:", session ? "exists" : "null", "initialCheckComplete:", initialCheckComplete, "isLoading:", isLoading);
-
   return (
     <AuthContext.Provider value={{ user, session, isLoading, isAdmin, signIn, signUp, signOut }}>
-      {initialCheckComplete ? (
-        children
-      ) : (
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading authentication...</span>
-        </div>
-      )}
+      {children}
     </AuthContext.Provider>
   );
 };

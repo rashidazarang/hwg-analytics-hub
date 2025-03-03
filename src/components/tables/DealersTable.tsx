@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/mockData';
@@ -17,9 +18,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
   dealerFilter = ''
 }) => {
   const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(dealers);
-  const [page, setPage] = useState(1);
-  const pageSize = 50; // Fixed page size of 50
-  const [totalCount, setTotalCount] = useState(dealers.length);
   
   // Filter dealers based on dealerFilter
   useEffect(() => {
@@ -30,7 +28,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
   const filterByDealerName = (dealerName: string) => {
     if (!dealerName || !dealerName.trim()) {
       setFilteredDealers(dealers);
-      setTotalCount(dealers.length);
       return;
     }
     
@@ -40,12 +37,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
     );
     
     setFilteredDealers(filtered);
-    setTotalCount(filtered.length);
-  };
-  
-  // Handle page change
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
   };
   
   const columns: Column<Dealer>[] = [
@@ -118,35 +109,17 @@ const DealersTable: React.FC<DealersTableProps> = ({
       ),
     },
   ];
-  
-  // Calculate display data based on pagination
-  const displayData = filteredDealers.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
 
   return (
-    <>
-      <div className="text-sm text-muted-foreground mb-2">
-        Displaying {displayData.length} of {totalCount} dealers
-      </div>
-      
-      <DataTable
-        data={displayData}
-        columns={columns}
-        rowKey={(row) => row.id || row.DealerUUID || ''}
-        className={className}
-        searchConfig={{
-          enabled: false  // Disable the search in the table
-        }}
-        paginationProps={{
-          currentPage: page,
-          totalItems: totalCount,
-          pageSize: pageSize,
-          onPageChange: handlePageChange,
-        }}
-      />
-    </>
+    <DataTable
+      data={filteredDealers}
+      columns={columns}
+      rowKey={(row) => row.id || row.DealerUUID || ''}
+      className={className}
+      searchConfig={{
+        enabled: false // Disable the search in the table
+      }}
+    />
   );
 };
 
