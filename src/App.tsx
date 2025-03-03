@@ -14,13 +14,15 @@ import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 
 const App = () => {
+  // Create a new QueryClient with more permissive error handling
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
         refetchOnWindowFocus: false,
         retry: 1,
-        staleTime: 1000 * 60 * 60,
-        gcTime: 1000 * 60 * 60 * 2,
+        staleTime: 1000 * 60 * 5, // 5 minutes instead of 1 hour
+        gcTime: 1000 * 60 * 10, // 10 minutes instead of 2 hours
+        useErrorBoundary: false, // Prevent error boundaries from catching query errors
       },
     },
   }));
@@ -30,10 +32,8 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
+        <AuthProvider>
+          <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup-confirmation" element={<SignupConfirmation />} />
@@ -44,8 +44,10 @@ const App = () => {
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </AuthProvider>
-        </BrowserRouter>
+          </BrowserRouter>
+          <Toaster />
+          <Sonner />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
