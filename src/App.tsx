@@ -22,7 +22,7 @@ const App = () => {
         retry: 1,
         staleTime: 1000 * 60 * 5, // 5 minutes instead of 1 hour
         gcTime: 1000 * 60 * 10, // 10 minutes instead of 2 hours
-        useErrorBoundary: false, // Prevent error boundaries from catching query errors
+        // Removed unsupported useErrorBoundary property
       },
     },
   }));
