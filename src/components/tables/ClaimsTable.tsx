@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -6,21 +7,22 @@ import { toast } from 'sonner';
 import VirtualizedTable, { VirtualColumn } from './VirtualizedTable';
 import { Claim } from '@/lib/mockData';
 
-// Define a more comprehensive Claim type that includes database fields
+// Define a more comprehensive Claim type that includes database fields and handles string dates
 type ClaimType = {
   id?: string;
   ClaimID?: string;
   AgreementID?: string;
-  ReportedDate?: string | null;
-  IncurredDate?: string | null;
+  // Allow both string and Date types for date fields to accommodate Supabase responses
+  ReportedDate?: string | Date | null;
+  IncurredDate?: string | Date | null;
   Deductible?: number | null;
   amount?: number;
   status?: 'OPEN' | 'CLOSED' | 'PENDING';
   dealerName?: string;
   Cause?: string;
   Complaint?: string;
-  Closed?: string | null;
-} & Partial<Claim>;
+  Closed?: string | Date | null;
+} & Partial<Omit<Claim, 'ReportedDate' | 'IncurredDate' | 'dateReported' | 'dateIncurred' | 'Closed'>>;
 
 const SUPABASE_PAGE_SIZE = 50;
 
