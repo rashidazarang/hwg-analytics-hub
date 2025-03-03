@@ -34,37 +34,33 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         const fromDate = dateRange.from?.toISOString() || "2020-01-01T00:00:00.000Z";
         const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
 
-        // Query all agreements in date range to count by status
+        // First, we'll get the count of agreements by status directly from the database
+        // This approach is more efficient than fetching all records and counting them client-side
         const { data, error } = await supabase
           .from('agreements')
-          .select('AgreementStatus')
+          .select('AgreementStatus, count(*)', { count: 'exact' })
           .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate);
+          .lte('EffectiveDate', toDate)
+          .group('AgreementStatus');
 
         if (error) {
           console.error('❌ Error fetching agreement status distribution:', error);
           return [];
         }
 
-        // Count by status
-        const statusCounts: Record<string, number> = {};
+        console.log('📊 Agreement status counts from database:', data);
+        console.log(`📊 Total agreements counted: ${data.reduce((sum, item) => sum + parseInt(item.count), 0)}`);
         
-        data.forEach(agreement => {
-          const status = agreement.AgreementStatus || 'Unknown';
-          statusCounts[status] = (statusCounts[status] || 0) + 1;
-        });
-
         // Convert to chart data format
-        const chartData = Object.entries(statusCounts).map(([status, count]) => ({
-          name: STATUS_LABELS[status] || status,
-          value: count,
-          rawStatus: status
+        const chartData = data.map(item => ({
+          name: STATUS_LABELS[item.AgreementStatus || 'Unknown'] || item.AgreementStatus || 'Unknown',
+          value: parseInt(item.count),
+          rawStatus: item.AgreementStatus || 'Unknown'
         }));
 
         // Sort data by count (descending)
         chartData.sort((a, b) => b.value - a.value);
         
-        console.log('📊 Agreement status distribution:', chartData);
         return chartData;
       } catch (error) {
         console.error('❌ Error processing agreement status data:', error);
@@ -132,7 +128,7 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
               </Pie>
               <Tooltip
                 formatter={(value: number, name: string) => [
-                  `${value} Agreements`, 
+                  `${value.toLocaleString()} Agreements`, 
                   name
                 ]}
                 contentStyle={{
