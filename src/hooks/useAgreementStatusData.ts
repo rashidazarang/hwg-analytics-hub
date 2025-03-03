@@ -41,57 +41,25 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
         const fromDate = dateRange.from?.toISOString() || "2020-01-01T00:00:00.000Z";
         const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
 
-        // First, we need to fetch dealers if we have a dealer filter
-        let dealerUUIDs: string[] = [];
-        
+        // If we have a dealer filter, directly query by dealer UUID
         if (dealerFilter) {
-          const normalizedDealerFilter = dealerFilter.toLowerCase().trim();
-          const { data: dealersData, error: dealersError } = await supabase
-            .from('dealers')
-            .select('DealerUUID, Payee')
-            .ilike('Payee', `%${normalizedDealerFilter}%`);
+          console.log(`📊 Filtering agreements by dealer UUID: ${dealerFilter}`);
           
-          if (dealersError) {
-            console.error('❌ Error fetching dealers:', dealersError);
-          } else if (dealersData && dealersData.length > 0) {
-            dealerUUIDs = dealersData.map(dealer => dealer.DealerUUID);
-            console.log('📊 Found dealers matching filter:', dealerUUIDs.length);
-          } else {
-            // If no dealers match the filter but a filter was provided, return empty data
-            console.log('📊 No dealers found matching filter:', normalizedDealerFilter);
+          // Direct query for agreements matching this dealer
+          const { data: filteredAgreements, error } = await supabase
+            .from('agreements')
+            .select('AgreementStatus')
+            .eq('DealerUUID', dealerFilter)
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate);
+            
+          if (error) {
+            console.error('❌ Error fetching filtered agreements:', error);
             return [];
           }
-        }
-
-        // Now use the RPC function with dealer filter if applicable
-        let query = supabase.rpc('count_agreements_by_status', {
-          from_date: fromDate,
-          to_date: toDate
-        });
-        
-        // We can't directly filter in the RPC, so we'll do client-side filtering if dealerFilter is provided
-        const { data, error } = await query;
-
-        if (error) {
-          console.error('❌ Error fetching agreement status distribution:', error);
-          return [];
-        }
-
-        console.log('📊 Agreement status counts from database:', data);
-        
-        // If dealer filter is active and we found matching dealers, we need to get the filtered data
-        if (dealerFilter && dealerUUIDs.length > 0) {
-          console.log('📊 Applying dealer filter to agreements...');
-          // Fetch all agreements within date range and filter by dealer
-          const { data: filteredAgreements, error: agreementsError } = await supabase
-            .from('agreements')
-            .select('AgreementStatus, DealerUUID')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .in('DealerUUID', dealerUUIDs);
-            
-          if (agreementsError) {
-            console.error('❌ Error fetching filtered agreements:', agreementsError);
+          
+          if (!filteredAgreements || filteredAgreements.length === 0) {
+            console.log('📊 No agreements found for this dealer in the selected date range');
             return [];
           }
           
@@ -118,9 +86,21 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
           return chartData;
         }
         
-        // If no dealer filter or no matching dealers, use the original data
+        // If no dealer filter, use the RPC function to get all agreements status distribution
+        const { data, error } = await supabase.rpc('count_agreements_by_status', {
+          from_date: fromDate,
+          to_date: toDate
+        });
+
+        if (error) {
+          console.error('❌ Error fetching agreement status distribution:', error);
+          return [];
+        }
+
+        console.log('📊 Agreement status counts from database:', data);
+        
+        // If no data returned from RPC, fall back to client-side counting
         if (!data || (Array.isArray(data) && data.length === 0)) {
-          // Fallback to client-side counting if the RPC function fails or doesn't exist
           console.log('📊 Falling back to client-side counting...');
           const { data: agreements, error: fetchError } = await supabase
             .from('agreements')
@@ -156,7 +136,7 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
           return chartData;
         }
         
-        // Safely type-check and convert the data
+        // Safely type-check and convert the data from RPC
         const typedData = data as AgreementStatusCount[];
         
         // Convert RPC result to chart data format

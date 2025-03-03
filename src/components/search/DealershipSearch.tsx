@@ -97,7 +97,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     setShowSuggestions(Boolean(searchValue.trim()));
     
     if (!searchValue.trim()) {
-      handleDealershipSelect("");
+      handleClearSearch();
     }
     
     console.log('🔍 Search Term:', searchValue);
@@ -111,55 +111,51 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     e.preventDefault();
     
     if (searchTerm) {
-      const matchedDealership = dealerships.find(dealership => 
+      // First try exact match
+      const exactMatch = dealerships.find(dealership => 
         dealership.name?.toLowerCase() === searchTerm.toLowerCase()
       );
       
-      if (matchedDealership) {
-        handleDealershipSelect(matchedDealership.id);
+      if (exactMatch) {
+        handleDealershipSelect(exactMatch.id, exactMatch.name);
       } else if (filteredDealerships.length > 0) {
-        handleDealershipSelect(filteredDealerships[0].id);
+        // If no exact match, use the first filtered result
+        handleDealershipSelect(filteredDealerships[0].id, filteredDealerships[0].name);
       } else {
-        handleDealershipSelect("");
+        toast.info("No matching dealerships found");
+        handleClearSearch();
       }
     } else {
-      handleDealershipSelect("");
+      handleClearSearch();
     }
     
     setShowSuggestions(false);
   };
 
-  const handleDealershipSelect = (value: string) => {
+  const handleDealershipSelect = (value: string, name: string = '') => {
+    // Get the actual name if not provided
+    let dealerName = name;
+    if (!dealerName && value) {
+      const selected = dealerships.find(d => d.id === value);
+      dealerName = selected?.name || '';
+    }
+    
     setSelectedDealershipId(value);
     
-    const selected = dealerships.find(d => d.id === value);
-    if (selected) {
-      setSearchTerm(selected.name);
-      onDealershipSelect(value, selected.name);
+    if (value && dealerName) {
+      setSearchTerm(dealerName);
+      onDealershipSelect(value, dealerName);
       
+      // Invalidate the queries that depend on dealer filter
       queryClient.invalidateQueries({
         queryKey: ['agreement-status-distribution'],
         exact: false
       });
       
-      console.log(`🔍 Selected dealership: ${selected.name} (${value})`);
-      toast.success(`Filtered to dealership: ${selected.name}`);
+      console.log(`🔍 Selected dealership: ${dealerName} (${value})`);
+      toast.success(`Filtered to dealership: ${dealerName}`);
     } else {
-      onDealershipSelect('', '');
-      
-      if (!value) {
-        setSearchTerm('');
-      }
-      
-      queryClient.invalidateQueries({
-        queryKey: ['agreement-status-distribution'],
-        exact: false
-      });
-      
-      console.log('🧹 Cleared dealership filter');
-      if (searchTerm) {
-        toast.info("Cleared dealership filter");
-      }
+      handleClearSearch();
     }
     
     setShowSuggestions(false);
@@ -167,7 +163,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
 
   const handleDealershipClick = (dealership: {id: string, name: string}) => {
     setSearchTerm(dealership.name);
-    handleDealershipSelect(dealership.id);
+    handleDealershipSelect(dealership.id, dealership.name);
   };
   
   const handleClearSearch = () => {
@@ -181,7 +177,9 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
       exact: false
     });
     
-    toast.info("Cleared dealership filter");
+    if (searchTerm) {
+      toast.info("Cleared dealership filter");
+    }
   };
 
   // Hide suggestions when clicking outside
