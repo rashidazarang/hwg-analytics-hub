@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
+import { toast } from 'sonner';
 
 type Agreement = {
   id: string;
@@ -42,8 +43,9 @@ const formatName = (name?: string | null): string => {
 
 const SUPABASE_PAGE_SIZE = 500;
 
-async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
+async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string): Promise<Agreement[]> {
   console.log("🔍 Fetching agreements...");
+  console.log("🔍 Dealer filter:", dealerFilter);
 
   let allAgreements: Agreement[] = [];
   let page = 1;
@@ -55,18 +57,35 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
     const offset = (page - 1) * SUPABASE_PAGE_SIZE;
 
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
-
-    const { data, error } = await supabase
+    
+    // Start building the query
+    let query = supabase
       .from("agreements")
       .select("id, AgreementID, HolderFirstName, HolderLastName, DealerUUID, DealerID, EffectiveDate, ExpireDate, AgreementStatus, Total, DealerCost, ReserveAmount")
       .gte("EffectiveDate", from)
-      .lte("EffectiveDate", to)
+      .lte("EffectiveDate", to);
+    
+    // Add dealer filter if specified
+    if (dealerFilter && dealerFilter.trim()) {
+      console.log(`🔍 Adding dealer filter: ${dealerFilter}`);
+      query = query.eq("DealerUUID", dealerFilter.trim());
+    }
+    
+    // Execute the query with pagination
+    const { data, error } = await query
       .order("EffectiveDate", { ascending: false })
       .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
 
     if (error) {
       console.error("❌ Supabase Fetch Error:", error);
+      toast.error("Failed to load agreements");
       return allAgreements;
+    }
+
+    if (!data || data.length === 0) {
+      console.log("No more agreements found for this query");
+      hasMore = false;
+      break;
     }
 
     allAgreements = [...allAgreements, ...data];
@@ -160,8 +179,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    return ["agreements-data", from, to];
-  }, [dateRange]);
+    return ["agreements-data", from, to, dealerFilter];
+  }, [dateRange, dealerFilter]);
   
   const { 
     data: allAgreements = [], 
@@ -171,9 +190,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   } = useQuery({
     queryKey: agreementsQueryKey,
     queryFn: async () => {
-      const agreements = await fetchAllAgreements(dateRange);
+      const agreements = await fetchAllAgreements(dateRange, dealerFilter);
       console.log(`🟢 Storing ${agreements.length} agreements in React Query cache`);
-      queryClient.setQueryData(["agreements-data", dateRange?.from?.toISOString(), dateRange?.to?.toISOString()], agreements);
       return agreements;
     },
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
@@ -220,14 +238,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   }, [dealers]);
   
   const filteredAgreements = useMemo(() => {
+    console.log("Filtering agreements with search term:", searchTerm);
     let filtered = agreements;
-    
-    if (dealerFilter && dealerFilter.trim()) {
-      console.log(`🔍 Filtering agreements by dealer UUID: ${dealerFilter}`);
-      filtered = filtered.filter(agreement => 
-        agreement.DealerUUID?.trim() === dealerFilter.trim()
-      );
-    }
     
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
@@ -236,8 +248,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       );
     }
     
+    console.log(`After filtering: ${filtered.length} agreements remain`);
     return filtered;
-  }, [agreements, searchTerm, dealerFilter]);
+  }, [agreements, searchTerm]);
   
   useEffect(() => {
     if (filteredAgreements.length > 0) {
@@ -251,7 +264,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       }
       setDisplayAgreements(slicedAgreements);
     } else {
-      console.warn("⚠️ No agreements to display, double-check Supabase.");
+      console.warn("⚠️ No agreements to display after filtering.");
       setDisplayAgreements([]);
       setTotalCount(0);
     }

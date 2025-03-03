@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import ClaimsTable from '@/components/tables/ClaimsTable';
@@ -26,6 +26,12 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
   claims,
   dealers
 }) => {
+  // Debug logging to verify props are correctly passed down
+  useEffect(() => {
+    console.log("DashboardTables - Current dealer filter:", dealerFilter);
+    console.log("DashboardTables - Current dealer name:", dealerName);
+  }, [dealerFilter, dealerName]);
+
   return (
     <div className="space-y-6 mt-6">
       <Tabs value={activeTab} defaultValue={activeTab}>
