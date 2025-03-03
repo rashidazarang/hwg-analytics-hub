@@ -55,27 +55,16 @@ const DataTable = <T extends Record<string, any>>({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
 
-  useEffect(() => {
-    if (searchConfig.onChange) {
-      setFilteredData(data);
-      
-      if (searchTerm && searchTerm.trim() !== '') {
-        searchConfig.onChange(searchTerm);
-      }
-    } else {
-      setFilteredData(data);
-      
-      if (searchTerm && searchTerm.trim() !== '') {
-        applySearchFilter(searchTerm);
-      }
-    }
-  }, [data]);
+useEffect(() => {
+  setFilteredData(data);
+  applySearchFilter(searchTerm); // Ensure filtering logic runs even on data updates
+}, [data, searchTerm]);
 
   const applySearchFilter = (term: string) => {
-    if (!term || term.trim() === '') {
-      setFilteredData(data);
-      return;
-    }
+if (!term || term.trim() === '') {
+  setFilteredData(data); // Reset filtered data when search is cleared
+  return; // Stop further execution
+}
 
     const normalizedTerm = term.toLowerCase().trim();
     
