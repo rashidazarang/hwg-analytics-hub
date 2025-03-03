@@ -44,46 +44,64 @@ const DealersTable: React.FC<DealersTableProps> = ({
           });
           
           // Fall back to mock data
-          filterByDealerName(dealerFilter, mockDealers);
+          applyFilters(dealerFilter, searchQuery, mockDealers);
         } else if (supabaseDealers && supabaseDealers.length > 0) {
           console.log(`✅ Successfully loaded ${supabaseDealers.length} dealers from Supabase`);
           toast.success(`Loaded ${supabaseDealers.length} dealers from database`);
           // Use Supabase data
-          filterByDealerName(dealerFilter, supabaseDealers);
+          applyFilters(dealerFilter, searchQuery, supabaseDealers);
         } else {
           console.log('📊 No dealers found in Supabase, using mock data');
           // Fall back to mock data
-          filterByDealerName(dealerFilter, mockDealers);
+          applyFilters(dealerFilter, searchQuery, mockDealers);
         }
       } catch (error) {
         console.error('❌ Unexpected error loading dealers:', error);
         setHasError(true);
         // Fall back to mock data
-        filterByDealerName(dealerFilter, mockDealers);
+        applyFilters(dealerFilter, searchQuery, mockDealers);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadDealers();
-  }, [mockDealers, dealerFilter]);
+  }, [mockDealers]);
 
-  // Effect to filter dealers when dealerFilter changes
+  // Effect to filter dealers when dealerFilter or searchQuery changes
   useEffect(() => {
-    filterByDealerName(dealerFilter, mockDealers);
-  }, [dealerFilter, mockDealers]);
+    applyFilters(dealerFilter, searchQuery, filteredDealers.length ? filteredDealers : mockDealers);
+  }, [dealerFilter, searchQuery, mockDealers]);
   
-  // Function to filter dealers by name only
-  const filterByDealerName = (dealerName: string, data: Dealer[]) => {
-    if (!dealerName || !dealerName.trim()) {
-      setFilteredDealers(data);
-      return;
+  // Function to apply all filters (dealer name, search term)
+  const applyFilters = (dealerName: string, searchTerm: string, data: Dealer[]) => {
+    let filtered = [...data];
+    
+    // Apply dealer name filter
+    if (dealerName && dealerName.trim()) {
+      const normalizedDealerName = dealerName.toLowerCase().trim();
+      filtered = filtered.filter(dealer => 
+        (dealer.name || dealer.Payee || '').toLowerCase().includes(normalizedDealerName)
+      );
     }
     
-    const normalizedTerm = dealerName.toLowerCase().trim();
-    const filtered = data.filter(dealer => 
-      (dealer.name || dealer.Payee || '').toLowerCase().includes(normalizedTerm)
-    );
+    // Apply search term filter
+    if (searchTerm && searchTerm.trim()) {
+      const normalizedSearchTerm = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(dealer => {
+        const name = (dealer.name || dealer.Payee || '').toLowerCase();
+        const id = (dealer.id || dealer.DealerUUID || dealer.PayeeID || '').toLowerCase();
+        const location = [
+          dealer.city || dealer.City || '',
+          dealer.region || dealer.Region || '',
+          dealer.country || dealer.Country || ''
+        ].filter(Boolean).join(' ').toLowerCase();
+        
+        return name.includes(normalizedSearchTerm) || 
+               id.includes(normalizedSearchTerm) || 
+               location.includes(normalizedSearchTerm);
+      });
+    }
     
     setFilteredDealers(filtered);
   };

@@ -20,25 +20,37 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
 }) => {
   const [filteredClaims, setFilteredClaims] = useState<Claim[]>(claims);
   
-  // Filter claims based on dealerFilter
+  // Filter claims based on dealerFilter and searchQuery
   useEffect(() => {
-    filterClaimsByDealership(dealerFilter);
-  }, [dealerFilter, claims]);
-  
-  // Function to filter claims based on dealer filter only
-  const filterClaimsByDealership = (dealer: string) => {
     let filtered = claims;
     
     // Filter by dealer name if specified
-    if (dealer && dealer.trim()) {
-      const normalizedTerm = dealer.toLowerCase().trim();
+    if (dealerFilter && dealerFilter.trim()) {
+      const normalizedTerm = dealerFilter.toLowerCase().trim();
       filtered = filtered.filter(claim => 
         claim.dealerName && claim.dealerName.toLowerCase().includes(normalizedTerm)
       );
     }
     
+    // Filter by searchQuery if specified
+    if (searchQuery && searchQuery.trim()) {
+      const normalizedTerm = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(claim => {
+        // Search in claim ID
+        const claimId = (claim.id || claim.ClaimID || '').toLowerCase();
+        // Search in agreement ID
+        const agreementId = (claim.agreementId || claim.AgreementID || '').toLowerCase();
+        // Search in dealer name
+        const dealerName = (claim.dealerName || '').toLowerCase();
+        
+        return claimId.includes(normalizedTerm) || 
+               agreementId.includes(normalizedTerm) || 
+               dealerName.includes(normalizedTerm);
+      });
+    }
+    
     setFilteredClaims(filtered);
-  };
+  }, [dealerFilter, searchQuery, claims]);
   
   const columns: Column<Claim>[] = [
     {

@@ -30,7 +30,7 @@ const Index = () => {
 
   const handleDealershipSelect = (dealershipId: string, dealershipName: string) => {
     console.log(`Selected dealership: ${dealershipName} (${dealershipId})`);
-    setDealershipFilter(dealershipId);
+    setDealershipFilter(dealershipName); // Change to use dealership name instead of ID
   };
 
   // Create the subnavbar content with tabs on the left and dealership search on the right
@@ -70,6 +70,7 @@ const Index = () => {
             activeTab={activeTab}
             dateRange={dateRange}
             dealerFilter={dealershipFilter}
+            searchQuery={searchTerm}
             claims={mockClaims}
             dealers={mockDealers}
           />
