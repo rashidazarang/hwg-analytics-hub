@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -144,7 +143,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     
     if (value && dealerName) {
       setSearchTerm(dealerName);
-      onDealershipSelect(value, dealerName);
+      onDealershipSelect(value, dealerName); // Pass the UUID as value, and name separately
       
       // Invalidate the queries that depend on dealer filter
       queryClient.invalidateQueries({
@@ -152,7 +151,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
         exact: false
       });
       
-      console.log(`🔍 Selected dealership: ${dealerName} (${value})`);
+      console.log(`🔍 Selected dealership: ${dealerName} (UUID: ${value})`);
       toast.success(`Filtered to dealership: ${dealerName}`);
     } else {
       handleClearSearch();

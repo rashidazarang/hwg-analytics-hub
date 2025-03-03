@@ -39,7 +39,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
           <AgreementsTable 
             dateRange={dateRange} 
             dealerFilter={dealerFilter} // Passing UUID here
-            dealerName={dealerName}
+            dealerName={dealerName}     // Passing display name here
             searchQuery={searchQuery} 
           />
         </TabsContent>

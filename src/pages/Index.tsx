@@ -14,8 +14,8 @@ const Index = () => {
     from: new Date(new Date().getFullYear(), 0, 1), // Jan 1st of current year
     to: new Date()
   });
-  const [dealershipFilter, setDealershipFilter] = useState<string>(''); // Holds the UUID for Supabase query
-  const [dealershipName, setDealershipName] = useState<string>('');     // Holds the display name for UI only
+  const [dealershipUUID, setDealershipUUID] = useState<string>(''); // Holds the UUID for Supabase query
+  const [dealershipName, setDealershipName] = useState<string>('');  // Holds the display name for UI only
   const [activeTab, setActiveTab] = useState<string>('agreements');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -30,9 +30,9 @@ const Index = () => {
   };
 
   const handleDealershipSelect = (dealershipId: string, dealershipName: string) => {
-    console.log(`Selected dealership: ${dealershipName} (${dealershipId})`);
-    setDealershipFilter(dealershipId);     // This is the UUID, used for filtering
-    setDealershipName(dealershipName);     // This is just for display purposes
+    console.log(`Selected dealership: ${dealershipName} (UUID: ${dealershipId})`);
+    setDealershipUUID(dealershipId);     // This is the UUID, used for filtering
+    setDealershipName(dealershipName);   // This is just for display purposes
   };
 
   // Create the subnavbar content with tabs on the left and dealership search on the right
@@ -65,14 +65,14 @@ const Index = () => {
         >
           <DashboardCharts 
             dateRange={dateRange}
-            dealershipFilter={dealershipFilter} // Passing UUID for filtering
+            dealershipFilter={dealershipUUID} // Passing UUID for filtering
             claims={mockClaims}
           />
           <DashboardTables
             activeTab={activeTab}
             dateRange={dateRange}
-            dealerFilter={dealershipFilter}  // Passing UUID for filtering
-            dealerName={dealershipName}      // Passing name for display
+            dealerFilter={dealershipUUID}  // Passing UUID for filtering
+            dealerName={dealershipName}    // Passing name for display
             searchQuery={searchTerm}
             claims={mockClaims}
             dealers={mockDealers}
