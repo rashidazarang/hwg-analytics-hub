@@ -128,9 +128,15 @@ type AgreementsTableProps = {
   className?: string;
   dateRange?: DateRange;
   searchQuery?: string;
+  dealerFilter?: string;
 };
 
-const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange, searchQuery = '' }) => {
+const AgreementsTable: React.FC<AgreementsTableProps> = ({ 
+  className = '', 
+  dateRange, 
+  searchQuery = '',
+  dealerFilter = ''
+}) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -218,13 +224,27 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   }, [dealers]);
   
   const filteredAgreements = useMemo(() => {
-    if (!searchTerm.trim()) return agreements;
+    let filtered = agreements;
+    
+    if (dealerFilter && dealerFilter.trim()) {
+      filtered = filtered.filter(agreement => {
+        const dealerUUID = agreement.DealerUUID?.trim().toLowerCase();
+        const dealerID = agreement.DealerID?.trim().toLowerCase();
+        
+        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
+        if (!dealer && dealerID) {
+          dealer = dealerMap[dealerID];
+        }
+        
+        return dealer && dealer.Payee && dealer.Payee.toLowerCase() === dealerFilter.toLowerCase();
+      });
+    }
+    
+    if (!searchTerm.trim()) return filtered;
     
     const term = searchTerm.toLowerCase().trim();
     
-    const dealerNameMap: Record<string, string> = {};
-    
-    return agreements.filter(agreement => {
+    return filtered.filter(agreement => {
       if (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) {
         return true;
       }
@@ -254,7 +274,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
       
       return false;
     });
-  }, [agreements, searchTerm, dealerMap]);
+  }, [agreements, searchTerm, dealerMap, dealerFilter]);
   
   useEffect(() => {
     if (filteredAgreements.length > 0) {

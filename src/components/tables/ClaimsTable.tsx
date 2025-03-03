@@ -8,18 +8,61 @@ import { Badge } from '@/components/ui/badge';
 type ClaimsTableProps = {
   claims: Claim[];
   className?: string;
-  searchQuery?: string; // Add searchQuery prop
+  searchQuery?: string;
+  dealerFilter?: string; // Added the dealerFilter prop
 };
 
-const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '', searchQuery = '' }) => {
+const ClaimsTable: React.FC<ClaimsTableProps> = ({ 
+  claims, 
+  className = '', 
+  searchQuery = '',
+  dealerFilter = '' // Add the dealerFilter prop with default empty string
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filteredClaims, setFilteredClaims] = useState<Claim[]>(claims);
   
-  // Update searchTerm when searchQuery prop changes
+  // Update searchTerm when searchQuery prop changes and filter claims
   useEffect(() => {
-    if (searchQuery !== undefined) {
-      setSearchTerm(searchQuery);
+    setSearchTerm(searchQuery);
+    filterClaims(searchQuery, dealerFilter);
+  }, [searchQuery, dealerFilter, claims]);
+  
+  // Function to filter claims based on search term and dealer filter
+  const filterClaims = (term: string, dealer: string) => {
+    let filtered = claims;
+    
+    // First filter by dealer name if specified
+    if (dealer && dealer.trim()) {
+      filtered = filtered.filter(claim => 
+        claim.dealerName && claim.dealerName.toLowerCase() === dealer.toLowerCase()
+      );
     }
-  }, [searchQuery]);
+    
+    // Then apply search term if it exists
+    if (term && term.trim()) {
+      const normalizedTerm = term.toLowerCase().trim();
+      filtered = filtered.filter(claim => {
+        // Check claim ID
+        if (claim.id && claim.id.toLowerCase().includes(normalizedTerm)) {
+          return true;
+        }
+        
+        // Check agreement ID
+        if (claim.agreementId && claim.agreementId.toLowerCase().includes(normalizedTerm)) {
+          return true;
+        }
+        
+        // Check dealer name
+        if (claim.dealerName && claim.dealerName.toLowerCase().includes(normalizedTerm)) {
+          return true;
+        }
+        
+        return false;
+      });
+    }
+    
+    setFilteredClaims(filtered);
+  };
   
   const columns: Column<Claim>[] = [
     {
@@ -100,11 +143,12 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '', searc
   // Handle search
   const handleSearch = (term: string) => {
     setSearchTerm(term);
+    filterClaims(term, dealerFilter);
   };
 
   return (
     <DataTable
-      data={claims}
+      data={filteredClaims}
       columns={columns}
       rowKey={(row) => row.id || row.ClaimID || ''}
       className={className}
