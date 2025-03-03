@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -42,7 +43,7 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         // First, we'll get the distribution of agreements by status
         // Using the RPC function we created for grouping
         const { data, error } = await supabase
-          .rpc<AgreementStatusCount>('count_agreements_by_status', {
+          .rpc<AgreementStatusCount[], { from_date: string, to_date: string }>('count_agreements_by_status', {
             from_date: fromDate,
             to_date: toDate
           });
