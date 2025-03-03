@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +10,6 @@ import { toast } from '@/components/ui/use-toast';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loginAttempt, setLoginAttempt] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn, signUp, isAdmin, session } = useAuth();
   const navigate = useNavigate();
@@ -19,6 +17,7 @@ const Login = () => {
   useEffect(() => {
     // Redirect to home if already logged in and is admin
     if (session && isAdmin) {
+      console.log("Login component detected session and admin status, redirecting to dashboard");
       navigate('/');
     }
   }, [session, isAdmin, navigate]);
@@ -37,13 +36,21 @@ const Login = () => {
     
     try {
       setIsSubmitting(true);
-      setLoginAttempt(prev => prev + 1); // Increment login attempt counter
-      await signIn(email, password);
+      console.log("Attempting login with email:", email);
+      
+      const success = await signIn(email, password);
+      
+      if (!success) {
+        console.log("Login unsuccessful, resetting submission state");
+        setIsSubmitting(false);
+      }
+      // We don't need to manually navigate here anymore
+      // AuthContext will handle navigation on successful login
+      
     } catch (error) {
       console.error("Login error:", error);
-      // signIn already shows a toast for errors
-    } finally {
       setIsSubmitting(false);
+      // signIn already shows a toast for errors
     }
   };
 
@@ -71,11 +78,11 @@ const Login = () => {
     try {
       setIsSubmitting(true);
       await signUp(email, password);
+      setIsSubmitting(false);
     } catch (error) {
       console.error("Signup error:", error);
-      // signUp already shows a toast for errors
-    } finally {
       setIsSubmitting(false);
+      // signUp already shows a toast for errors
     }
   };
 

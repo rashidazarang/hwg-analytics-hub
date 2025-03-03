@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +10,7 @@ type AuthContextType = {
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -99,11 +98,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         console.log("Session data:", data.session ? "Session exists" : "No session");
         
-        setSession(data.session);
-        setUser(data.session?.user || null);
-        
         if (data.session?.user) {
-          await fetchAdminStatus(data.session.user.id);
+          setSession(data.session);
+          setUser(data.session.user);
+          const isUserAdmin = await fetchAdminStatus(data.session.user.id);
+          
+          if (isUserAdmin && window.location.pathname === '/login') {
+            console.log("Redirecting authenticated admin from login to home");
+            navigate('/');
+          }
         }
       } catch (err) {
         console.error("Exception in setupAuth:", err);
@@ -117,15 +120,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state change listener with error handling
     try {
       const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth state changed:', event);
-        
-        setSession(session);
-        setUser(session?.user || null);
+        console.log('Auth state changed:', event, session ? "Session exists" : "No session");
         
         if (session?.user) {
-          await fetchAdminStatus(session.user.id);
+          setSession(session);
+          setUser(session.user);
+          const isUserAdmin = await fetchAdminStatus(session.user.id);
+          
+          if (isUserAdmin && window.location.pathname === '/login') {
+            console.log("Auth state change - redirecting to dashboard");
+            navigate('/');
+          }
         } else {
+          setSession(null);
+          setUser(null);
           setIsAdmin(false);
+          
+          // If not on login or signup confirmation page and no session, redirect to login
+          const nonAuthPaths = ['/login', '/signup-confirmation'];
+          if (!nonAuthPaths.includes(window.location.pathname)) {
+            console.log("No session - redirecting to login");
+            navigate('/login');
+          }
         }
       });
 
@@ -157,7 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           description: error.message
         });
         console.error("Login error:", error.message);
-        return;
+        return false;
       }
 
       if (data.user) {
@@ -171,17 +187,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             description: "You don't have administrator privileges"
           });
           await supabase.auth.signOut();
-          throw new Error('Not an admin user');
+          return false;
         }
         
         toast({
           title: "Login successful",
           description: "Welcome back, admin!"
         });
+        
+        console.log("Login successful, navigating to dashboard");
         navigate('/');
+        return true;
       }
+      
+      return false;
     } catch (error) {
       console.error('Sign in error:', error);
+      return false;
     } finally {
       setIsLoading(false);
     }
