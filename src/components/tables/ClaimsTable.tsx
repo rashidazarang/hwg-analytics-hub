@@ -19,6 +19,9 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   dealerFilter = ''
 }) => {
   const [filteredClaims, setFilteredClaims] = useState<Claim[]>(claims);
+  const [page, setPage] = useState(1);
+  const pageSize = 50; // Fixed page size of 50
+  const [totalCount, setTotalCount] = useState(0);
   
   // Filter claims based on dealerFilter
   useEffect(() => {
@@ -38,6 +41,12 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     }
     
     setFilteredClaims(filtered);
+    setTotalCount(filtered.length);
+  };
+  
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
   };
   
   const columns: Column<Claim>[] = [
@@ -116,16 +125,34 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     },
   ];
 
+  // Calculate display data based on pagination
+  const displayData = filteredClaims.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
+
   return (
-    <DataTable
-      data={filteredClaims}
-      columns={columns}
-      rowKey={(row) => row.id || row.ClaimID || ''}
-      className={className}
-      searchConfig={{
-        enabled: false  // Disable the search in the table
-      }}
-    />
+    <>
+      <div className="text-sm text-muted-foreground mb-2">
+        Displaying {displayData.length} of {totalCount} claims
+      </div>
+      
+      <DataTable
+        data={displayData}
+        columns={columns}
+        rowKey={(row) => row.id || row.ClaimID || ''}
+        className={className}
+        searchConfig={{
+          enabled: false  // Disable the search in the table
+        }}
+        paginationProps={{
+          currentPage: page,
+          totalItems: totalCount,
+          pageSize: pageSize,
+          onPageChange: handlePageChange,
+        }}
+      />
+    </>
   );
 };
 
