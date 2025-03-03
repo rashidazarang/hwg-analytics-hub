@@ -57,47 +57,45 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
 
     const { data, error } = await supabase
-      .from("agreements")
-      .select(`
-        id, 
-        AgreementID, 
-        HolderFirstName, 
-        HolderLastName, 
-        DealerUUID, 
-        DealerID, 
-        EffectiveDate, 
-        ExpireDate, 
-        AgreementStatus, 
-        Total, 
-        DealerCost, 
-        ReserveAmount
-      `) // ✅ NO SEMICOLON HERE!
-      .gte("EffectiveDate", from)
-      .lte("EffectiveDate", to)
-      .order("EffectiveDate", { ascending: false })
-      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
-
+    .from("agreements")
+    .select(`
+      id, 
+      AgreementID, 
+      HolderFirstName, 
+      HolderLastName, 
+      DealerUUID, 
+      DealerID, 
+      EffectiveDate, 
+      ExpireDate, 
+      AgreementStatus, 
+      Total, 
+      DealerCost, 
+      ReserveAmount
+    `);
     if (error) {
       console.error("❌ Supabase Fetch Error:", error);
-      return allAgreements; // ✅ Return what we have so far
+      return allAgreements;
     }
-
-    if (!data || data.length === 0) {
-      console.warn("⚠️ No agreements found in this batch.");
-      hasMore = false;
-      break;
-    }
-
+    
     // ✅ Ensure DealerUUID has a fallback to DealerID if missing
-    const formattedAgreements = data.map(agreement => ({
+    allAgreements = data.map(agreement => ({
       ...agreement,
       DealerUUID: agreement.DealerUUID || agreement.DealerID || null, // Fallback logic
     }));
 
-    allAgreements = [...allAgreements, ...formattedAgreements];
+    .gte("EffectiveDate", from)
+    .lte("EffectiveDate", to)
+    .order("EffectiveDate", { ascending: false })
+    .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
 
-    // ✅ Ensure we correctly determine if there’s more data
-    if (data.length === SUPABASE_PAGE_SIZE) {
+    if (error) {
+      console.error("❌ Supabase Fetch Error:", error);
+      return allAgreements;
+    }
+
+    allAgreements = [...allAgreements, ...data];
+
+    if (data && data.length === SUPABASE_PAGE_SIZE) {
       page++; // Move to the next batch
     } else {
       hasMore = false;
