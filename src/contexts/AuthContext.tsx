@@ -15,6 +15,11 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
+// Define the type for profile data to satisfy TypeScript
+type ProfileData = {
+  is_admin: boolean;
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -32,13 +37,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (data.session?.user) {
         // Check if user is admin
-        const { data: profileData } = await supabase
+        // Use explicit typing with as to handle the custom table
+        const { data: profileData, error } = await supabase
           .from('profiles')
           .select('is_admin')
           .eq('id', data.session.user.id)
           .single();
           
-        setIsAdmin(profileData?.is_admin || false);
+        if (!error && profileData) {
+          setIsAdmin((profileData as ProfileData).is_admin || false);
+        } else {
+          console.error('Error fetching profile data:', error);
+          setIsAdmin(false);
+        }
       }
       
       setIsLoading(false);
@@ -53,13 +64,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         // Check if user is admin when auth state changes
-        const { data: profileData } = await supabase
+        const { data: profileData, error } = await supabase
           .from('profiles')
           .select('is_admin')
           .eq('id', session.user.id)
           .single();
           
-        setIsAdmin(profileData?.is_admin || false);
+        if (!error && profileData) {
+          setIsAdmin((profileData as ProfileData).is_admin || false);
+        } else {
+          console.error('Error fetching profile data:', error);
+          setIsAdmin(false);
+        }
       } else {
         setIsAdmin(false);
       }
@@ -104,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Failed to verify admin status');
         }
         
-        if (!profileData?.is_admin) {
+        if (profileData && !(profileData as ProfileData).is_admin) {
           toast({
             variant: "destructive",
             title: "Access denied",
