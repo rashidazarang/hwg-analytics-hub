@@ -30,92 +30,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Helper function to check if user is admin
+  const checkIsAdmin = async (userId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching profile data:', error);
+        return false;
+      }
+      
+      return data?.is_admin || false;
+    } catch (err) {
+      console.error('Error checking admin status:', err);
+      return false;
+    }
+  };
+
   useEffect(() => {
-    const setupAuth = async () => {
+    // Initialize auth state
+    const initAuth = async () => {
+      setIsLoading(true);
       try {
-        // Get the initial session
+        // Get initial session
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error("Error getting session:", error);
-          setUser(null);
-          setSession(null);
-          setIsAdmin(false);
           return;
         }
         
-        setSession(data.session);
-        setUser(data.session?.user || null);
-        
-        if (data.session?.user) {
-          // Check if user is admin
-          try {
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('is_admin')
-              .eq('id', data.session.user.id)
-              .single();
-              
-            if (profileError) {
-              console.error('Error fetching profile data:', profileError);
-              setIsAdmin(false);
-            } else if (profileData) {
-              setIsAdmin((profileData as ProfileData).is_admin || false);
-            }
-          } catch (err) {
-            console.error('Unexpected error fetching profile:', err);
-            setIsAdmin(false);
-          }
+        if (data.session) {
+          setUser(data.session.user);
+          setSession(data.session);
+          
+          // Check admin status
+          const isUserAdmin = await checkIsAdmin(data.session.user.id);
+          setIsAdmin(isUserAdmin);
         }
       } catch (err) {
-        console.error("Unexpected error in setupAuth:", err);
-        setUser(null);
-        setSession(null);
-        setIsAdmin(false);
+        console.error("Auth initialization error:", err);
       } finally {
-        // Always set loading to false when done
         setIsLoading(false);
       }
     };
     
-    setupAuth();
-
+    initAuth();
+    
     // Set up auth state change listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event);
       
-      setSession(newSession);
-      setUser(newSession?.user || null);
-      
-      if (newSession?.user) {
-        // Check if user is admin when auth state changes
-        try {
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('is_admin')
-            .eq('id', newSession.user.id)
-            .single();
-            
-          if (error) {
-            console.error('Error fetching profile data on auth change:', error);
-            setIsAdmin(false);
-          } else if (profileData) {
-            setIsAdmin((profileData as ProfileData).is_admin || false);
-          } else {
-            setIsAdmin(false);
-          }
-        } catch (err) {
-          console.error('Error in auth state change handler:', err);
-          setIsAdmin(false);
-        }
-      } else {
+      if (event === 'SIGNED_OUT') {
+        // Clear all auth state on sign out
+        setUser(null);
+        setSession(null);
         setIsAdmin(false);
+        setIsLoading(false);
+        return;
       }
       
-      // Always ensure loading is set to false after auth state changes
+      // For all other auth events
+      if (newSession) {
+        setUser(newSession.user);
+        setSession(newSession);
+        
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          const isUserAdmin = await checkIsAdmin(newSession.user.id);
+          setIsAdmin(isUserAdmin);
+        }
+      }
+      
       setIsLoading(false);
     });
-
+    
     return () => {
       authListener.subscription.unsubscribe();
     };
@@ -124,6 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -135,35 +128,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           title: "Login failed",
           description: error.message
         });
-        throw error;
+        return;
       }
 
       if (data.user) {
-        // Check if user is admin
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', data.user.id)
-          .single();
+        const isUserAdmin = await checkIsAdmin(data.user.id);
         
-        if (profileError) {
-          toast({
-            variant: "destructive",
-            title: "Error verifying admin status",
-            description: profileError.message
-          });
+        if (!isUserAdmin) {
           await supabase.auth.signOut();
-          throw new Error('Failed to verify admin status');
-        }
-        
-        if (profileData && !(profileData as ProfileData).is_admin) {
           toast({
             variant: "destructive",
             title: "Access denied",
             description: "You don't have administrator privileges"
           });
-          await supabase.auth.signOut();
-          throw new Error('Not an admin user');
+          return;
         }
         
         setIsAdmin(true);
@@ -175,6 +153,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Sign in error:', error);
+      toast({
+        variant: "destructive",
+        title: "Login error",
+        description: "An unexpected error occurred. Please try again."
+      });
     } finally {
       setIsLoading(false);
     }
@@ -183,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password
@@ -194,17 +178,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           title: "Registration failed",
           description: error.message
         });
-        throw error;
+        return;
       }
 
       toast({
         title: "Registration successful",
         description: "Account created successfully. Please check your email to confirm your account."
       });
-      
-      // Note: The user will need to be made an admin manually in the database
     } catch (error) {
       console.error('Sign up error:', error);
+      toast({
+        variant: "destructive",
+        title: "Registration error",
+        description: "An unexpected error occurred. Please try again."
+      });
     } finally {
       setIsLoading(false);
     }
@@ -213,13 +200,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       setIsLoading(true);
-      await supabase.auth.signOut();
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
       setIsAdmin(false);
-      navigate('/login');
+      setUser(null);
+      setSession(null);
+      
       toast({
         title: "Logged out",
         description: "You have been logged out successfully"
       });
+      
+      navigate('/login');
     } catch (error) {
       console.error('Sign out error:', error);
       toast({

@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 const ProtectedRoute = () => {
   const { isAdmin, isLoading, session } = useAuth();
 
-  // If still loading, show loading spinner
+  // Show loading spinner while authentication is being checked
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -17,9 +17,15 @@ const ProtectedRoute = () => {
     );
   }
 
-  // After loading is complete, check if user is authenticated and admin
-  // If not authenticated or not admin, redirect to login
-  return session && isAdmin ? <Outlet /> : <Navigate to="/login" replace />;
+  // After loading completes, verify both session and admin status
+  // Redirect to login if either condition fails
+  if (!session || !isAdmin) {
+    console.log('Protected route: Not authenticated or not admin, redirecting to login');
+    return <Navigate to="/login" replace />;
+  }
+
+  // User is authenticated and is admin, render the protected content
+  return <Outlet />;
 };
 
 export default ProtectedRoute;
