@@ -51,12 +51,12 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
 
   while (hasMore) {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
-    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+    const to = dateRange?.to ? dateRange.to.toISOString() : new Date().toISOString(); // Default to now
     const offset = (page - 1) * SUPABASE_PAGE_SIZE;
 
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
 
-    const { data, error } = await supabase
+    const query = supabase
       .from("agreements")
       .select(`
         id, 
@@ -71,15 +71,19 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
         Total, 
         DealerCost, 
         ReserveAmount
-      `) // ✅ NO SEMICOLON HERE!
+      `)
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to)
       .order("EffectiveDate", { ascending: false })
       .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
 
+    console.log("🟢 Query being sent to Supabase:", query);
+
+    const { data, error } = await query;
+
     if (error) {
       console.error("❌ Supabase Fetch Error:", error);
-      return allAgreements; // ✅ Return what we have so far
+      return allAgreements;
     }
 
     if (!data || data.length === 0) {
@@ -96,9 +100,8 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
 
     allAgreements = [...allAgreements, ...formattedAgreements];
 
-    // ✅ Ensure we correctly determine if there’s more data
     if (data.length === SUPABASE_PAGE_SIZE) {
-      page++; // Move to the next batch
+      page++;
     } else {
       hasMore = false;
     }
@@ -180,6 +183,16 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
     refetchOnWindowFocus: false,
   });
+
+  // ✅ Define `dealerMap` before using it in the render function
+const dealerMap = useMemo(() => {
+  const map: Record<string, Dealer> = {};
+  dealers.forEach(dealer => {
+    if (dealer.DealerUUID) map[dealer.DealerUUID.toLowerCase()] = dealer;
+    if (dealer.PayeeID) map[dealer.PayeeID.toLowerCase()] = dealer;
+  });
+  return map;
+}, [dealers]);
   
   // ✅ Now `agreementsError` is properly defined
   if (agreementsError) {
