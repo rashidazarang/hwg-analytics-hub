@@ -136,7 +136,7 @@ const Index = () => {
     >
       {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <AgreementChart agreements={[]} dateRange={dateRange} />
+        <AgreementChart dateRange={dateRange} />
         <ClaimChart claims={mockClaims} dateRange={dateRange} />
       </div>
       
