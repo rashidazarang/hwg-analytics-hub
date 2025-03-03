@@ -7,7 +7,7 @@ import DashboardCharts from '@/components/charts/DashboardCharts';
 import DashboardTables from '@/components/tables/DashboardTables';
 import { mockClaims, mockDealers } from '@/lib/mockData';
 import DealershipSearch from '@/components/search/DealershipSearch';
-import { TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -37,11 +37,13 @@ const Index = () => {
   const subnavbarContent = (
     <div className="flex items-center justify-between">
       <div>
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="agreements" onClick={() => handleTabChange('agreements')}>Agreements</TabsTrigger>
-          <TabsTrigger value="claims" onClick={() => handleTabChange('claims')}>Claims</TabsTrigger>
-          <TabsTrigger value="dealers" onClick={() => handleTabChange('dealers')}>Dealers</TabsTrigger>
-        </TabsList>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="grid grid-cols-3 w-full max-w-md">
+            <TabsTrigger value="agreements">Agreements</TabsTrigger>
+            <TabsTrigger value="claims">Claims</TabsTrigger>
+            <TabsTrigger value="dealers">Dealers</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
       <DealershipSearch 
         onDealershipSelect={handleDealershipSelect}
