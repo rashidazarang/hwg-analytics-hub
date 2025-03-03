@@ -6,42 +6,76 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from '@/components/ui/use-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, isAdmin, session } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signIn, signUp, isAdmin, session, isLoading } = useAuth();
   const navigate = useNavigate();
+
+  console.log("Login page rendered", { isLoading, hasSession: !!session, isAdmin });
 
   useEffect(() => {
     // Redirect to home if already logged in and is admin
-    if (session && isAdmin) {
+    if (session && isAdmin && !isLoading) {
+      console.log("Already logged in and is admin, redirecting to home");
       navigate('/');
     }
-  }, [session, isAdmin, navigate]);
+  }, [session, isAdmin, navigate, isLoading]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (isSubmitting) return;
     
     try {
+      setIsSubmitting(true);
+      console.log("Attempting login with email:", email);
       await signIn(email, password);
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: "An unexpected error occurred. Please try again."
+      });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (isSubmitting) return;
     
     try {
+      setIsSubmitting(true);
+      console.log("Attempting signup with email:", email);
       await signUp(email, password);
+    } catch (error) {
+      console.error("Signup error:", error);
+      toast({
+        variant: "destructive",
+        title: "Signup failed",
+        description: "An unexpected error occurred. Please try again."
+      });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
+
+  // Show loading spinner while authentication state is being checked
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin mr-2" />
+        <span>Loading authentication...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
@@ -77,7 +111,7 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -93,7 +127,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -101,9 +135,9 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading || !email || !password}
+                disabled={isSubmitting || !email || !password}
               >
-                {isLoading ? (
+                {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
@@ -130,7 +164,7 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -146,7 +180,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="new-password"
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                   />
                   <p className="text-xs text-muted-foreground">
                     Password must be at least 6 characters
@@ -157,9 +191,9 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading || !email || !password}
+                disabled={isSubmitting || !email || !password}
               >
-                {isLoading ? (
+                {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Signing up...
