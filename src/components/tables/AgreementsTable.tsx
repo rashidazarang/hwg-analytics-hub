@@ -183,22 +183,48 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     if (!searchTerm.trim()) return agreements;
     
     const term = searchTerm.toLowerCase().trim();
+    
+    // Create a dealer name lookup map for faster searching
+    const dealerNameMap: Record<string, string> = {};
+    
     return agreements.filter(agreement => {
+      // Check for Agreement ID match
       if (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) {
         return true;
       }
       
+      // Check for Dealer ID match
       if (agreement.DealerID && agreement.DealerID.toLowerCase().includes(term)) {
         return true;
       }
       
+      // Check for Dealer UUID match
       if (agreement.DealerUUID && agreement.DealerUUID.toLowerCase().includes(term)) {
         return true;
       }
       
+      // Check for Dealership name match
+      const dealerUUID = agreement.DealerUUID?.trim().toLowerCase();
+      const dealerID = agreement.DealerID?.trim().toLowerCase();
+      
+      if (dealerUUID || dealerID) {
+        // Try to find the dealer by UUID first
+        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
+        
+        // If not found, try by Dealer ID
+        if (!dealer && dealerID) {
+          dealer = dealerMap[dealerID];
+        }
+        
+        // Check if dealer name includes search term
+        if (dealer && dealer.Payee && dealer.Payee.toLowerCase().includes(term)) {
+          return true;
+        }
+      }
+      
       return false;
     });
-  }, [agreements, searchTerm]);
+  }, [agreements, searchTerm, dealerMap]);
   
   useEffect(() => {
     if (filteredAgreements.length > 0) {
@@ -446,7 +472,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
         className={className}
         searchConfig={{
           enabled: true,
-          placeholder: "Search by Agreement ID or Dealer ID...",
+          placeholder: "Search by Agreement ID, Dealer ID, or Dealership name...",
           onChange: handleSearch,
           searchKeys: ["AgreementID", "DealerID", "DealerUUID"]
         }}
