@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -8,7 +7,7 @@ import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealersTable from '@/components/tables/DealersTable';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
-import { Users, FileSignature, FileCheck, TrendingUp, Check, ChevronsUpDown } from 'lucide-react';
+import { Users, FileSignature, FileCheck, TrendingUp, Search } from 'lucide-react';
 import { 
   mockClaims, 
   mockDealers, 
@@ -19,21 +18,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 
-// Function to fetch dealership names
 const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => {
   const { data, error } = await supabase
     .from('dealers')
@@ -55,34 +41,29 @@ const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => 
 };
 
 const Index = () => {
-  // Set default date range to YTD (Year-to-Date)
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [activeTab, setActiveTab] = useState('agreements');
   const [dealershipFilter, setDealershipFilter] = useState('');
-  const [open, setOpen] = useState(false);
-  const [selectedDealership, setSelectedDealership] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
   const queryClient = useQueryClient();
   
-  // Calculate KPIs based on the selected date range
   const kpis = calculateKPIs([], mockClaims, mockDealers, dateRange);
   
-  // Create the query key (must match AgreementsTable)
   const agreementsQueryKey = [
     "agreements-data",
     dateRange?.from?.toISOString() || "null",
     dateRange?.to?.toISOString() || "null",
   ];
 
-  // Fetch dealership names for autofill
   const { data: dealerships = [] } = useQuery({
     queryKey: ['dealership-names'],
     queryFn: fetchDealershipNames,
-    staleTime: 1000 * 60 * 60, // 1 hour
-    gcTime: 1000 * 60 * 60 * 2, // 2 hours
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 2,
     refetchOnWindowFocus: false,
   });
 
-  // Log React Query cache for debugging
   useEffect(() => {
     console.log("🛠️ Debugging React Query on Index.tsx...");
     console.log("📆 Current Date Range:", dateRange);
@@ -98,7 +79,6 @@ const Index = () => {
   const handleDateRangeChange = (range: DateRange) => {
     console.log("📅 Date range changed to:", range);
 
-    // Normalize the date range
     const normalizedRange = {
       from: range.from instanceof Date ? range.from : new Date(range.from),
       to: range.to instanceof Date ? range.to : new Date(range.to),
@@ -106,44 +86,70 @@ const Index = () => {
 
     setDateRange(normalizedRange);
 
-    // Log the key we're invalidating
     console.log("♻️ Invalidating query with key:", agreementsQueryKey);
 
-    // Invalidate the specific query with the new date range
     queryClient.invalidateQueries({ 
       queryKey: agreementsQueryKey,
       exact: true
     });
 
-    // Also invalidate the agreement status distribution query
     queryClient.invalidateQueries({
       queryKey: ['agreement-status-distribution'],
       exact: false
     });
 
-    // Verify cache after invalidation
     setTimeout(() => {
       const dataAfterInvalidation = queryClient.getQueryData(agreementsQueryKey);
       console.log("🗑️ Cache after invalidation:", dataAfterInvalidation);
     }, 500);
   };
 
-  // Reset search when changing tabs
   useEffect(() => {
     setDealershipFilter('');
-    setSelectedDealership('');
+    setSearchTerm('');
+    setSelectedDealershipId('');
   }, [activeTab]);
 
-  // Apply filter when a dealership is selected
-  const handleDealershipSelect = (value: string) => {
-    setSelectedDealership(value);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
     
-    // Get the dealership name from the selected value
+    if (!e.target.value.trim()) {
+      handleDealershipSelect("");
+    }
+  };
+
+  const filteredDealerships = dealerships.filter(dealership => 
+    dealership.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (searchTerm) {
+      const matchedDealership = dealerships.find(dealership => 
+        dealership.name?.toLowerCase() === searchTerm.toLowerCase()
+      );
+      
+      if (matchedDealership) {
+        handleDealershipSelect(matchedDealership.id);
+      } else if (filteredDealerships.length > 0) {
+        handleDealershipSelect(filteredDealerships[0].id);
+      } else {
+        handleDealershipSelect("");
+      }
+    } else {
+      handleDealershipSelect("");
+    }
+  };
+
+  const handleDealershipSelect = (value: string) => {
+    setSelectedDealershipId(value);
+    
     const selected = dealerships.find(d => d.id === value);
     if (selected) {
       setDealershipFilter(selected.name);
+      setSearchTerm(selected.name);
       
-      // Invalidate the agreement status distribution query
       queryClient.invalidateQueries({
         queryKey: ['agreement-status-distribution'],
         exact: false
@@ -151,10 +157,12 @@ const Index = () => {
       
       console.log(`🔍 Selected dealership: ${selected.name} (${value})`);
     } else {
-      // If no dealership is selected (clear selection)
       setDealershipFilter('');
       
-      // Invalidate the agreement status distribution query
+      if (!value) {
+        setSearchTerm('');
+      }
+      
       queryClient.invalidateQueries({
         queryKey: ['agreement-status-distribution'],
         exact: false
@@ -164,7 +172,11 @@ const Index = () => {
     }
   };
 
-  // Subnavbar with tabs and search
+  const handleDealershipClick = (dealership: {id: string, name: string}) => {
+    setSearchTerm(dealership.name);
+    handleDealershipSelect(dealership.id);
+  };
+
   const subnavbar = (
     <div className="flex justify-between items-center">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -176,52 +188,54 @@ const Index = () => {
       </Tabs>
       
       <div className="relative w-64">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="w-full justify-between pl-8"
-            >
-              {selectedDealership
-                ? dealerships.find((dealership) => dealership.id === selectedDealership)?.name
-                : "Search by dealership..."}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[300px] p-0">
-            <Command>
-              <CommandInput placeholder="Search dealership..." />
-              <CommandEmpty>No dealership found.</CommandEmpty>
-              <CommandGroup className="max-h-[300px] overflow-y-auto">
-                {dealerships.map((dealership) => (
-                  <CommandItem
-                    key={dealership.id}
-                    value={dealership.name}
-                    onSelect={() => {
-                      handleDealershipSelect(dealership.id === selectedDealership ? "" : dealership.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedDealership === dealership.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {dealership.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
-          </PopoverContent>
-        </Popover>
+        <form onSubmit={handleSearchSubmit} className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+            <Search className="h-4 w-4 text-muted-foreground" />
+          </div>
+          
+          <Input
+            type="text"
+            placeholder="Search dealerships..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="pl-8 pr-10 w-full"
+          />
+          
+          <Button 
+            type="submit" 
+            variant="ghost" 
+            size="sm" 
+            className="absolute inset-y-0 right-0 px-2"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+          
+          {searchTerm && (
+            <div className="absolute mt-1 w-full rounded-md shadow-lg bg-popover z-10 max-h-60 overflow-auto">
+              {filteredDealerships.length > 0 ? (
+                <div className="py-1">
+                  {filteredDealerships.map(dealership => (
+                    <div
+                      key={dealership.id}
+                      className="px-4 py-2 text-sm hover:bg-accent cursor-pointer"
+                      onClick={() => handleDealershipClick(dealership)}
+                    >
+                      {dealership.name}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="px-4 py-2 text-sm text-muted-foreground">
+                  No dealerships found
+                </div>
+              )}
+            </div>
+          )}
+        </form>
       </div>
     </div>
   );
 
-  // KPI Section
   const kpiSection = (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <KPICard
@@ -281,13 +295,11 @@ const Index = () => {
       kpiSection={kpiSection}
       subnavbar={subnavbar}
     >
-      {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <AgreementChart dateRange={dateRange} dealerFilter={dealershipFilter} />
         <ClaimChart claims={mockClaims} dateRange={dateRange} />
       </div>
       
-      {/* Tables section with tabs */}
       <div className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsContent value="agreements" className="mt-0">
