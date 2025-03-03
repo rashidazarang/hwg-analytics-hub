@@ -81,13 +81,20 @@ const VirtualizedTable = <T extends Record<string, any>>({
     refetch
   } = useInfiniteQuery({
     queryKey: [...queryKey, searchTerm, JSON.stringify(filters)],
-    queryFn: async ({ pageParam = 0 }) => fetchData({
-      pageParam,
-      pageSize,
-      searchTerm,
-      filters
-    }),
-    getNextPageParam: (lastPage) => lastPage.nextPage,
+    queryFn: async ({ pageParam = 0 }) => {
+      const result = await fetchData({
+        pageParam,
+        pageSize,
+        searchTerm,
+        filters
+      });
+      console.log(`📊 Page ${pageParam} data:`, result);
+      return result;
+    },
+    getNextPageParam: (lastPage) => {
+      console.log("🔄 getNextPageParam called, nextPage:", lastPage.nextPage);
+      return lastPage.nextPage;
+    },
     initialPageParam: 0,
     staleTime: 60 * 1000, // 1 minute
     gcTime: 5 * 60 * 1000, // 5 minutes
@@ -95,30 +102,39 @@ const VirtualizedTable = <T extends Record<string, any>>({
 
   // Effect for refetching data when filters change
   useEffect(() => {
+    console.log("🔄 Filters changed, refetching data:", filters);
     refetch();
   }, [filters, refetch]);
 
   // Set up Intersection Observer for infinite scrolling
   useEffect(() => {
+    if (!loadMoreRef.current) return;
+    
+    console.log("👀 Setting up Intersection Observer. hasNextPage:", hasNextPage, "isFetchingNextPage:", isFetchingNextPage);
+    
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          console.log("👀 Last row is visible, fetching next page...");
           fetchNextPage();
         }
       },
       { threshold: 0.1 }
     );
 
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
+    observer.observe(loadMoreRef.current);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      console.log("👀 Intersection Observer disconnected");
+    };
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   // Flatten all pages of data into a single array
   const flatData = React.useMemo(() => {
-    return data?.pages.flatMap(page => page.data) || [];
+    const result = data?.pages.flatMap(page => page.data) || [];
+    console.log("🔍 Merged data from useInfiniteQuery:", result);
+    return result;
   }, [data]);
 
   // Set up virtualizer
@@ -131,6 +147,7 @@ const VirtualizedTable = <T extends Record<string, any>>({
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    console.log("🔍 Search input changed:", value);
     debouncedSearch(value);
   };
 
@@ -169,6 +186,16 @@ const VirtualizedTable = <T extends Record<string, any>>({
       return 0;
     });
   }, [flatData, sortConfig]);
+
+  // Log key state variables
+  useEffect(() => {
+    console.log("📊 VirtualizedTable state:", {
+      dataLoaded: flatData.length > 0,
+      hasNextPage,
+      isFetchingNextPage,
+      isLoading
+    });
+  }, [flatData.length, hasNextPage, isFetchingNextPage, isLoading]);
 
   return (
     <div className={`w-full ${className}`}>
@@ -235,8 +262,7 @@ const VirtualizedTable = <T extends Record<string, any>>({
                   if (isLoaderRow) {
                     return (
                       <TableRow 
-                        key="loader" 
-                        ref={loadMoreRef}
+                        key="loader"
                         data-index={virtualRow.index}
                         style={{
                           position: 'absolute',
@@ -247,15 +273,20 @@ const VirtualizedTable = <T extends Record<string, any>>({
                           transform: `translateY(${virtualRow.start}px)`,
                         }}
                       >
-                        <TableCell colSpan={columns.length} className="h-14">
-                          {hasNextPage && (
-                            <div className="w-full flex justify-center">
-                              <div className="flex items-center space-x-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                                <span>Loading more...</span>
+                        <TableCell 
+                          colSpan={columns.length} 
+                          className="h-14"
+                        >
+                          <div ref={loadMoreRef} className="w-full">
+                            {hasNextPage && (
+                              <div className="w-full flex justify-center">
+                                <div className="flex items-center space-x-2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                  <span>Loading more...</span>
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -294,7 +325,7 @@ const VirtualizedTable = <T extends Record<string, any>>({
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-96">
                       <div className="w-full h-full flex justify-center items-center">
-                        <div className="space-y-2">
+                        <div className="space-y-2 w-full px-4">
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Skeleton key={i} className="w-full h-12" />
                           ))}
