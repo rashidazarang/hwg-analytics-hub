@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import SignupConfirmation from "./pages/SignupConfirmation";
 import NotFound from "./pages/NotFound";
+import AccountSettings from "./pages/AccountSettings";
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient({
@@ -38,6 +39,7 @@ const App = () => {
               <Route path="/signup-confirmation" element={<SignupConfirmation />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Index />} />
+                <Route path="/account" element={<AccountSettings />} />
                 {/* Add other protected routes here */}
               </Route>
               <Route path="*" element={<NotFound />} />
