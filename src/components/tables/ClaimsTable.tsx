@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import VirtualizedTable, { VirtualColumn } from './VirtualizedTable';
 import { Claim } from '@/lib/mockData';
+import { DateFieldType } from '@/lib/types';
 
 // Define a more comprehensive Claim type that includes database fields and handles string dates
 type ClaimType = {
@@ -13,15 +13,18 @@ type ClaimType = {
   ClaimID?: string;
   AgreementID?: string;
   // Allow both string and Date types for date fields to accommodate Supabase responses
-  ReportedDate?: string | Date | null;
-  IncurredDate?: string | Date | null;
+  ReportedDate?: DateFieldType;
+  IncurredDate?: DateFieldType;
   Deductible?: number | null;
   amount?: number;
   status?: 'OPEN' | 'CLOSED' | 'PENDING';
   dealerName?: string;
   Cause?: string;
   Complaint?: string;
-  Closed?: string | Date | null;
+  Closed?: DateFieldType;
+  // Add these fields to match the original Claim properties
+  dateReported?: DateFieldType;
+  dateIncurred?: DateFieldType;
 } & Partial<Omit<Claim, 'ReportedDate' | 'IncurredDate' | 'dateReported' | 'dateIncurred' | 'Closed'>>;
 
 const SUPABASE_PAGE_SIZE = 50;
@@ -102,11 +105,20 @@ async function fetchClaimsPage(
     // For demonstration, add mock amounts and statuses with proper typing
     const statusOptions: ('OPEN' | 'CLOSED' | 'PENDING')[] = ['OPEN', 'CLOSED', 'PENDING'];
     
-    const enrichedData: ClaimType[] = (data || []).map(claim => ({
-      ...claim,
-      amount: Math.floor(Math.random() * 5000) + 500, // Mock amount
-      status: statusOptions[Math.floor(Math.random() * 3)] // Properly typed status
-    }));
+    const enrichedData: ClaimType[] = (data || []).map(claim => {
+      // Create a properly typed ClaimType object
+      const enrichedClaim: ClaimType = {
+        ...claim,
+        // Add fields needed for both the db schema and the UI
+        amount: Math.floor(Math.random() * 5000) + 500,
+        status: statusOptions[Math.floor(Math.random() * 3)],
+        // Make sure date fields are properly handled for both schemas
+        dateReported: claim.ReportedDate,
+        dateIncurred: claim.IncurredDate
+      };
+      
+      return enrichedClaim;
+    });
     
     // Determine if there are more pages (if we got the full page size)
     const hasMore = data && data.length === pageSize;
@@ -114,6 +126,7 @@ async function fetchClaimsPage(
     
     console.log(`✅ Fetched ${data?.length || 0} claims from page ${pageParam}`);
     console.log(`✅ Enriched data length:`, enrichedData.length);
+    console.log(`✅ First few enriched claims:`, enrichedData.slice(0, 2));
     
     return { 
       data: enrichedData, 
@@ -216,6 +229,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Date Reported',
       sortable: true,
       render: (row) => {
+        // Use either ReportedDate or dateReported, whichever is available
         const date = row.ReportedDate || row.dateReported;
         return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
       },
@@ -226,6 +240,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Date Incurred',
       sortable: true,
       render: (row) => {
+        // Use either IncurredDate or dateIncurred, whichever is available
         const date = row.IncurredDate || row.dateIncurred;
         return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
       },

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -60,7 +59,6 @@ const VirtualizedTable = <T extends Record<string, any>>({
   const parentRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Create debounced search handler
   const debouncedSearch = useRef(
     debounce((value: string) => {
       setSearchTerm(value);
@@ -70,7 +68,6 @@ const VirtualizedTable = <T extends Record<string, any>>({
     }, 300)
   ).current;
 
-  // Use React Query's useInfiniteQuery for fetching paginated data
   const {
     data,
     fetchNextPage,
@@ -84,18 +81,21 @@ const VirtualizedTable = <T extends Record<string, any>>({
   } = useInfiniteQuery({
     queryKey: [...queryKey, searchTerm, JSON.stringify(filters)],
     queryFn: async ({ pageParam = 0 }) => {
-      console.log(`🔄 Fetching page ${pageParam} with searchTerm: ${searchTerm}`);
+      console.log(`🔄 VirtualizedTable - Fetching page ${pageParam} with searchTerm: ${searchTerm}`);
       const result = await fetchData({
         pageParam,
         pageSize,
         searchTerm,
         filters
       });
-      console.log(`📊 Page ${pageParam} data:`, result?.data?.length || 0, "items");
+      console.log(`📊 VirtualizedTable - Page ${pageParam} data:`, result?.data?.length || 0, "items");
+      if (result?.data?.length === 0) {
+        console.warn("⚠️ Warning: fetchData returned empty page data");
+      }
       return result;
     },
     getNextPageParam: (lastPage) => {
-      console.log("🔄 getNextPageParam called, nextPage:", lastPage.nextPage);
+      console.log("🔄 VirtualizedTable - getNextPageParam called, nextPage:", lastPage.nextPage);
       return lastPage.nextPage;
     },
     initialPageParam: 0,
@@ -103,22 +103,20 @@ const VirtualizedTable = <T extends Record<string, any>>({
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Effect for refetching data when filters change
   useEffect(() => {
-    console.log("🔄 Filters changed, refetching data:", filters);
+    console.log("🔄 VirtualizedTable - Filters changed, refetching data:", filters);
     refetch();
   }, [filters, refetch]);
 
-  // Set up Intersection Observer for infinite scrolling
   useEffect(() => {
     if (!loadMoreRef.current) return;
     
-    console.log("👀 Setting up Intersection Observer. hasNextPage:", hasNextPage, "isFetchingNextPage:", isFetchingNextPage);
+    console.log("👀 VirtualizedTable - Setting up Intersection Observer. hasNextPage:", hasNextPage, "isFetchingNextPage:", isFetchingNextPage);
     
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          console.log("👀 Last row is visible, fetching next page...");
+          console.log("👀 VirtualizedTable - Last row is visible, fetching next page...");
           fetchNextPage();
         }
       },
@@ -129,38 +127,31 @@ const VirtualizedTable = <T extends Record<string, any>>({
 
     return () => {
       observer.disconnect();
-      console.log("👀 Intersection Observer disconnected");
+      console.log("👀 VirtualizedTable - Intersection Observer disconnected");
     };
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, loadMoreRef]);
 
-  // Flatten all pages of data into a single array
   const flatData = React.useMemo(() => {
     const allData = data?.pages?.flatMap(page => page.data) || [];
-    console.log("🔍 Merged data from useInfiniteQuery:", allData.length, "total items");
+    console.log("🔍 VirtualizedTable - Merged data from useInfiniteQuery:", allData.length, "total items");
     
     if (allData.length === 0) {
-      console.log("⚠️ Warning: No data after merging. Check fetch function!");
-      console.log("🔄 Current query status:", status);
-      if (error) console.error("🔴 Query error:", error);
-      console.log("📄 Raw data pages:", data?.pages);
+      console.log("⚠️ VirtualizedTable - Warning: No data after merging. Check fetch function!");
+      console.log("🔄 VirtualizedTable - Current query status:", status);
+      if (error) console.error("🔴 VirtualizedTable - Query error:", error);
+      console.log("📄 VirtualizedTable - Raw data pages:", data?.pages);
     } else {
-      console.log("✅ Data merged successfully. First few items:", allData.slice(0, 3));
+      console.log("✅ VirtualizedTable - Data merged successfully. First few items:", allData.slice(0, 3));
+      const rowKeys = allData.slice(0, 5).map(item => rowKey(item));
+      console.log("🔑 VirtualizedTable - Sample row keys:", rowKeys);
     }
     
     return allData;
-  }, [data, status, error]);
-
-  // Set up virtualizer
-  const virtualizer = useVirtualizer({
-    count: flatData.length + (hasNextPage ? 1 : 0), // Add one extra for the loading indicator
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 56, // Estimated row height
-    overscan: 10,
-  });
+  }, [data, status, error, rowKey]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    console.log("🔍 Search input changed:", value);
+    console.log("🔍 VirtualizedTable - Search input changed:", value);
     debouncedSearch(value);
   };
 
@@ -182,11 +173,10 @@ const VirtualizedTable = <T extends Record<string, any>>({
       : <ChevronDown className="ml-1 h-4 w-4 rotate-180 transform" />;
   };
 
-  // Sort data if sorting is active
   const sortedData = React.useMemo(() => {
     if (!sortConfig) return flatData;
     
-    return [...flatData].sort((a, b) => {
+    const sorted = [...flatData].sort((a, b) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
       
@@ -198,19 +188,34 @@ const VirtualizedTable = <T extends Record<string, any>>({
       }
       return 0;
     });
+    
+    console.log("🔄 VirtualizedTable - Sorted data:", sorted.length);
+    return sorted;
   }, [flatData, sortConfig]);
 
-  // Log key state variables
   useEffect(() => {
     console.log("📊 VirtualizedTable state:", {
       dataLoaded: flatData.length > 0,
       hasNextPage,
       isFetchingNextPage,
       isLoading,
-      virtualItems: virtualizer.getVirtualItems().length,
-      sortedDataLength: sortedData.length
+      flatDataLength: flatData.length,
+      sortedDataLength: sortedData.length,
+      virtualItemsCount: virtualizer.getVirtualItems().length
     });
-  }, [flatData.length, hasNextPage, isFetchingNextPage, isLoading, virtualizer, sortedData.length]);
+    
+    if (sortedData.length > 0 && virtualizer.getVirtualItems().length === 0) {
+      console.warn("⚠️ VirtualizedTable - WARNING: Data exists but no virtual items rendered!");
+      console.log("🔍 VirtualizedTable - First few data items:", sortedData.slice(0, 3));
+    }
+  }, [flatData.length, hasNextPage, isFetchingNextPage, isLoading, virtualizer, sortedData]);
+
+  const virtualizer = useVirtualizer({
+    count: sortedData.length + (hasNextPage ? 1 : 0), // Add one extra for the loading indicator
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 56, // Estimated row height
+    overscan: 10,
+  });
 
   return (
     <div className={`w-full ${className}`}>
@@ -256,7 +261,6 @@ const VirtualizedTable = <T extends Record<string, any>>({
           </Table>
         </div>
         
-        {/* Virtualized Table Body */}
         <div 
           ref={parentRef} 
           className="overflow-auto relative" 
@@ -310,13 +314,13 @@ const VirtualizedTable = <T extends Record<string, any>>({
                   const row = sortedData[virtualRow.index];
                   
                   if (!row) {
-                    console.warn(`⚠️ Missing row data at index ${virtualRow.index}`);
+                    console.warn(`⚠️ VirtualizedTable - Missing row data at index ${virtualRow.index}`);
                     return null;
                   }
                   
                   const rowId = rowKey(row);
                   if (!rowId) {
-                    console.warn(`⚠️ Invalid rowKey for row at index ${virtualRow.index}:`, row);
+                    console.warn(`⚠️ VirtualizedTable - Invalid rowKey for row at index ${virtualRow.index}:`, row);
                   }
                   
                   return (
