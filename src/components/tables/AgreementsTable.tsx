@@ -194,7 +194,6 @@ useEffect(() => {
     gcTime: 1000 * 60 * 60 * 2, // 2 hours
     refetchOnWindowFocus: false,
   });
-
   const dealerMap = useMemo(() => {
     if (!dealers || dealers.length === 0) {
       console.warn("⚠️ No dealers found, returning empty map.");
@@ -247,13 +246,13 @@ useEffect(() => {
       render: (row) => {
         const dealerUUID = row.DealerUUID?.trim().toLowerCase();
         const dealerID = row.DealerID?.trim().toLowerCase();
-        
+    
         let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
         if (!dealer && dealerID) {
           dealer = dealerMap[dealerID];
         }
     
-        console.log(`🔍 Dealer Lookup for UUID: ${dealerUUID} & ID: ${dealerID} → ${dealer?.Payee || 'Unknown'}`);
+        console.log(`🔍 Dealer Lookup for UUID: ${dealerUUID} & ID: ${dealerID} → ${dealer?.Payee || 'Unknown Dealership'}`);
     
         return dealer ? dealer.Payee : 'Unknown Dealership';
       },
