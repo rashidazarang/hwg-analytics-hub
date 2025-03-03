@@ -35,11 +35,12 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
 
         // First, we'll get the distribution of agreements by status
-        // Using a workaround for grouping since .group() isn't available in the type definitions
-        const { data, error } = await supabase.rpc('count_agreements_by_status', {
-          from_date: fromDate,
-          to_date: toDate
-        });
+        // Using the RPC function we created for grouping
+        const { data, error } = await supabase
+          .rpc('count_agreements_by_status', {
+            from_date: fromDate,
+            to_date: toDate
+          });
 
         if (error) {
           console.error('❌ Error fetching agreement status distribution:', error);
@@ -88,7 +89,7 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         // Convert RPC result to chart data format
         const chartData = data.map(item => ({
           name: STATUS_LABELS[item.status || 'Unknown'] || item.status || 'Unknown',
-          value: parseInt(item.count),
+          value: parseInt(item.count as any),
           rawStatus: item.status || 'Unknown'
         }));
 
