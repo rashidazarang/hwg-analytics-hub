@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { AgreementChartData } from '@/hooks/useAgreementStatusData';
 
@@ -12,6 +12,16 @@ const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#6366f1'];
 
 export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLoading }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [animatedData, setAnimatedData] = useState<AgreementChartData[]>([]);
+  
+  // Update animated data when real data changes
+  useEffect(() => {
+    if (data.length > 0) {
+      setAnimatedData(data);
+    } else {
+      setAnimatedData([]);
+    }
+  }, [data]);
 
   const onPieEnter = (_: any, index: number) => {
     setActiveIndex(index);
@@ -41,7 +51,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
     <ResponsiveContainer width="100%" height={240}>
       <PieChart>
         <Pie
-          data={data}
+          data={animatedData}
           cx="50%"
           cy="50%"
           labelLine={false}
@@ -54,7 +64,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
           animationDuration={500}
           animationBegin={0}
         >
-          {data.map((entry, index) => (
+          {animatedData.map((entry, index) => (
             <Cell 
               key={`cell-${index}`} 
               fill={COLORS[index % COLORS.length]} 

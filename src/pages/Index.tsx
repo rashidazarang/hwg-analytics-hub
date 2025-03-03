@@ -68,6 +68,12 @@ const Index = () => {
       exact: true
     });
 
+    // Also invalidate the agreement status distribution query
+    queryClient.invalidateQueries({
+      queryKey: ['agreement-status-distribution'],
+      exact: false
+    });
+
     // Verify cache after invalidation
     setTimeout(() => {
       const dataAfterInvalidation = queryClient.getQueryData(agreementsQueryKey);
@@ -165,7 +171,7 @@ const Index = () => {
     >
       {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <AgreementChart dateRange={dateRange} />
+        <AgreementChart dateRange={dateRange} dealerFilter={dealershipFilter} />
         <ClaimChart claims={mockClaims} dateRange={dateRange} />
       </div>
       

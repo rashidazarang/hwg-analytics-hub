@@ -7,15 +7,23 @@ import { AgreementPieChart } from './AgreementPieChart';
 
 type AgreementChartProps = {
   dateRange: DateRange;
+  dealerFilter?: string;
 };
 
-const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
-  const { data: statusData = [], isLoading } = useAgreementStatusData(dateRange);
+const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange, dealerFilter = '' }) => {
+  const { data: statusData = [], isLoading } = useAgreementStatusData(dateRange, dealerFilter);
 
   return (
     <Card className="h-full card-hover-effect">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-medium">Agreement Status Distribution</CardTitle>
+        <CardTitle className="text-lg font-medium">
+          Agreement Status Distribution
+          {dealerFilter && (
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              (Filtered by: {dealerFilter})
+            </span>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <AgreementPieChart data={statusData} isLoading={isLoading} />

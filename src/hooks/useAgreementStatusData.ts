@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -25,24 +26,44 @@ export const STATUS_LABELS: Record<string, string> = {
   'Unknown': 'UNKNOWN'
 };
 
-export function useAgreementStatusData(dateRange: DateRange) {
+export function useAgreementStatusData(dateRange: DateRange, dealerFilter: string = '') {
   return useQuery({
-    queryKey: ['agreement-status-distribution', dateRange.from?.toISOString(), dateRange.to?.toISOString()],
+    queryKey: ['agreement-status-distribution', dateRange.from?.toISOString(), dateRange.to?.toISOString(), dealerFilter],
     queryFn: async () => {
       console.log('📊 Fetching agreement status distribution data...');
+      console.log('📊 Dealer filter:', dealerFilter);
       
       try {
         // Get date range for filtering
         const fromDate = dateRange.from?.toISOString() || "2020-01-01T00:00:00.000Z";
         const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
 
-        // First, we'll get the distribution of agreements by status
-        // Using the RPC function we created for grouping
-        const { data, error } = await supabase
-          .rpc('count_agreements_by_status', {
-            from_date: fromDate,
-            to_date: toDate
-          });
+        // First, we need to fetch dealers if we have a dealer filter
+        let dealerUUIDs: string[] = [];
+        
+        if (dealerFilter) {
+          const normalizedDealerFilter = dealerFilter.toLowerCase().trim();
+          const { data: dealersData, error: dealersError } = await supabase
+            .from('dealers')
+            .select('DealerUUID, Payee')
+            .ilike('Payee', `%${normalizedDealerFilter}%`);
+          
+          if (dealersError) {
+            console.error('❌ Error fetching dealers:', dealersError);
+          } else if (dealersData && dealersData.length > 0) {
+            dealerUUIDs = dealersData.map(dealer => dealer.DealerUUID);
+            console.log('📊 Found dealers matching filter:', dealerUUIDs.length);
+          }
+        }
+
+        // Now use the RPC function with dealer filter if applicable
+        let query = supabase.rpc('count_agreements_by_status', {
+          from_date: fromDate,
+          to_date: toDate
+        });
+        
+        // We can't directly filter in the RPC, so we'll do client-side filtering if dealerFilter is provided
+        const { data, error } = await query;
 
         if (error) {
           console.error('❌ Error fetching agreement status distribution:', error);
@@ -51,7 +72,46 @@ export function useAgreementStatusData(dateRange: DateRange) {
 
         console.log('📊 Agreement status counts from database:', data);
         
-        // Check if data exists and has elements
+        // If dealer filter is active and we found matching dealers, we need to get the filtered data
+        if (dealerFilter && dealerUUIDs.length > 0) {
+          console.log('📊 Applying dealer filter to agreements...');
+          // Fetch all agreements within date range and filter by dealer
+          const { data: filteredAgreements, error: agreementsError } = await supabase
+            .from('agreements')
+            .select('AgreementStatus, DealerUUID')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate)
+            .in('DealerUUID', dealerUUIDs);
+            
+          if (agreementsError) {
+            console.error('❌ Error fetching filtered agreements:', agreementsError);
+            return [];
+          }
+          
+          // Count agreements by status
+          const statusCounts: Record<string, number> = {};
+          filteredAgreements.forEach(agreement => {
+            const status = agreement.AgreementStatus || 'Unknown';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+          });
+          
+          // Convert to chart data format
+          const chartData = Object.entries(statusCounts).map(([status, count]) => ({
+            name: STATUS_LABELS[status] || status,
+            value: count,
+            rawStatus: status
+          }));
+          
+          // Sort data by count (descending)
+          chartData.sort((a, b) => b.value - a.value);
+          
+          console.log('📊 Filtered agreement status distribution:', chartData);
+          console.log(`📊 Total filtered agreements counted: ${chartData.reduce((sum, item) => sum + item.value, 0)}`);
+          
+          return chartData;
+        }
+        
+        // If no dealer filter or no matching dealers, use the original data
         if (!data || (Array.isArray(data) && data.length === 0)) {
           // Fallback to client-side counting if the RPC function fails or doesn't exist
           console.log('📊 Falling back to client-side counting...');
