@@ -33,11 +33,16 @@ const App = () => {
         <BrowserRouter>
           <AuthProvider>
             <Routes>
+              {/* Public route - accessible without authentication */}
               <Route path="/login" element={<Login />} />
+              
+              {/* Protected routes - require authentication and admin status */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Index />} />
                 {/* Add other protected routes here */}
               </Route>
+              
+              {/* 404 route */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
