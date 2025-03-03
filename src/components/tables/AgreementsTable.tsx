@@ -1,9 +1,9 @@
 import React from 'react';
-import { useMemo, useEffect, useState, useRef } from 'react';
+import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
@@ -163,10 +163,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   dealerFilter = '',  // This is the dealer UUID
   dealerName = ''     // This is the dealer display name
 }) => {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
   const initialFetchDone = useRef<boolean>(false);
 
   // Debug logging for dealerFilter changes
@@ -180,6 +182,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     }
   }, [dealerFilter, dealerName]);
 
+  useEffect(() => {
+    if (searchQuery !== undefined) {
+      setSearchTerm(searchQuery);
+    }
+  }, [searchQuery]);
+
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
@@ -191,6 +199,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     data: allAgreements = [], 
     isFetching: isFetchingAgreements,
     error: agreementsError,
+    refetch: refetchAgreements
   } = useQuery({
     queryKey: agreementsQueryKey,
     queryFn: async () => {
@@ -242,12 +251,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   }, [dealers]);
   
   const filteredAgreements = useMemo(() => {
-    console.log(`🔍 Filtering ${agreements.length} agreements with search query: "${searchQuery}"`);
+    console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
     let filtered = agreements;
     
-    // Only filter by searchQuery if it exists (moved from DataTable to here)
-    if (searchQuery && searchQuery.trim()) {
-      const term = searchQuery.toLowerCase().trim();
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(agreement => 
         agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)
       );
@@ -255,7 +263,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     
     console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
     return filtered;
-  }, [agreements, searchQuery, dealerFilter]);
+  }, [agreements, searchTerm, dealerFilter]);
   
   useEffect(() => {
     if (filteredAgreements.length > 0) {
@@ -271,6 +279,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       setTotalCount(0);
     }
   }, [filteredAgreements, page, pageSize]);
+
+  const handleSearch = (term: string) => {
+    console.log("🔍 Search term updated:", term);
+    setSearchTerm(term);
+    setPage(1);
+  };
 
   const columns: Column<Agreement>[] = [
     {
@@ -399,12 +413,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     setPage(newPage);
   };
 
-  const handlePageSizeChange = (newPageSize: number) => {
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
     if (newPageSize !== pageSize) {
       setPageSize(newPageSize);
       setPage(1);
     }
-  };
+  }, [pageSize, setPage]);
 
   const currentStatus = isFetching
     ? "Loading..."
@@ -424,7 +438,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         searchConfig={{
           enabled: true,
           placeholder: "Search by Agreement ID only...",
-          onChange: undefined
+          onChange: handleSearch,
+          searchKeys: ["AgreementID"]
         }}
         paginationProps={{
           currentPage: page,

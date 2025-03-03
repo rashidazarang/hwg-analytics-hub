@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -51,13 +51,75 @@ const DataTable = <T extends Record<string, any>>({
   loading = false,
   paginationProps,
 }: DataTableProps<T>) => {
+  const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
 
-  // Use data directly since we're removing the search functionality
   useEffect(() => {
-    setFilteredData(data);
+    if (searchConfig.onChange) {
+      setFilteredData(data);
+      
+      if (searchTerm && searchTerm.trim() !== '') {
+        searchConfig.onChange(searchTerm);
+      }
+    } else {
+      setFilteredData(data);
+      
+      if (searchTerm && searchTerm.trim() !== '') {
+        applySearchFilter(searchTerm);
+      }
+    }
   }, [data]);
+
+  const applySearchFilter = (term: string) => {
+    if (!term || term.trim() === '') {
+      setFilteredData(data);
+      return;
+    }
+
+    const normalizedTerm = term.toLowerCase().trim();
+    
+    if (searchConfig.onChange) {
+      searchConfig.onChange(normalizedTerm);
+      return;
+    }
+
+    const searchResults = data.filter(row => {
+      if (searchKey && String(row[searchKey]).toLowerCase().includes(normalizedTerm)) {
+        return true;
+      }
+      
+      if (searchConfig.searchKeys) {
+        return searchConfig.searchKeys.some(key => {
+          const value = row[key];
+          return value && String(value).toLowerCase().includes(normalizedTerm);
+        });
+      }
+      
+      const searchableColumns = columns.filter(col => col.searchable);
+      if (searchableColumns.length > 0) {
+        return searchableColumns.some(col => {
+          const value = row[col.key];
+          return value && String(value).toLowerCase().includes(normalizedTerm);
+        });
+      }
+      
+      return false;
+    });
+    
+    setFilteredData(searchResults);
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    if (searchConfig.onChange) {
+      searchConfig.onChange(value);
+    } else {
+      applySearchFilter(value);
+    }
+  };
 
   const sortedData = sortConfig 
     ? [...filteredData].sort((a, b) => {
@@ -106,7 +168,17 @@ const DataTable = <T extends Record<string, any>>({
   return (
     <div className={`w-full ${className}`}>
       {searchConfig.enabled && (
-        <div className="flex justify-end items-center mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={searchConfig.placeholder || "Search..."}
+              value={searchTerm}
+              onChange={handleSearch}
+              className="pl-8 w-64"
+            />
+          </div>
+          
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" className="h-9">
               <Filter className="mr-2 h-4 w-4" />
