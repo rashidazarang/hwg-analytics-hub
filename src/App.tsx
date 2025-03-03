@@ -9,6 +9,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import SignupConfirmation from "./pages/SignupConfirmation";
 import NotFound from "./pages/NotFound";
 
 const App = () => {
@@ -34,6 +35,7 @@ const App = () => {
           <AuthProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/signup-confirmation" element={<SignupConfirmation />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Index />} />
                 {/* Add other protected routes here */}

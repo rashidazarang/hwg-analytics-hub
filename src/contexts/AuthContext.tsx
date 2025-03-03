@@ -164,6 +164,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: "Account created successfully. Please check your email to confirm your account."
       });
       
+      // Redirect to confirmation page instead of staying on login
+      navigate('/signup-confirmation');
+      
       // Note: The user will need to be made an admin manually in the database
     } catch (error) {
       console.error('Sign up error:', error);
