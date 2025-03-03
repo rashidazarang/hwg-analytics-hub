@@ -15,6 +15,7 @@ type Agreement = {
   HolderLastName?: string | null;
   dealerName?: string;
   DealerUUID?: string | null;
++ DealerID?: string | null; // <-- Add this line
   EffectiveDate?: string | null;
   ExpireDate?: string | null;
   AgreementStatus?: string | null;
@@ -58,7 +59,7 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
 
     const { data, error } = await supabase
       .from("agreements")
-      .select("id, AgreementID, HolderFirstName, HolderLastName, DealerUUID, EffectiveDate, ExpireDate, AgreementStatus, Total, DealerCost, ReserveAmount")
+      .select("id, AgreementID, HolderFirstName, HolderLastName, DealerUUID, DealerID, EffectiveDate, ExpireDate, AgreementStatus, Total, DealerCost, ReserveAmount")
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to)
       .order("EffectiveDate", { ascending: false })
