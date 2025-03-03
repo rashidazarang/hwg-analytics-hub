@@ -12,6 +12,7 @@ type AuthContextType = {
   isLoading: boolean;
   isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -142,6 +143,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signUp = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password
+      });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Registration failed",
+          description: error.message
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Registration successful",
+        description: "Account created successfully. Please check your email to confirm your account."
+      });
+      
+      // Note: The user will need to be made an admin manually in the database
+    } catch (error) {
+      console.error('Sign up error:', error);
+    }
+  };
+
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -162,7 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, isAdmin, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, isAdmin, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
