@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
 import KPISection from '@/components/metrics/KPISection';
@@ -30,7 +30,7 @@ const Index = () => {
   };
 
   const handleDealershipSelect = (dealershipId: string, dealershipName: string) => {
-    console.log(`Selected dealership: ${dealershipName} (UUID: ${dealershipId})`);
+    console.log(`Selected dealership in Index: ${dealershipName} (UUID: ${dealershipId})`);
     setDealershipUUID(dealershipId);     // This is the UUID, used for filtering
     setDealershipName(dealershipName);   // This is just for display purposes
   };
@@ -54,6 +54,10 @@ const Index = () => {
       />
     </div>
   );
+
+  useEffect(() => {
+    console.log(`Index: Current dealership state - UUID: ${dealershipUUID}, Name: ${dealershipName}`);
+  }, [dealershipUUID, dealershipName]);
 
   return (
     <div className="min-h-screen bg-background">

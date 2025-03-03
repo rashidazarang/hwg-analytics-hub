@@ -171,6 +171,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     
     // Invalidate the query when dealer filter changes to force a refetch
     if (dealerFilter) {
+      console.log(`🔄 Invalidating agreements-data query with dealer UUID: ${dealerFilter}`);
       queryClient.invalidateQueries({
         queryKey: ["agreements-data"],
         exact: false,
@@ -198,6 +199,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   } = useQuery({
     queryKey: agreementsQueryKey,
     queryFn: async () => {
+      console.log(`🔍 Executing query with dealer UUID filter: ${dealerFilter}`);
       const agreements = await fetchAllAgreements(dateRange, dealerFilter);
       console.log(`🟢 Storing ${agreements.length} agreements in React Query cache`);
       return agreements;
