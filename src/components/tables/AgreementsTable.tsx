@@ -201,10 +201,15 @@ useEffect(() => {
       return {};
     }
     
-    // Use trimmed DealerUUID as the key for unambiguous lookups
+    // Normalize keys by checking both the original and lower-case versions
     const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
-      if (dealer.DealerUUID) {
-        acc[dealer.DealerUUID.trim()] = dealer;
+      const key = (dealer.DealerUUID || dealer.dealeruuid)?.toString().trim();
+      if (key) {
+        acc[key] = {
+          DealerUUID: dealer.DealerUUID || dealer.dealeruuid,
+          PayeeID: dealer.PayeeID || dealer.payeeid,
+          Payee: dealer.Payee || dealer.payee,
+        };
       }
       return acc;
     }, {});
@@ -243,14 +248,17 @@ useEffect(() => {
       key: 'dealership',
       title: 'Dealership',
       render: (row) => {
-        return row.DealerUUID ? dealerMap[row.DealerUUID.trim()]?.Payee || 'Unknown Dealership' : '';
+        const key = (row.DealerUUID || row.dealeruuid)?.toString().trim();
+        return key ? dealerMap[key]?.Payee || 'Unknown Dealership' : 'Unknown Dealership';
       },
     },
     {
       key: 'DealerID',
       title: 'Dealer ID',
-      render: (row) =>
-        row.DealerUUID ? dealerMap[row.DealerUUID.trim()]?.PayeeID || row.DealerUUID : 'No Dealer Assigned',
+      render: (row) => {
+        const key = (row.DealerUUID || row.dealeruuid)?.toString().trim();
+        return key ? dealerMap[key]?.PayeeID || key : 'No Dealer Assigned';
+      },
     },
     {
       key: 'effectiveDate',
