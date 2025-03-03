@@ -71,7 +71,7 @@ const Account = () => {
         .update({
           first_name: firstName,
           last_name: lastName,
-          updated_at: new Date()
+          updated_at: new Date().toISOString() // Fixed: Convert Date to ISO string
         })
         .eq('id', user.id);
       
