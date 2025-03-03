@@ -642,64 +642,51 @@ export type Database = {
     Views: {
       contracts_agreements_primary: {
         Row: {
+          agreement_uuid: string | null
           AgreementID: string | null
-          AgreementNumber: string | null
           AgreementStatus: string | null
+          contract_holder_email: string | null
+          contract_holder_first_name: string | null
+          contract_holder_last_name: string | null
+          contract_id: string | null
+          contract_nbr: string | null
+          contract_sale_date: string | null
+          contract_status: string | null
+          contract_term_mileage: number | null
+          contract_term_months: number | null
+          dealer_name: string | null
+          dealer_nbr: string | null
           DealerCost: number | null
-          DealerID: string | null
           DealerUUID: string | null
+          deductible_amount: number | null
           DocumentURL: string | null
-          EffectiveDate: string | null
+          effective_date: string | null
+          expire_miles: number | null
           ExpireDate: string | null
           HolderEmail: string | null
           HolderFirstName: string | null
           HolderLastName: string | null
-          id: string | null
+          inception_date: string | null
+          insurance_status: string | null
           IsActive: boolean | null
+          linked_via_contract_nbr: string | null
+          manufacturer_id: string | null
           Md5: string | null
+          model: string | null
+          model_year: number | null
+          new_used: string | null
+          plan_code: string | null
+          plan_name: string | null
+          premium_amount: number | null
+          product: string | null
           ReserveAmount: number | null
+          reserves: number | null
+          sale_total: number | null
           StatusChangeDate: string | null
           Total: number | null
-        }
-        Insert: {
-          AgreementID?: string | null
-          AgreementNumber?: string | null
-          AgreementStatus?: string | null
-          DealerCost?: number | null
-          DealerID?: string | null
-          DealerUUID?: string | null
-          DocumentURL?: string | null
-          EffectiveDate?: string | null
-          ExpireDate?: string | null
-          HolderEmail?: string | null
-          HolderFirstName?: string | null
-          HolderLastName?: string | null
-          id?: string | null
-          IsActive?: boolean | null
-          Md5?: string | null
-          ReserveAmount?: number | null
-          StatusChangeDate?: string | null
-          Total?: number | null
-        }
-        Update: {
-          AgreementID?: string | null
-          AgreementNumber?: string | null
-          AgreementStatus?: string | null
-          DealerCost?: number | null
-          DealerID?: string | null
-          DealerUUID?: string | null
-          DocumentURL?: string | null
-          EffectiveDate?: string | null
-          ExpireDate?: string | null
-          HolderEmail?: string | null
-          HolderFirstName?: string | null
-          HolderLastName?: string | null
-          id?: string | null
-          IsActive?: boolean | null
-          Md5?: string | null
-          ReserveAmount?: number | null
-          StatusChangeDate?: string | null
-          Total?: number | null
+          vehicle_purhase_price: string | null
+          vehicle_year: number | null
+          vin: string | null
         }
         Relationships: [
           {

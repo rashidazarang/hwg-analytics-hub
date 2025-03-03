@@ -5,10 +5,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
+import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import SignupConfirmation from "./pages/SignupConfirmation";
 import NotFound from "./pages/NotFound";
+import AccountSettings from "./pages/AccountSettings";
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient({
@@ -16,8 +19,8 @@ const App = () => {
       queries: {
         refetchOnWindowFocus: false,
         retry: 1,
-        staleTime: 1000 * 60 * 60,
-        gcTime: 1000 * 60 * 60 * 2,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
       },
     },
   }));
@@ -27,22 +30,20 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* Public routes - accessible to everyone */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* All routes are now accessible without authentication */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Index />} />
-              {/* Add other routes here */}
-            </Route>
-            
-            {/* 404 route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup-confirmation" element={<SignupConfirmation />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/" element={<Index />} />
+                <Route path="/account" element={<AccountSettings />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster />
+            <Sonner />
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

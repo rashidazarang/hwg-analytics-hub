@@ -138,7 +138,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const pageSize = 50; // Fixed page size at 50
   const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
@@ -412,13 +412,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     setPage(newPage);
   };
 
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    if (newPageSize !== pageSize) {
-      setPageSize(newPageSize);
-      setPage(1);
-    }
-  }, [pageSize, setPage]);
-
   const currentStatus = isFetching
     ? "Loading..."
     : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
@@ -445,7 +438,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
           totalItems: totalCount,
           pageSize: pageSize,
           onPageChange: handlePageChange,
-          onPageSizeChange: handlePageSizeChange,
         }}
         loading={isFetching}
       />

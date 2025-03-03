@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,50 +11,37 @@ import { toast } from '@/components/ui/use-toast';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loginAttempt, setLoginAttempt] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, signUp, isAdmin, session, isLoading } = useAuth();
+  const { signIn, signUp, isAdmin, session } = useAuth();
   const navigate = useNavigate();
-
-  console.log("Login page rendered", { 
-    isLoading, 
-    hasSession: !!session, 
-    isAdmin,
-    user: session?.user?.email 
-  });
 
   useEffect(() => {
     // Redirect to home if already logged in and is admin
-    if (session && isAdmin && !isLoading) {
-      console.log("Already logged in and is admin, redirecting to home");
+    if (session && isAdmin) {
       navigate('/');
     }
-  }, [session, isAdmin, navigate, isLoading]);
+  }, [session, isAdmin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isSubmitting) return;
+    if (!email || !password) {
+      toast({
+        variant: "destructive",
+        title: "Missing information",
+        description: "Please provide both email and password"
+      });
+      return;
+    }
     
     try {
       setIsSubmitting(true);
-      console.log("Attempting login with email:", email);
-      const result = await signIn(email, password);
-      console.log("Login result:", result);
-      
-      if (result?.error) {
-        toast({
-          variant: "destructive",
-          title: "Login failed",
-          description: result.error.message || "Invalid credentials. Please try again."
-        });
-      }
+      setLoginAttempt(prev => prev + 1); // Increment login attempt counter
+      await signIn(email, password);
     } catch (error) {
       console.error("Login error:", error);
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again."
-      });
+      // signIn already shows a toast for errors
     } finally {
       setIsSubmitting(false);
     }
@@ -62,58 +50,34 @@ const Login = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isSubmitting) return;
+    if (!email || !password) {
+      toast({
+        variant: "destructive",
+        title: "Missing information",
+        description: "Please provide both email and password"
+      });
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Password too short",
+        description: "Password must be at least 6 characters"
+      });
+      return;
+    }
     
     try {
       setIsSubmitting(true);
-      console.log("Attempting signup with email:", email);
-      const result = await signUp(email, password);
-      console.log("Signup result:", result);
-      
-      if (result?.error) {
-        toast({
-          variant: "destructive",
-          title: "Signup failed",
-          description: result.error.message || "Unable to create account. Please try again."
-        });
-      } else {
-        toast({
-          title: "Account created",
-          description: "Please contact an administrator to grant you admin privileges."
-        });
-      }
+      await signUp(email, password);
     } catch (error) {
       console.error("Signup error:", error);
-      toast({
-        variant: "destructive",
-        title: "Signup failed",
-        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again."
-      });
+      // signUp already shows a toast for errors
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Show loading spinner while initial authentication state is being checked
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin mr-2" />
-        <span>Loading authentication...</span>
-      </div>
-    );
-  }
-
-  // If user is already authenticated and is admin, they will be redirected in the useEffect hook
-  // This content will only render briefly or if there's an issue with the redirect
-  if (session && isAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin mr-2" />
-        <span>Authenticated, redirecting...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
@@ -149,7 +113,6 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
-                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -165,7 +128,6 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -173,7 +135,7 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isSubmitting || !email || !password}
+                disabled={!email || !password || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
@@ -202,7 +164,6 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
-                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -218,7 +179,6 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="new-password"
-                    disabled={isSubmitting}
                   />
                   <p className="text-xs text-muted-foreground">
                     Password must be at least 6 characters
@@ -229,7 +189,7 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isSubmitting || !email || !password}
+                disabled={!email || !password || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
