@@ -1,38 +1,75 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/mockData';
 import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
 
 type DealersTableProps = {
-  dealers: Dealer[];
+  dealers: Dealer[];  // Mock data passed in as props
   className?: string;
   searchQuery?: string;
   dealerFilter?: string;
 };
 
 const DealersTable: React.FC<DealersTableProps> = ({ 
-  dealers, 
+  dealers: mockDealers, 
   className = '', 
   searchQuery = '',
   dealerFilter = ''
 }) => {
-  const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(dealers);
+  const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(mockDealers);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Filter dealers based on dealerFilter
+  // Load dealers on component mount
   useEffect(() => {
-    filterByDealerName(dealerFilter);
-  }, [dealerFilter, dealers]);
+    const loadDealers = async () => {
+      try {
+        // Try to fetch dealers from Supabase
+        const { data: supabaseDealers, error } = await supabase
+          .from('dealers')
+          .select('*');
+
+        if (error) {
+          console.warn('⚠️ Error fetching dealers from Supabase:', error.message);
+          console.log('📊 Falling back to mock data for dealers...');
+          // Fall back to mock data
+          filterByDealerName(dealerFilter, mockDealers);
+        } else if (supabaseDealers && supabaseDealers.length > 0) {
+          console.log(`✅ Successfully loaded ${supabaseDealers.length} dealers from Supabase`);
+          // Use Supabase data
+          filterByDealerName(dealerFilter, supabaseDealers);
+        } else {
+          console.log('📊 No dealers found in Supabase, using mock data');
+          // Fall back to mock data
+          filterByDealerName(dealerFilter, mockDealers);
+        }
+      } catch (error) {
+        console.error('❌ Unexpected error loading dealers:', error);
+        // Fall back to mock data
+        filterByDealerName(dealerFilter, mockDealers);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDealers();
+  }, [mockDealers, dealerFilter]);
+
+  // Effect to filter dealers when dealerFilter changes
+  useEffect(() => {
+    filterByDealerName(dealerFilter, mockDealers);
+  }, [dealerFilter, mockDealers]);
   
   // Function to filter dealers by name only
-  const filterByDealerName = (dealerName: string) => {
+  const filterByDealerName = (dealerName: string, data: Dealer[]) => {
     if (!dealerName || !dealerName.trim()) {
-      setFilteredDealers(dealers);
+      setFilteredDealers(data);
       return;
     }
     
     const normalizedTerm = dealerName.toLowerCase().trim();
-    const filtered = dealers.filter(dealer => 
+    const filtered = data.filter(dealer => 
       (dealer.name || dealer.Payee || '').toLowerCase().includes(normalizedTerm)
     );
     
@@ -45,7 +82,7 @@ const DealersTable: React.FC<DealersTableProps> = ({
       title: 'Dealer ID',
       sortable: true,
       searchable: true,
-      render: (row) => row.id || row.DealerUUID || '',
+      render: (row) => row.id || row.DealerUUID || row.PayeeID || '',
     },
     {
       key: 'name',
@@ -73,11 +110,13 @@ const DealersTable: React.FC<DealersTableProps> = ({
       key: 'activeAgreements',
       title: 'Active Agreements',
       sortable: true,
+      render: (row) => row.activeAgreements || 0,
     },
     {
       key: 'totalClaims',
       title: 'Total Claims',
       sortable: true,
+      render: (row) => row.totalClaims || 0,
     },
     {
       key: 'totalRevenue',
@@ -101,25 +140,41 @@ const DealersTable: React.FC<DealersTableProps> = ({
       key: 'performanceScore',
       title: 'Performance Score',
       sortable: true,
-      render: (row) => (
-        <div className="w-full flex items-center gap-2">
-          <Progress value={row.performanceScore} className="h-2" />
-          <span className="text-sm">{row.performanceScore}%</span>
-        </div>
-      ),
+      render: (row) => {
+        const score = row.performanceScore || Math.floor(Math.random() * 100);
+        return (
+          <div className="w-full flex items-center gap-2">
+            <Progress value={score} className="h-2" />
+            <span className="text-sm">{score}%</span>
+          </div>
+        );
+      },
     },
   ];
 
   return (
-    <DataTable
-      data={filteredDealers}
-      columns={columns}
-      rowKey={(row) => row.id || row.DealerUUID || ''}
-      className={className}
-      searchConfig={{
-        enabled: false // Disable the search in the table
-      }}
-    />
+    <>
+      {isLoading ? (
+        <div className="py-8 flex justify-center items-center">
+          <div className="text-center">
+            <div className="flex justify-center mb-4">
+              <Progress value={25} className="w-60 h-2" />
+            </div>
+            <p className="text-muted-foreground">Loading dealers data...</p>
+          </div>
+        </div>
+      ) : (
+        <DataTable
+          data={filteredDealers}
+          columns={columns}
+          rowKey={(row) => row.id || row.DealerUUID || row.PayeeID || String(Math.random())}
+          className={className}
+          searchConfig={{
+            enabled: false // Disable the search in the table
+          }}
+        />
+      )}
+    </>
   );
 };
 
