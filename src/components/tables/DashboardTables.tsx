@@ -10,8 +10,8 @@ import { DateRange } from '@/lib/dateUtils';
 type DashboardTablesProps = {
   activeTab: string;
   dateRange: DateRange;
-  dealerFilter: string;
-  dealerName?: string;
+  dealerFilter: string; // This should be the UUID of the dealer
+  dealerName?: string;  // This is the display name of the dealer
   searchQuery?: string;
   claims: Claim[];
   dealers: Dealer[];
@@ -20,7 +20,7 @@ type DashboardTablesProps = {
 const DashboardTables: React.FC<DashboardTablesProps> = ({
   activeTab,
   dateRange,
-  dealerFilter,
+  dealerFilter, // This is the dealer UUID
   dealerName = '',
   searchQuery = '',
   claims,
@@ -28,7 +28,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
 }) => {
   // Debug logging to verify props are correctly passed down
   useEffect(() => {
-    console.log("DashboardTables - Current dealer filter:", dealerFilter);
+    console.log("DashboardTables - Current dealer UUID filter:", dealerFilter);
     console.log("DashboardTables - Current dealer name:", dealerName);
   }, [dealerFilter, dealerName]);
 
@@ -38,7 +38,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
         <TabsContent value="agreements" className="mt-0">
           <AgreementsTable 
             dateRange={dateRange} 
-            dealerFilter={dealerFilter}
+            dealerFilter={dealerFilter} // Passing UUID here
             dealerName={dealerName}
             searchQuery={searchQuery} 
           />
@@ -47,7 +47,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
         <TabsContent value="claims" className="mt-0">
           <ClaimsTable 
             claims={claims} 
-            dealerFilter={dealerFilter}
+            dealerFilter={dealerFilter} // Passing UUID here
             dealerName={dealerName}
             searchQuery={searchQuery}
           />
@@ -56,7 +56,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
         <TabsContent value="dealers" className="mt-0">
           <DealersTable 
             dealers={dealers} 
-            dealerFilter={dealerFilter}
+            dealerFilter={dealerFilter} // Passing UUID here
             dealerName={dealerName}
             searchQuery={searchQuery}
           />

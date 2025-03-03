@@ -45,7 +45,7 @@ const SUPABASE_PAGE_SIZE = 500;
 
 async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string): Promise<Agreement[]> {
   console.log("🔍 Fetching agreements...");
-  console.log("🔍 Dealer filter:", dealerFilter);
+  console.log("🔍 Dealer UUID filter:", dealerFilter);
 
   let allAgreements: Agreement[] = [];
   let page = 1;
@@ -65,9 +65,9 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to);
     
-    // Add dealer filter if specified
+    // Add dealer filter if specified - using UUID
     if (dealerFilter && dealerFilter.trim()) {
-      console.log(`🔍 Adding dealer filter: ${dealerFilter}`);
+      console.log(`🔍 Adding dealer UUID filter: ${dealerFilter}`);
       query = query.eq("DealerUUID", dealerFilter.trim());
     }
     
@@ -146,16 +146,16 @@ type AgreementsTableProps = {
   className?: string;
   dateRange?: DateRange;
   searchQuery?: string;
-  dealerFilter?: string;
-  dealerName?: string;
+  dealerFilter?: string; // This should be the UUID of the dealer
+  dealerName?: string;   // This is the display name of the dealer
 };
 
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ 
   className = '', 
   dateRange, 
   searchQuery = '',
-  dealerFilter = '',
-  dealerName = ''
+  dealerFilter = '',  // This is the dealer UUID
+  dealerName = ''     // This is the dealer display name
 }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -166,7 +166,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const initialFetchDone = useRef<boolean>(false);
 
   useEffect(() => {
-    console.log('🔍 AgreementsTable - Current dealer filter:', dealerFilter);
+    console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
   }, [dealerFilter, dealerName]);
 
