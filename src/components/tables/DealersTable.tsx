@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/mockData';
@@ -119,7 +118,7 @@ const DealersTable: React.FC<DealersTableProps> = ({
       ),
     },
   ];
-
+  
   // Calculate display data based on pagination
   const displayData = filteredDealers.slice(
     (page - 1) * pageSize,

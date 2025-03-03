@@ -144,7 +144,7 @@ const DataTable = <T extends Record<string, any>>({
     : sortedData;
 
   const totalPages = paginationProps 
-    ? Math.ceil(sortedData.length / paginationProps.pageSize)
+    ? Math.ceil(paginationProps.totalItems / paginationProps.pageSize)
     : 1;
 
   const handleSort = (key: string) => {
@@ -243,7 +243,7 @@ const DataTable = <T extends Record<string, any>>({
         </div>
       </div>
       
-      {paginationProps && totalPages > 1 && (
+      {paginationProps && paginationProps.totalItems > paginationProps.pageSize && (
         <div className="flex justify-between items-center mt-4">
           <div className="text-sm text-muted-foreground">
             {loading ? (
