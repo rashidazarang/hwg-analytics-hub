@@ -200,20 +200,18 @@ useEffect(() => {
       console.warn("⚠️ No dealers found, returning empty map.");
       return {};
     }
-    
-    // Use DealerUUID as key and trim it for consistency
+  
     const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
       if (dealer.DealerUUID) {
-        acc[dealer.DealerUUID.trim()] = dealer;
+        acc[dealer.DealerUUID.trim().toLowerCase()] = dealer;
       }
-      // Also store mapping by PayeeID if needed (trimmed)
       if (dealer.PayeeID) {
-        acc[dealer.PayeeID.trim()] = dealer;
+        acc[dealer.PayeeID.trim().toLowerCase()] = dealer;
       }
       return acc;
     }, {});
-    
-    console.log("✅ Dealer Map Created:", map);
+  
+    console.log("✅ Dealer Map Created:", JSON.stringify(map, null, 2)); // Debug
     return map;
   }, [dealers]);
 
@@ -247,12 +245,16 @@ useEffect(() => {
       key: 'dealership',
       title: 'Dealership',
       render: (row) => {
-        // First try to look up using DealerUUID (trimmed)
-        let dealer = row.DealerUUID ? dealerMap[row.DealerUUID.trim()] : null;
-        // If not found, try using DealerID (which should be the same as PayeeID)
-        if (!dealer && row.DealerID) {
-          dealer = dealerMap[row.DealerID.trim()];
+        const dealerUUID = row.DealerUUID?.trim().toLowerCase();
+        const dealerID = row.DealerID?.trim().toLowerCase();
+        
+        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
+        if (!dealer && dealerID) {
+          dealer = dealerMap[dealerID];
         }
+    
+        console.log(`🔍 Dealer Lookup for UUID: ${dealerUUID} & ID: ${dealerID} → ${dealer?.Payee || 'Unknown'}`);
+    
         return dealer ? dealer.Payee : 'Unknown Dealership';
       },
     },
@@ -260,15 +262,17 @@ useEffect(() => {
       key: 'DealerID',
       title: 'Dealer ID',
       render: (row) => {
-        // Try to get the dealer using DealerUUID first
-        let dealerId = row.DealerUUID && dealerMap[row.DealerUUID.trim()] 
-          ? dealerMap[row.DealerUUID.trim()].PayeeID 
-          : null;
-        // Fallback: if DealerUUID lookup fails, use the DealerID field from the agreement
-        if (!dealerId && row.DealerID) {
-          dealerId = row.DealerID.trim();
+        const dealerUUID = row.DealerUUID?.trim().toLowerCase();
+        const dealerID = row.DealerID?.trim().toLowerCase();
+    
+        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
+        if (!dealer && dealerID) {
+          dealer = dealerMap[dealerID];
         }
-        return dealerId ? dealerId : 'No Dealer Assigned';
+    
+        console.log(`🔍 Dealer ID Lookup for UUID: ${dealerUUID} & ID: ${dealerID} → ${dealer?.PayeeID || 'No Dealer Assigned'}`);
+    
+        return dealer ? dealer.PayeeID : 'No Dealer Assigned';
       },
     },
     {
