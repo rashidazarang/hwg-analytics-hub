@@ -15,7 +15,9 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to home if already logged in and is admin
+    console.log("Login component - session state changed:", session ? "Session exists" : "No session");
+    console.log("Login component - isAdmin state:", isAdmin);
+    
     if (session && isAdmin) {
       console.log("Login component detected session and admin status, redirecting to dashboard");
       navigate('/');
@@ -39,18 +41,21 @@ const Login = () => {
       console.log("Attempting login with email:", email);
       
       const success = await signIn(email, password);
+      console.log("Login result:", success ? "Success" : "Failed");
       
       if (!success) {
         console.log("Login unsuccessful, resetting submission state");
         setIsSubmitting(false);
       }
-      // We don't need to manually navigate here anymore
-      // AuthContext will handle navigation on successful login
       
     } catch (error) {
       console.error("Login error:", error);
       setIsSubmitting(false);
-      // signIn already shows a toast for errors
+      toast({
+        variant: "destructive",
+        title: "Login error",
+        description: "An unexpected error occurred during login"
+      });
     }
   };
 
@@ -82,7 +87,11 @@ const Login = () => {
     } catch (error) {
       console.error("Signup error:", error);
       setIsSubmitting(false);
-      // signUp already shows a toast for errors
+      toast({
+        variant: "destructive",
+        title: "Signup error",
+        description: "An unexpected error occurred during signup"
+      });
     }
   };
 

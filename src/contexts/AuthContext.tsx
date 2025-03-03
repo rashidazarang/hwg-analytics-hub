@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
   // Function to fetch admin status
   const fetchAdminStatus = async (userId: string) => {
@@ -79,6 +81,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Handle redirection based on auth status and current path
+  const handleRedirection = (isAdmin: boolean, path: string) => {
+    try {
+      console.log(`Handling redirection with isAdmin: ${isAdmin}, current path: ${path}`);
+      
+      if (isAdmin) {
+        if (path === '/login' || path === '/signup-confirmation') {
+          console.log("Redirecting authenticated admin to dashboard");
+          navigate('/');
+        }
+      } else {
+        // If not an admin or not authenticated, and not on login pages, redirect to login
+        const nonAuthPaths = ['/login', '/signup-confirmation'];
+        if (!nonAuthPaths.includes(path)) {
+          console.log("Not admin - redirecting to login");
+          navigate('/login');
+        }
+      }
+    } catch (err) {
+      console.error("Error in handleRedirection:", err);
+    }
+  };
+
   useEffect(() => {
     const setupAuth = async () => {
       try {
@@ -93,6 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (error) {
           console.error("Error getting session:", error);
           setIsLoading(false);
+          setInitialCheckComplete(true);
           return;
         }
         
@@ -103,13 +129,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(data.session.user);
           const isUserAdmin = await fetchAdminStatus(data.session.user.id);
           
-          if (isUserAdmin && window.location.pathname === '/login') {
-            console.log("Redirecting authenticated admin from login to home");
-            navigate('/');
-          }
+          // Use window.location.pathname to ensure we get the current path
+          handleRedirection(isUserAdmin, window.location.pathname);
         }
+        
+        setInitialCheckComplete(true);
       } catch (err) {
         console.error("Exception in setupAuth:", err);
+        setInitialCheckComplete(true);
       } finally {
         setIsLoading(false);
       }
@@ -127,10 +154,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(session.user);
           const isUserAdmin = await fetchAdminStatus(session.user.id);
           
-          if (isUserAdmin && window.location.pathname === '/login') {
-            console.log("Auth state change - redirecting to dashboard");
-            navigate('/');
-          }
+          // Always use window.location.pathname for reliable current path
+          handleRedirection(isUserAdmin, window.location.pathname);
         } else {
           setSession(null);
           setUser(null);
@@ -157,6 +182,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log("Starting signIn process for email:", email);
       
       // Clear any potential stale session data before login attempt
       await clearStaleSession();
@@ -177,6 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.user) {
+        console.log("Login successful, checking admin status");
         // Check if user is admin
         const isUserAdmin = await fetchAdminStatus(data.user.id);
         
@@ -196,6 +223,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         
         console.log("Login successful, navigating to dashboard");
+        // Force navigation here
         navigate('/');
         return true;
       }
@@ -263,7 +291,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, session, isLoading, isAdmin, signIn, signUp, signOut }}>
-      {children}
+      {initialCheckComplete ? children : <div>Loading authentication...</div>}
     </AuthContext.Provider>
   );
 };
