@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -56,20 +55,22 @@ const DataTable = <T extends Record<string, any>>({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
 
-  // Reset filteredData when the data prop changes or when searchConfig.onChange exists
   useEffect(() => {
     if (searchConfig.onChange) {
-      // Don't locally filter if parent is handling filtering
       setFilteredData(data);
-    } else if (!searchTerm || searchTerm.trim() === '') {
-      setFilteredData(data);
+      
+      if (searchTerm && searchTerm.trim() !== '') {
+        searchConfig.onChange(searchTerm);
+      }
     } else {
-      // Re-apply the existing search term to the new data
-      applySearchFilter(searchTerm);
+      setFilteredData(data);
+      
+      if (searchTerm && searchTerm.trim() !== '') {
+        applySearchFilter(searchTerm);
+      }
     }
-  }, [data, searchConfig.onChange]);
+  }, [data]);
 
-  // Separate function to apply search filter
   const applySearchFilter = (term: string) => {
     if (!term || term.trim() === '') {
       setFilteredData(data);
@@ -79,7 +80,6 @@ const DataTable = <T extends Record<string, any>>({
     const normalizedTerm = term.toLowerCase().trim();
     
     if (searchConfig.onChange) {
-      // If the parent component is handling the search, call its onChange handler
       searchConfig.onChange(normalizedTerm);
       return;
     }
@@ -110,7 +110,6 @@ const DataTable = <T extends Record<string, any>>({
     setFilteredData(searchResults);
   };
 
-  // Handle search input changes
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);

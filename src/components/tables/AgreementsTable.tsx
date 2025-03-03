@@ -175,6 +175,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
+    
+    // Force reset to page 1 when dealer filter changes
+    if (dealerFilter) {
+      setPage(1);
+    }
   }, [dealerFilter, dealerName]);
 
   useEffect(() => {
@@ -256,9 +261,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       );
     }
     
-    console.log(`✅ After filtering: ${filtered.length} agreements remain`);
+    console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
     return filtered;
-  }, [agreements, searchTerm]);
+  }, [agreements, searchTerm, dealerFilter]);
   
   useEffect(() => {
     if (filteredAgreements.length > 0) {
