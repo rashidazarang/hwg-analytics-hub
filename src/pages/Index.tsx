@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -7,7 +8,7 @@ import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealersTable from '@/components/tables/DealersTable';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
-import { Users, FileSignature, FileCheck, TrendingUp, Search } from 'lucide-react';
+import { Users, FileSignature, FileCheck, TrendingUp, Search, X } from 'lucide-react';
 import { 
   mockClaims, 
   mockDealers, 
@@ -21,6 +22,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 
 const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => {
+  console.log('🔍 Fetching dealership names from Supabase...');
+  
   const { data, error } = await supabase
     .from('dealers')
     .select('DealerUUID, Payee')
@@ -28,16 +31,19 @@ const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => 
     .order('Payee', { ascending: true });
   
   if (error) {
-    console.error('Error fetching dealerships:', error);
+    console.error('❌ Error fetching dealerships:', error);
     return [];
   }
   
-  return data
+  const dealerships = data
     .filter(dealer => dealer.Payee) // Ensure Payee exists
     .map(dealer => ({
       id: dealer.DealerUUID,
       name: dealer.Payee
     }));
+  
+  console.log(`✅ Successfully fetched ${dealerships.length} dealerships`);
+  return dealerships;
 };
 
 const Index = () => {
@@ -45,6 +51,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('agreements');
   const [dealershipFilter, setDealershipFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
   const queryClient = useQueryClient();
   
@@ -56,7 +63,7 @@ const Index = () => {
     dateRange?.to?.toISOString() || "null",
   ];
 
-  const { data: dealerships = [] } = useQuery({
+  const { data: dealerships = [], isLoading: isLoadingDealerships } = useQuery({
     queryKey: ['dealership-names'],
     queryFn: fetchDealershipNames,
     staleTime: 1000 * 60 * 60,
@@ -68,13 +75,14 @@ const Index = () => {
     console.log("🛠️ Debugging React Query on Index.tsx...");
     console.log("📆 Current Date Range:", dateRange);
     console.log("🔑 Query Key:", agreementsQueryKey);
+    console.log("🏪 Available Dealerships:", dealerships.length);
 
     setTimeout(() => {
       const cacheData = queryClient.getQueryData(agreementsQueryKey);
       console.log("📥 Agreements in React Query Cache:", cacheData);
       console.log("📏 Cache Size:", cacheData && Array.isArray(cacheData) ? cacheData.length : 0);
     }, 2000);
-  }, [queryClient, dateRange]);
+  }, [queryClient, dateRange, dealerships.length]);
 
   const handleDateRangeChange = (range: DateRange) => {
     console.log("📅 Date range changed to:", range);
@@ -112,6 +120,7 @@ const Index = () => {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
+    setShowSuggestions(Boolean(e.target.value.trim()));
     
     if (!e.target.value.trim()) {
       handleDealershipSelect("");
@@ -140,6 +149,8 @@ const Index = () => {
     } else {
       handleDealershipSelect("");
     }
+    
+    setShowSuggestions(false);
   };
 
   const handleDealershipSelect = (value: string) => {
@@ -170,11 +181,25 @@ const Index = () => {
       
       console.log('🧹 Cleared dealership filter');
     }
+    
+    setShowSuggestions(false);
   };
 
   const handleDealershipClick = (dealership: {id: string, name: string}) => {
     setSearchTerm(dealership.name);
     handleDealershipSelect(dealership.id);
+  };
+  
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setDealershipFilter('');
+    setSelectedDealershipId('');
+    setShowSuggestions(false);
+    
+    queryClient.invalidateQueries({
+      queryKey: ['agreement-status-distribution'],
+      exact: false
+    });
   };
 
   const subnavbar = (
@@ -195,11 +220,23 @@ const Index = () => {
           
           <Input
             type="text"
-            placeholder="Search dealerships..."
+            placeholder={isLoadingDealerships ? "Loading dealerships..." : "Search dealerships..."}
             value={searchTerm}
             onChange={handleSearchChange}
+            onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))}
             className="pl-8 pr-10 w-full"
+            autoComplete="off"
           />
+          
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute inset-y-0 right-10 px-2 flex items-center"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
           
           <Button 
             type="submit" 
@@ -210,11 +247,15 @@ const Index = () => {
             <Search className="h-4 w-4" />
           </Button>
           
-          {searchTerm && (
+          {showSuggestions && (
             <div className="absolute mt-1 w-full rounded-md shadow-lg bg-popover z-10 max-h-60 overflow-auto">
-              {filteredDealerships.length > 0 ? (
+              {isLoadingDealerships ? (
+                <div className="px-4 py-2 text-sm text-muted-foreground">
+                  Loading dealerships...
+                </div>
+              ) : filteredDealerships.length > 0 ? (
                 <div className="py-1">
-                  {filteredDealerships.map(dealership => (
+                  {filteredDealerships.slice(0, 10).map(dealership => (
                     <div
                       key={dealership.id}
                       className="px-4 py-2 text-sm hover:bg-accent cursor-pointer"
@@ -223,6 +264,11 @@ const Index = () => {
                       {dealership.name}
                     </div>
                   ))}
+                  {filteredDealerships.length > 10 && (
+                    <div className="px-4 py-2 text-xs text-muted-foreground italic">
+                      {filteredDealerships.length - 10} more results...
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="px-4 py-2 text-sm text-muted-foreground">
