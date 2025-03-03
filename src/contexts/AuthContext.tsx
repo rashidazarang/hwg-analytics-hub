@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Session, User } from '@supabase/supabase-js';
 
+// Define the shape of our auth context
 type AuthContextType = {
   user: User | null;
   session: Session | null;
