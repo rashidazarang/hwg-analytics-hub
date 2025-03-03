@@ -7,12 +7,14 @@ type DashboardProps = {
   onDateRangeChange: (range: DateRange) => void;
   kpiSection: ReactNode;
   children: ReactNode;
+  subnavbar?: ReactNode; // New prop for the subnavbar content
 };
 
 const Dashboard: React.FC<DashboardProps> = ({
   onDateRangeChange,
   kpiSection,
   children,
+  subnavbar,
 }) => {
   return (
     <div className="min-h-screen bg-background">
@@ -23,6 +25,15 @@ const Dashboard: React.FC<DashboardProps> = ({
             <DateRangeFilter onChange={onDateRangeChange} />
           </div>
         </div>
+        
+        {/* Subnavbar - if provided */}
+        {subnavbar && (
+          <div className="border-t border-border/40 bg-muted/50">
+            <div className="dashboard-container py-2">
+              {subnavbar}
+            </div>
+          </div>
+        )}
       </header>
       
       <main className="dashboard-container py-6 space-y-8 animate-fade-in">

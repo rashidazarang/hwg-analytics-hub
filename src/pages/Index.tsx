@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -7,7 +8,7 @@ import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealersTable from '@/components/tables/DealersTable';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
-import { Users, FileSignature, FileCheck, TrendingUp } from 'lucide-react';
+import { Users, FileSignature, FileCheck, TrendingUp, Search } from 'lucide-react';
 import { 
   mockClaims, 
   mockDealers, 
@@ -15,11 +16,13 @@ import {
 } from '@/lib/mockData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQueryClient } from '@tanstack/react-query';
+import { Input } from '@/components/ui/input';
 
 const Index = () => {
   // Set default date range to YTD (Year-to-Date)
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [activeTab, setActiveTab] = useState('agreements');
+  const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
   
   // Calculate KPIs based on the selected date range
@@ -71,6 +74,32 @@ const Index = () => {
       console.log("🗑️ Cache after invalidation:", dataAfterInvalidation);
     }, 500);
   };
+
+  // Reset search when changing tabs
+  useEffect(() => {
+    setSearchQuery('');
+  }, [activeTab]);
+
+  // Subnavbar with tabs and search
+  const subnavbar = (
+    <div className="flex justify-between items-center">
+      <TabsList>
+        <TabsTrigger value="agreements">Agreements</TabsTrigger>
+        <TabsTrigger value="claims">Claims</TabsTrigger>
+        <TabsTrigger value="dealers">Dealers</TabsTrigger>
+      </TabsList>
+      
+      <div className="relative w-64">
+        <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={`Search ${activeTab}...`}
+          className="pl-8"
+        />
+      </div>
+    </div>
+  );
 
   // KPI Section
   const kpiSection = (
@@ -130,6 +159,7 @@ const Index = () => {
     <Dashboard 
       onDateRangeChange={handleDateRangeChange}
       kpiSection={kpiSection}
+      subnavbar={subnavbar}
     >
       {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -140,25 +170,16 @@ const Index = () => {
       {/* Tables section with tabs */}
       <div className="space-y-6">
         <Tabs defaultValue="agreements" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="section-title">Records & Performance</h2>
-            <TabsList>
-              <TabsTrigger value="agreements">Agreements</TabsTrigger>
-              <TabsTrigger value="claims">Claims</TabsTrigger>
-              <TabsTrigger value="dealers">Dealers</TabsTrigger>
-            </TabsList>
-          </div>
-          
           <TabsContent value="agreements" className="mt-0">
-            <AgreementsTable dateRange={dateRange} />
+            <AgreementsTable dateRange={dateRange} searchQuery={searchQuery} />
           </TabsContent>
           
           <TabsContent value="claims" className="mt-0">
-            <ClaimsTable claims={mockClaims} />
+            <ClaimsTable claims={mockClaims} searchQuery={searchQuery} />
           </TabsContent>
           
           <TabsContent value="dealers" className="mt-0">
-            <DealersTable dealers={mockDealers} />
+            <DealersTable dealers={mockDealers} searchQuery={searchQuery} />
           </TabsContent>
         </Tabs>
       </div>
