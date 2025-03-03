@@ -12,7 +12,8 @@ const ProtectedRoute = () => {
     console.log("Protected route: Session state changed", {
       isLoading,
       hasSession: !!session,
-      isAdmin
+      isAdmin,
+      user: session?.user?.email
     });
   }, [isLoading, session, isAdmin]);
 

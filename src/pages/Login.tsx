@@ -15,7 +15,12 @@ const Login = () => {
   const { signIn, signUp, isAdmin, session, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  console.log("Login page rendered", { isLoading, hasSession: !!session, isAdmin });
+  console.log("Login page rendered", { 
+    isLoading, 
+    hasSession: !!session, 
+    isAdmin,
+    user: session?.user?.email 
+  });
 
   useEffect(() => {
     // Redirect to home if already logged in and is admin
@@ -33,13 +38,22 @@ const Login = () => {
     try {
       setIsSubmitting(true);
       console.log("Attempting login with email:", email);
-      await signIn(email, password);
+      const result = await signIn(email, password);
+      console.log("Login result:", result);
+      
+      if (result?.error) {
+        toast({
+          variant: "destructive",
+          title: "Login failed",
+          description: result.error.message || "Invalid credentials. Please try again."
+        });
+      }
     } catch (error) {
       console.error("Login error:", error);
       toast({
         variant: "destructive",
         title: "Login failed",
-        description: "An unexpected error occurred. Please try again."
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again."
       });
     } finally {
       setIsSubmitting(false);
@@ -54,13 +68,27 @@ const Login = () => {
     try {
       setIsSubmitting(true);
       console.log("Attempting signup with email:", email);
-      await signUp(email, password);
+      const result = await signUp(email, password);
+      console.log("Signup result:", result);
+      
+      if (result?.error) {
+        toast({
+          variant: "destructive",
+          title: "Signup failed",
+          description: result.error.message || "Unable to create account. Please try again."
+        });
+      } else {
+        toast({
+          title: "Account created",
+          description: "Please contact an administrator to grant you admin privileges."
+        });
+      }
     } catch (error) {
       console.error("Signup error:", error);
       toast({
         variant: "destructive",
         title: "Signup failed",
-        description: "An unexpected error occurred. Please try again."
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again."
       });
     } finally {
       setIsSubmitting(false);
