@@ -201,15 +201,14 @@ useEffect(() => {
       return {};
     }
     
-    // Normalize keys by checking both the original and lower-case versions
+    // Use DealerUUID as key and trim it for consistency
     const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
-      const key = (dealer.DealerUUID || dealer.dealeruuid)?.toString().trim();
-      if (key) {
-        acc[key] = {
-          DealerUUID: dealer.DealerUUID || dealer.dealeruuid,
-          PayeeID: dealer.PayeeID || dealer.payeeid,
-          Payee: dealer.Payee || dealer.payee,
-        };
+      if (dealer.DealerUUID) {
+        acc[dealer.DealerUUID.trim()] = dealer;
+      }
+      // Also store mapping by PayeeID if needed (trimmed)
+      if (dealer.PayeeID) {
+        acc[dealer.PayeeID.trim()] = dealer;
       }
       return acc;
     }, {});
@@ -248,16 +247,28 @@ useEffect(() => {
       key: 'dealership',
       title: 'Dealership',
       render: (row) => {
-        const key = (row.DealerUUID || row.dealeruuid)?.toString().trim();
-        return key ? dealerMap[key]?.Payee || 'Unknown Dealership' : 'Unknown Dealership';
+        // First try to look up using DealerUUID (trimmed)
+        let dealer = row.DealerUUID ? dealerMap[row.DealerUUID.trim()] : null;
+        // If not found, try using DealerID (which should be the same as PayeeID)
+        if (!dealer && row.DealerID) {
+          dealer = dealerMap[row.DealerID.trim()];
+        }
+        return dealer ? dealer.Payee : 'Unknown Dealership';
       },
     },
     {
       key: 'DealerID',
       title: 'Dealer ID',
       render: (row) => {
-        const key = (row.DealerUUID || row.dealeruuid)?.toString().trim();
-        return key ? dealerMap[key]?.PayeeID || key : 'No Dealer Assigned';
+        // Try to get the dealer using DealerUUID first
+        let dealerId = row.DealerUUID && dealerMap[row.DealerUUID.trim()] 
+          ? dealerMap[row.DealerUUID.trim()].PayeeID 
+          : null;
+        // Fallback: if DealerUUID lookup fails, use the DealerID field from the agreement
+        if (!dealerId && row.DealerID) {
+          dealerId = row.DealerID.trim();
+        }
+        return dealerId ? dealerId : 'No Dealer Assigned';
       },
     },
     {
