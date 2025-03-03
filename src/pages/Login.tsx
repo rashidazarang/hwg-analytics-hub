@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from '@/components/ui/use-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loginAttempt, setLoginAttempt] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp, isAdmin, session } = useAuth();
   const navigate = useNavigate();
 
@@ -24,51 +23,23 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        variant: "destructive",
-        title: "Missing information",
-        description: "Please provide both email and password"
-      });
-      return;
-    }
+    setIsLoading(true);
     
     try {
-      setLoginAttempt(prev => prev + 1); // Increment login attempt counter
       await signIn(email, password);
-    } catch (error) {
-      console.error("Login error:", error);
-      // signIn already shows a toast for errors
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        variant: "destructive",
-        title: "Missing information",
-        description: "Please provide both email and password"
-      });
-      return;
-    }
-    
-    if (password.length < 6) {
-      toast({
-        variant: "destructive",
-        title: "Password too short",
-        description: "Password must be at least 6 characters"
-      });
-      return;
-    }
+    setIsLoading(true);
     
     try {
       await signUp(email, password);
-    } catch (error) {
-      console.error("Signup error:", error);
-      // signUp already shows a toast for errors
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -106,6 +77,7 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -121,6 +93,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -128,9 +101,9 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={!email || !password}
+                disabled={isLoading || !email || !password}
               >
-                {loginAttempt > 0 ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
@@ -157,6 +130,7 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -172,6 +146,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="new-password"
+                    disabled={isLoading}
                   />
                   <p className="text-xs text-muted-foreground">
                     Password must be at least 6 characters
@@ -182,9 +157,16 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={!email || !password}
+                disabled={isLoading || !email || !password}
               >
-                <span>Sign up</span>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing up...
+                  </>
+                ) : (
+                  "Sign up"
+                )}
               </Button>
               
               <p className="text-xs text-center text-muted-foreground mt-4">
