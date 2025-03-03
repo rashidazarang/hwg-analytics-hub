@@ -56,15 +56,18 @@ const DataTable = <T extends Record<string, any>>({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
 
-  // Reset filteredData when the data prop changes
+  // Reset filteredData when the data prop changes or when searchConfig.onChange exists
   useEffect(() => {
-    if (!searchTerm || searchTerm.trim() === '') {
+    if (searchConfig.onChange) {
+      // Don't locally filter if parent is handling filtering
+      setFilteredData(data);
+    } else if (!searchTerm || searchTerm.trim() === '') {
       setFilteredData(data);
     } else {
       // Re-apply the existing search term to the new data
       applySearchFilter(searchTerm);
     }
-  }, [data]);
+  }, [data, searchConfig.onChange]);
 
   // Separate function to apply search filter
   const applySearchFilter = (term: string) => {
@@ -111,7 +114,12 @@ const DataTable = <T extends Record<string, any>>({
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
-    applySearchFilter(value);
+    
+    if (searchConfig.onChange) {
+      searchConfig.onChange(value);
+    } else {
+      applySearchFilter(value);
+    }
   };
 
   const sortedData = sortConfig 

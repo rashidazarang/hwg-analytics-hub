@@ -196,13 +196,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
         return true;
       }
       
-      const firstName = formatName(agreement.HolderFirstName);
-      const lastName = formatName(agreement.HolderLastName);
-      const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
-      if (fullName.includes(term)) {
-        return true;
-      }
-      
       return false;
     });
   }, [agreements, searchTerm]);
@@ -453,9 +446,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
         className={className}
         searchConfig={{
           enabled: true,
-          placeholder: "Search by Agreement ID, Dealer ID, or Customer name...",
+          placeholder: "Search by Agreement ID or Dealer ID...",
           onChange: handleSearch,
-          searchKeys: ["AgreementID", "DealerID", "DealerUUID", "HolderFirstName", "HolderLastName"]
+          searchKeys: ["AgreementID", "DealerID", "DealerUUID"]
         }}
         paginationProps={{
           currentPage: page,
