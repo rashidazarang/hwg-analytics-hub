@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Claim } from '@/lib/mockData';
@@ -8,10 +8,18 @@ import { Badge } from '@/components/ui/badge';
 type ClaimsTableProps = {
   claims: Claim[];
   className?: string;
+  searchQuery?: string; // Add searchQuery prop
 };
 
-const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => {
+const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '', searchQuery = '' }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Update searchTerm when searchQuery prop changes
+  useEffect(() => {
+    if (searchQuery !== undefined) {
+      setSearchTerm(searchQuery);
+    }
+  }, [searchQuery]);
   
   const columns: Column<Claim>[] = [
     {

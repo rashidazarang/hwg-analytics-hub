@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/mockData';
 import { Progress } from '@/components/ui/progress';
@@ -7,11 +7,20 @@ import { Progress } from '@/components/ui/progress';
 type DealersTableProps = {
   dealers: Dealer[];
   className?: string;
+  searchQuery?: string; // Add searchQuery prop
 };
 
-const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) => {
+const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '', searchQuery = '' }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(dealers);
+  
+  // Update searchTerm when searchQuery prop changes
+  useEffect(() => {
+    if (searchQuery !== undefined) {
+      setSearchTerm(searchQuery);
+      handleSearch(searchQuery);
+    }
+  }, [searchQuery, dealers]);
   
   // Apply search filter
   const handleSearch = (term: string) => {

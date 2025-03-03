@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -128,9 +127,10 @@ async function fetchDealers(): Promise<Dealer[]> {
 type AgreementsTableProps = {
   className?: string;
   dateRange?: DateRange;
+  searchQuery?: string;
 };
 
-const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange }) => {
+const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange, searchQuery = '' }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -138,6 +138,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const initialFetchDone = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (searchQuery !== undefined) {
+      setSearchTerm(searchQuery);
+    }
+  }, [searchQuery]);
 
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
@@ -191,7 +197,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     refetchOnWindowFocus: false,
   });
   
-  // Move dealerMap creation before it's used in filteredAgreements
   const dealerMap = useMemo(() => {
     if (!dealers || dealers.length === 0) {
       console.warn("⚠️ No dealers found, returning empty map.");
@@ -217,39 +222,31 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     
     const term = searchTerm.toLowerCase().trim();
     
-    // Create a dealer name lookup map for faster searching
     const dealerNameMap: Record<string, string> = {};
     
     return agreements.filter(agreement => {
-      // Check for Agreement ID match
       if (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) {
         return true;
       }
       
-      // Check for Dealer ID match
       if (agreement.DealerID && agreement.DealerID.toLowerCase().includes(term)) {
         return true;
       }
       
-      // Check for Dealer UUID match
       if (agreement.DealerUUID && agreement.DealerUUID.toLowerCase().includes(term)) {
         return true;
       }
       
-      // Check for Dealership name match
       const dealerUUID = agreement.DealerUUID?.trim().toLowerCase();
       const dealerID = agreement.DealerID?.trim().toLowerCase();
       
       if (dealerUUID || dealerID) {
-        // Try to find the dealer by UUID first
         let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
         
-        // If not found, try by Dealer ID
         if (!dealer && dealerID) {
           dealer = dealerMap[dealerID];
         }
         
-        // Check if dealer name includes search term
         if (dealer && dealer.Payee && dealer.Payee.toLowerCase().includes(term)) {
           return true;
         }
@@ -287,7 +284,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const handleSearch = (term: string) => {
     console.log("🔍 Search term updated:", term);
     setSearchTerm(term);
-    setPage(1); // Reset to first page on search
+    setPage(1);
   };
 
   const columns: Column<Agreement>[] = [
@@ -424,7 +421,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     if (newPageSize !== pageSize) {
       setPageSize(newPageSize);
-      setPage(1); // ✅ Reset to first page
+      setPage(1);
     }
   }, [pageSize, setPage]);
 
