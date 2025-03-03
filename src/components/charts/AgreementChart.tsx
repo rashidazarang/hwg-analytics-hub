@@ -43,7 +43,7 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         // First, we'll get the distribution of agreements by status
         // Using the RPC function we created for grouping
         const { data, error } = await supabase
-          .rpc<AgreementStatusCount[], { from_date: string, to_date: string }>('count_agreements_by_status', {
+          .rpc('count_agreements_by_status', {
             from_date: fromDate,
             to_date: toDate
           });
@@ -55,7 +55,8 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
 
         console.log('📊 Agreement status counts from database:', data);
         
-        if (!data || data.length === 0) {
+        // Check if data exists and has elements
+        if (!data || (Array.isArray(data) && data.length === 0)) {
           // Fallback to client-side counting if the RPC function fails or doesn't exist
           console.log('📊 Falling back to client-side counting...');
           const { data: agreements, error: fetchError } = await supabase
@@ -92,8 +93,11 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
           return chartData;
         }
         
+        // Safely type-check and convert the data
+        const typedData = data as AgreementStatusCount[];
+        
         // Convert RPC result to chart data format
-        const chartData = data.map(item => ({
+        const chartData = typedData.map(item => ({
           name: STATUS_LABELS[item.status || 'Unknown'] || item.status || 'Unknown',
           value: Number(item.count),
           rawStatus: item.status || 'Unknown'
