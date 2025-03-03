@@ -15,7 +15,7 @@ type Agreement = {
   HolderLastName?: string | null;
   dealerName?: string;
   DealerUUID?: string | null;
-+ DealerID?: string | null; // <-- Add this line
+  DealerID?: string | null; // <-- Add this line
   EffectiveDate?: string | null;
   ExpireDate?: string | null;
   AgreementStatus?: string | null;
