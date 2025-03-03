@@ -44,7 +44,8 @@ const formatName = (name?: string | null): string => {
 const SUPABASE_PAGE_SIZE = 500;
 
 async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string): Promise<Agreement[]> {
-  console.log("🔍 Fetching agreements...");
+  console.log("🔍 Fetching agreements with parameters:");
+  console.log("���� Date Range:", dateRange);
   console.log("🔍 Dealer UUID filter:", dealerFilter);
 
   let allAgreements: Agreement[] = [];
@@ -57,7 +58,6 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
     const offset = (page - 1) * SUPABASE_PAGE_SIZE;
 
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
-    console.log(`🚀 Using dealer UUID filter: "${dealerFilter}"`);
     
     // Start building the query
     let query = supabase
@@ -66,10 +66,10 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to);
     
-    // Add dealer filter if specified - BUG FIX: Check the dealerFilter directly
+    // Add dealer filter if specified
     if (dealerFilter && dealerFilter.trim()) {
       console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
-      query = query.eq("DealerUUID", dealerFilter.trim());
+      query = query.eq("DealerUUID", dealerFilter);
     }
     
     // Execute the query with pagination
@@ -175,12 +175,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
-    
-    if (dealerFilter && dealerFilter.trim()) {
-      // Force a refetch when the dealer filter changes
-      console.log(`🔄 Forcing refetch of agreements with dealer UUID: ${dealerFilter}`);
-      refetchAgreements();
-    }
   }, [dealerFilter, dealerName]);
 
   useEffect(() => {
@@ -204,9 +198,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   } = useQuery({
     queryKey: agreementsQueryKey,
     queryFn: async () => {
-      console.log(`🔍 Executing query with dealer UUID filter: ${dealerFilter}`);
+      console.log(`🔍 Executing agreements query with dealer UUID filter: "${dealerFilter}"`);
       const agreements = await fetchAllAgreements(dateRange, dealerFilter);
-      console.log(`🟢 Storing ${agreements.length} agreements in React Query cache`);
+      console.log(`🟢 Fetched ${agreements.length} agreements with dealer filter: "${dealerFilter}"`);
       return agreements;
     },
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
@@ -252,7 +246,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   }, [dealers]);
   
   const filteredAgreements = useMemo(() => {
-    console.log("Filtering agreements with search term:", searchTerm);
+    console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
     let filtered = agreements;
     
     if (searchTerm.trim()) {
@@ -262,7 +256,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       );
     }
     
-    console.log(`After filtering: ${filtered.length} agreements remain`);
+    console.log(`✅ After filtering: ${filtered.length} agreements remain`);
     return filtered;
   }, [agreements, searchTerm]);
   
@@ -273,12 +267,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       const endIndex = startIndex + pageSize;
       const slicedAgreements = filteredAgreements.slice(startIndex, endIndex);
       console.log(`📋 Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(filteredAgreements.length / pageSize)}`);
-      if (slicedAgreements.length > 0) {
-        console.log("📊 Sample agreement data:", slicedAgreements[0]);
-      }
       setDisplayAgreements(slicedAgreements);
     } else {
-      console.warn("⚠️ No agreements to display after filtering.");
+      console.log("⚠️ No agreements to display after filtering.");
       setDisplayAgreements([]);
       setTotalCount(0);
     }
@@ -322,8 +313,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
           dealer = dealerMap[dealerID];
         }
     
-        console.log(`🔍 Dealer Lookup for UUID: ${dealerUUID} & ID: ${dealerID} → ${dealer?.Payee || 'Unknown Dealership'}`);
-    
         return dealer ? dealer.Payee : 'Unknown Dealership';
       },
     },
@@ -339,8 +328,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         if (!dealer && dealerID) {
           dealer = dealerMap[dealerID];
         }
-    
-        console.log(`🔍 Dealer ID Lookup for UUID: ${dealerUUID} & ID: ${dealerID} → ${dealer?.PayeeID || 'No Dealer Assigned'}`);
     
         return dealer ? dealer.PayeeID : 'No Dealer Assigned';
       },
