@@ -1,9 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/mockData';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 type DealersTableProps = {
   dealers: Dealer[];  // Mock data passed in as props
@@ -20,11 +21,15 @@ const DealersTable: React.FC<DealersTableProps> = ({
 }) => {
   const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(mockDealers);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   
   // Load dealers on component mount
   useEffect(() => {
     const loadDealers = async () => {
       try {
+        setIsLoading(true);
+        setHasError(false);
+        
         // Try to fetch dealers from Supabase
         const { data: supabaseDealers, error } = await supabase
           .from('dealers')
@@ -33,10 +38,16 @@ const DealersTable: React.FC<DealersTableProps> = ({
         if (error) {
           console.warn('⚠️ Error fetching dealers from Supabase:', error.message);
           console.log('📊 Falling back to mock data for dealers...');
+          // Show a toast notification about the error
+          toast.error('Failed to load dealers from database', {
+            description: 'Using fallback data instead'
+          });
+          
           // Fall back to mock data
           filterByDealerName(dealerFilter, mockDealers);
         } else if (supabaseDealers && supabaseDealers.length > 0) {
           console.log(`✅ Successfully loaded ${supabaseDealers.length} dealers from Supabase`);
+          toast.success(`Loaded ${supabaseDealers.length} dealers from database`);
           // Use Supabase data
           filterByDealerName(dealerFilter, supabaseDealers);
         } else {
@@ -46,6 +57,7 @@ const DealersTable: React.FC<DealersTableProps> = ({
         }
       } catch (error) {
         console.error('❌ Unexpected error loading dealers:', error);
+        setHasError(true);
         // Fall back to mock data
         filterByDealerName(dealerFilter, mockDealers);
       } finally {
@@ -152,29 +164,55 @@ const DealersTable: React.FC<DealersTableProps> = ({
     },
   ];
 
-  return (
-    <>
-      {isLoading ? (
-        <div className="py-8 flex justify-center items-center">
-          <div className="text-center">
-            <div className="flex justify-center mb-4">
-              <Progress value={25} className="w-60 h-2" />
-            </div>
-            <p className="text-muted-foreground">Loading dealers data...</p>
+  // If data is loading, show loading state
+  if (isLoading) {
+    return (
+      <div className="py-8 flex justify-center items-center">
+        <div className="text-center">
+          <div className="flex justify-center mb-4">
+            <Progress value={25} className="w-60 h-2" />
           </div>
+          <p className="text-muted-foreground">Loading dealers data...</p>
         </div>
-      ) : (
-        <DataTable
-          data={filteredDealers}
-          columns={columns}
-          rowKey={(row) => row.id || row.DealerUUID || row.PayeeID || String(Math.random())}
-          className={className}
-          searchConfig={{
-            enabled: false // Disable the search in the table
-          }}
-        />
-      )}
-    </>
+      </div>
+    );
+  }
+
+  // If there's an error and no data, show error state
+  if (hasError && filteredDealers.length === 0) {
+    return (
+      <div className="py-8 flex justify-center items-center">
+        <div className="text-center text-destructive">
+          <AlertCircle className="mx-auto mb-4 h-12 w-12" />
+          <h3 className="text-lg font-medium">Failed to load dealers</h3>
+          <p className="mt-2">There was an error loading the dealers data.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If there's no data at all (not even mock data), show empty state
+  if (filteredDealers.length === 0) {
+    return (
+      <div className="py-8 flex justify-center items-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">No dealers found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Otherwise show the table with the data
+  return (
+    <DataTable
+      data={filteredDealers}
+      columns={columns}
+      rowKey={(row) => row.id || row.DealerUUID || row.PayeeID || String(Math.random())}
+      className={className}
+      searchConfig={{
+        enabled: false // Disable the search in the table
+      }}
+    />
   );
 };
 
