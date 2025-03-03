@@ -11,6 +11,43 @@ type DealersTableProps = {
 
 const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(dealers);
+  
+  // Apply search filter
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    
+    if (!term.trim()) {
+      setFilteredDealers(dealers);
+      return;
+    }
+    
+    const normalizedTerm = term.toLowerCase().trim();
+    const filtered = dealers.filter(dealer => {
+      // Check dealer ID
+      if ((dealer.id || dealer.DealerUUID || '').toLowerCase().includes(normalizedTerm)) {
+        return true;
+      }
+      
+      // Check dealer name
+      if ((dealer.name || dealer.Payee || '').toLowerCase().includes(normalizedTerm)) {
+        return true;
+      }
+      
+      // Check location
+      const city = (dealer.City || dealer.city || '').toLowerCase();
+      const region = (dealer.Region || dealer.region || '').toLowerCase();
+      const country = (dealer.Country || dealer.country || '').toLowerCase();
+      
+      if (city.includes(normalizedTerm) || region.includes(normalizedTerm) || country.includes(normalizedTerm)) {
+        return true;
+      }
+      
+      return false;
+    });
+    
+    setFilteredDealers(filtered);
+  };
   
   const columns: Column<Dealer>[] = [
     {
@@ -83,14 +120,9 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
     },
   ];
 
-  // Handle search
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-  };
-
   return (
     <DataTable
-      data={dealers}
+      data={filteredDealers}
       columns={columns}
       rowKey={(row) => row.id || row.DealerUUID || ''}
       className={className}
@@ -98,7 +130,7 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
         enabled: true,
         placeholder: "Search dealers by ID, name, or location...",
         onChange: handleSearch,
-        searchKeys: ["id", "DealerUUID", "name", "Payee", "city", "City", "region", "Region"]
+        searchKeys: ["id", "DealerUUID", "name", "Payee", "city", "City", "region", "Region", "country", "Country"]
       }}
     />
   );

@@ -129,7 +129,6 @@ type AgreementsTableProps = {
   dateRange?: DateRange;
 };
 
-
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateRange }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -139,7 +138,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const [searchTerm, setSearchTerm] = useState("");
   const initialFetchDone = useRef<boolean>(false);
 
-  // Create a stable query key that will be consistent with what's used in Index.tsx
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
@@ -152,7 +150,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     }
   }, [dateRange]);
   
-  // React Query configuration with longer staleTime and cacheTime
   const { 
     data: allAgreements = [], 
     isFetching: isFetchingAgreements,
@@ -180,31 +177,25 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
   }
   
-  // Force cast to array to ensure React Query always returns an array
   const agreements = Array.isArray(allAgreements) ? allAgreements : [];
   
-  // Advanced search functionality
   const filteredAgreements = useMemo(() => {
     if (!searchTerm.trim()) return agreements;
     
     const term = searchTerm.toLowerCase().trim();
     return agreements.filter(agreement => {
-      // Check agreement ID
       if (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) {
         return true;
       }
       
-      // Check dealer ID 
       if (agreement.DealerID && agreement.DealerID.toLowerCase().includes(term)) {
         return true;
       }
       
-      // Check dealer UUID
       if (agreement.DealerUUID && agreement.DealerUUID.toLowerCase().includes(term)) {
         return true;
       }
       
-      // Check customer name
       const firstName = formatName(agreement.HolderFirstName);
       const lastName = formatName(agreement.HolderLastName);
       const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
@@ -216,7 +207,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     });
   }, [agreements, searchTerm]);
   
-  // Update display agreements based on pagination and search
   useEffect(() => {
     if (filteredAgreements.length > 0) {
       setTotalCount(filteredAgreements.length);
@@ -235,7 +225,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     }
   }, [filteredAgreements, page, pageSize]);
 
-  // Fetch dealers data
   const { 
     data: dealers = [],
     isFetching: isFetchingDealers 
@@ -274,13 +263,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     }
   }, [agreements, dealers]);
 
-  // Handle search term changes
   const handleSearch = (term: string) => {
+    console.log("🔍 Search term updated:", term);
     setSearchTerm(term);
     setPage(1); // Reset to first page on search
   };
 
-  // Define columns for the data table
   const columns: Column<Agreement>[] = [
     {
       key: 'id',
@@ -405,10 +393,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     },
   ];
 
-  // Track loading state
   const isFetching = isFetchingAgreements || isFetchingDealers;
 
-  // Handle pagination
   const handlePageChange = (newPage: number) => {
     console.log(`Changing to page ${newPage}`);
     setPage(newPage);
@@ -421,20 +407,16 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
     }
   }, [pageSize, setPage]);
 
-  // Display status
   const currentStatus = isFetching
     ? "Loading..."
     : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
 
-  // Manual refetch function for testing and debugging
   const handleManualRefetch = () => {
     console.log("Manually refetching agreements...");
     
-    // First, check what's in the cache before invalidation
     const beforeInvalidation = queryClient.getQueryData(agreementsQueryKey);
     console.log("Cache before invalidation:", beforeInvalidation);
     
-    // Explicitly invalidate the cache for this query
     if (agreementsQueryKey.length) {
       queryClient.invalidateQueries({ queryKey: agreementsQueryKey });
     }
@@ -473,7 +455,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
           enabled: true,
           placeholder: "Search by Agreement ID, Dealer ID, or Customer name...",
           onChange: handleSearch,
-          searchKeys: ["AgreementID", "DealerID", "DealerUUID"]
+          searchKeys: ["AgreementID", "DealerID", "DealerUUID", "HolderFirstName", "HolderLastName"]
         }}
         paginationProps={{
           currentPage: page,

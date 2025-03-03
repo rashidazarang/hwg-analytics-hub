@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -55,28 +56,40 @@ const DataTable = <T extends Record<string, any>>({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
 
+  // Reset filteredData when the data prop changes
   useEffect(() => {
     if (!searchTerm || searchTerm.trim() === '') {
+      setFilteredData(data);
+    } else {
+      // Re-apply the existing search term to the new data
+      applySearchFilter(searchTerm);
+    }
+  }, [data]);
+
+  // Separate function to apply search filter
+  const applySearchFilter = (term: string) => {
+    if (!term || term.trim() === '') {
       setFilteredData(data);
       return;
     }
 
-    const term = searchTerm.toLowerCase().trim();
+    const normalizedTerm = term.toLowerCase().trim();
     
     if (searchConfig.onChange) {
-      searchConfig.onChange(term);
+      // If the parent component is handling the search, call its onChange handler
+      searchConfig.onChange(normalizedTerm);
       return;
     }
 
     const searchResults = data.filter(row => {
-      if (searchKey && String(row[searchKey]).toLowerCase().includes(term)) {
+      if (searchKey && String(row[searchKey]).toLowerCase().includes(normalizedTerm)) {
         return true;
       }
       
       if (searchConfig.searchKeys) {
         return searchConfig.searchKeys.some(key => {
           const value = row[key];
-          return value && String(value).toLowerCase().includes(term);
+          return value && String(value).toLowerCase().includes(normalizedTerm);
         });
       }
       
@@ -84,7 +97,7 @@ const DataTable = <T extends Record<string, any>>({
       if (searchableColumns.length > 0) {
         return searchableColumns.some(col => {
           const value = row[col.key];
-          return value && String(value).toLowerCase().includes(term);
+          return value && String(value).toLowerCase().includes(normalizedTerm);
         });
       }
       
@@ -92,7 +105,14 @@ const DataTable = <T extends Record<string, any>>({
     });
     
     setFilteredData(searchResults);
-  }, [data, searchTerm, searchKey, searchConfig, columns]);
+  };
+
+  // Handle search input changes
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    applySearchFilter(value);
+  };
 
   const sortedData = sortConfig 
     ? [...filteredData].sort((a, b) => {
@@ -109,9 +129,15 @@ const DataTable = <T extends Record<string, any>>({
       })
     : filteredData;
 
-  const displayData = paginationProps ? sortedData : sortedData;
+  const displayData = paginationProps 
+    ? sortedData.slice(
+        0, 
+        paginationProps.pageSize
+      )
+    : sortedData;
+
   const totalPages = paginationProps 
-    ? Math.ceil(paginationProps.totalItems / paginationProps.pageSize)
+    ? Math.ceil(sortedData.length / paginationProps.pageSize)
     : Math.ceil(sortedData.length / 10);
 
   const handleSort = (key: string) => {
@@ -130,11 +156,6 @@ const DataTable = <T extends Record<string, any>>({
     return sortConfig.direction === 'asc' 
       ? <ChevronDown className="ml-1 h-4 w-4" />
       : <ChevronDown className="ml-1 h-4 w-4 rotate-180 transform" />;
-  };
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
   };
 
   return (
