@@ -10,19 +10,16 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import SignupConfirmation from "./pages/SignupConfirmation";
-import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 
 const App = () => {
-  // Create a new QueryClient with more permissive error handling
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
         refetchOnWindowFocus: false,
         retry: 1,
-        staleTime: 1000 * 60 * 5, // 5 minutes instead of 1 hour
-        gcTime: 1000 * 60 * 10, // 10 minutes instead of 2 hours
-        // Removed unsupported useErrorBoundary property
+        staleTime: 1000 * 60 * 60,
+        gcTime: 1000 * 60 * 60 * 2,
       },
     },
   }));
@@ -32,22 +29,21 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <BrowserRouter>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup-confirmation" element={<SignupConfirmation />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Index />} />
-                <Route path="/account" element={<AccountSettings />} />
                 {/* Add other protected routes here */}
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-          <Toaster />
-          <Sonner />
-        </AuthProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
