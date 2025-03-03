@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +19,8 @@ type AuthContextType = {
 // Define the type for profile data to satisfy TypeScript
 type ProfileData = {
   is_admin: boolean;
+  first_name?: string;
+  last_name?: string;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const setupAuth = async () => {
       try {
+        // Get the current session
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -117,7 +121,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           title: "Login failed",
           description: error.message
         });
-        throw error;
+        console.error("Login error:", error.message);
+        return;
       }
 
       if (data.user) {
@@ -149,6 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email,
         password
@@ -174,6 +180,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Note: The user will need to be made an admin manually in the database
     } catch (error) {
       console.error('Sign up error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 

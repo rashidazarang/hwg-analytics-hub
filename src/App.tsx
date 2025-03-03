@@ -38,7 +38,6 @@ const App = () => {
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Index />} />
                 <Route path="/account" element={<AccountSettings />} />
-                {/* Add other protected routes here */}
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
