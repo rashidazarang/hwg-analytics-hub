@@ -108,6 +108,32 @@ const VirtualizedTable = <T extends Record<string, any>>({
     refetch();
   }, [filters, refetch]);
 
+  const flatData = React.useMemo(() => {
+    const allData = data?.pages?.flatMap(page => page.data) || [];
+    console.log("🔍 VirtualizedTable - Merged data from useInfiniteQuery:", allData.length, "total items");
+    
+    if (allData.length === 0) {
+      console.log("⚠️ VirtualizedTable - Warning: No data after merging. Check fetch function!");
+      console.log("🔄 VirtualizedTable - Current query status:", status);
+      if (error) console.error("🔴 VirtualizedTable - Query error:", error);
+      console.log("📄 VirtualizedTable - Raw data pages:", data?.pages);
+    } else {
+      console.log("✅ VirtualizedTable - Data merged successfully. First few items:", allData.slice(0, 3));
+      const rowKeys = allData.slice(0, 5).map(item => rowKey(item));
+      console.log("🔑 VirtualizedTable - Sample row keys:", rowKeys);
+    }
+    
+    return allData;
+  }, [data, status, error, rowKey]);
+
+  // Move the virtualizer declaration here, before it's used in any effects or logs
+  const virtualizer = useVirtualizer({
+    count: sortedData?.length + (hasNextPage ? 1 : 0) || 0, // Add one extra for the loading indicator
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 56, // Estimated row height
+    overscan: 10,
+  });
+
   useEffect(() => {
     if (!loadMoreRef.current) return;
     
@@ -130,24 +156,6 @@ const VirtualizedTable = <T extends Record<string, any>>({
       console.log("👀 VirtualizedTable - Intersection Observer disconnected");
     };
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, loadMoreRef]);
-
-  const flatData = React.useMemo(() => {
-    const allData = data?.pages?.flatMap(page => page.data) || [];
-    console.log("🔍 VirtualizedTable - Merged data from useInfiniteQuery:", allData.length, "total items");
-    
-    if (allData.length === 0) {
-      console.log("⚠️ VirtualizedTable - Warning: No data after merging. Check fetch function!");
-      console.log("🔄 VirtualizedTable - Current query status:", status);
-      if (error) console.error("🔴 VirtualizedTable - Query error:", error);
-      console.log("📄 VirtualizedTable - Raw data pages:", data?.pages);
-    } else {
-      console.log("✅ VirtualizedTable - Data merged successfully. First few items:", allData.slice(0, 3));
-      const rowKeys = allData.slice(0, 5).map(item => rowKey(item));
-      console.log("🔑 VirtualizedTable - Sample row keys:", rowKeys);
-    }
-    
-    return allData;
-  }, [data, status, error, rowKey]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -209,13 +217,6 @@ const VirtualizedTable = <T extends Record<string, any>>({
       console.log("🔍 VirtualizedTable - First few data items:", sortedData.slice(0, 3));
     }
   }, [flatData.length, hasNextPage, isFetchingNextPage, isLoading, virtualizer, sortedData]);
-
-  const virtualizer = useVirtualizer({
-    count: sortedData.length + (hasNextPage ? 1 : 0), // Add one extra for the loading indicator
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 56, // Estimated row height
-    overscan: 10,
-  });
 
   return (
     <div className={`w-full ${className}`}>
