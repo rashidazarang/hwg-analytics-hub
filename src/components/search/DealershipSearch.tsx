@@ -155,6 +155,11 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
         exact: false
       });
       
+      queryClient.invalidateQueries({
+        queryKey: ['agreements-data'],
+        exact: false
+      });
+      
       toast.success(`Filtered to dealership: ${dealerName}`);
     } else {
       handleClearSearch();
@@ -178,6 +183,11 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     
     queryClient.invalidateQueries({
       queryKey: ['agreement-status-distribution'],
+      exact: false
+    });
+    
+    queryClient.invalidateQueries({
+      queryKey: ['agreements-data'],
       exact: false
     });
     
