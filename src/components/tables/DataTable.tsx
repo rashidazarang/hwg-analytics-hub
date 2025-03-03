@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -11,6 +10,7 @@ export type Column<T> = {
   title: string;
   render?: (row: T) => React.ReactNode;
   sortable?: boolean;
+  searchable?: boolean;
 };
 
 export type PaginationProps = {
@@ -21,10 +21,18 @@ export type PaginationProps = {
   onPageSizeChange: (pageSize: number) => void;
 };
 
+export type SearchConfig = {
+  enabled: boolean;
+  placeholder?: string;
+  onChange?: (term: string) => void;
+  searchKeys?: string[];
+};
+
 type DataTableProps<T> = {
   data: T[];
   columns: Column<T>[];
   searchKey?: string;
+  searchConfig?: SearchConfig;
   rowKey: (row: T) => string;
   onRowClick?: (row: T) => void;
   className?: string;
@@ -36,6 +44,7 @@ const DataTable = <T extends Record<string, any>>({
   data,
   columns,
   searchKey,
+  searchConfig = { enabled: true },
   rowKey,
   onRowClick,
   className = '',
@@ -44,17 +53,47 @@ const DataTable = <T extends Record<string, any>>({
 }: DataTableProps<T>) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [filteredData, setFilteredData] = useState<T[]>(data);
 
-  // Filter data based on search term
-  const filteredData = searchTerm && searchKey
-    ? data.filter(row => 
-        String(row[searchKey])
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
-      )
-    : data;
+  useEffect(() => {
+    if (!searchTerm || searchTerm.trim() === '') {
+      setFilteredData(data);
+      return;
+    }
 
-  // Sort data
+    const term = searchTerm.toLowerCase().trim();
+    
+    if (searchConfig.onChange) {
+      searchConfig.onChange(term);
+      return;
+    }
+
+    const searchResults = data.filter(row => {
+      if (searchKey && String(row[searchKey]).toLowerCase().includes(term)) {
+        return true;
+      }
+      
+      if (searchConfig.searchKeys) {
+        return searchConfig.searchKeys.some(key => {
+          const value = row[key];
+          return value && String(value).toLowerCase().includes(term);
+        });
+      }
+      
+      const searchableColumns = columns.filter(col => col.searchable);
+      if (searchableColumns.length > 0) {
+        return searchableColumns.some(col => {
+          const value = row[col.key];
+          return value && String(value).toLowerCase().includes(term);
+        });
+      }
+      
+      return false;
+    });
+    
+    setFilteredData(searchResults);
+  }, [data, searchTerm, searchKey, searchConfig, columns]);
+
   const sortedData = sortConfig 
     ? [...filteredData].sort((a, b) => {
         const aValue = a[sortConfig.key];
@@ -70,7 +109,6 @@ const DataTable = <T extends Record<string, any>>({
       })
     : filteredData;
 
-  // If we're using server-side pagination, don't paginate locally
   const displayData = paginationProps ? sortedData : sortedData;
   const totalPages = paginationProps 
     ? Math.ceil(paginationProps.totalItems / paginationProps.pageSize)
@@ -94,16 +132,21 @@ const DataTable = <T extends Record<string, any>>({
       : <ChevronDown className="ml-1 h-4 w-4 rotate-180 transform" />;
   };
 
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+  };
+
   return (
     <div className={`w-full ${className}`}>
-      {searchKey && (
+      {searchConfig.enabled && (
         <div className="flex justify-between items-center mb-4">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search..."
+              placeholder={searchConfig.placeholder || "Search..."}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearch}
               className="pl-8 w-64"
             />
           </div>

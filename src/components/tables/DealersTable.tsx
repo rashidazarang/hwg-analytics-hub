@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/mockData';
 import { Progress } from '@/components/ui/progress';
@@ -10,23 +10,28 @@ type DealersTableProps = {
 };
 
 const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const columns: Column<Dealer>[] = [
     {
       key: 'id',
       title: 'Dealer ID',
       sortable: true,
+      searchable: true,
       render: (row) => row.id || row.DealerUUID || '',
     },
     {
       key: 'name',
       title: 'Name',
       sortable: true,
+      searchable: true,
       render: (row) => row.name || row.Payee || '',
     },
     {
       key: 'location',
       title: 'Location',
       sortable: true,
+      searchable: true,
       render: (row) => {
         // Combine city, region, and country if available
         const city = row.City || row.city || '';
@@ -78,13 +83,23 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '' }) 
     },
   ];
 
+  // Handle search
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
+
   return (
     <DataTable
       data={dealers}
       columns={columns}
-      searchKey="name"
       rowKey={(row) => row.id || row.DealerUUID || ''}
       className={className}
+      searchConfig={{
+        enabled: true,
+        placeholder: "Search dealers by ID, name, or location...",
+        onChange: handleSearch,
+        searchKeys: ["id", "DealerUUID", "name", "Payee", "city", "City", "region", "Region"]
+      }}
     />
   );
 };

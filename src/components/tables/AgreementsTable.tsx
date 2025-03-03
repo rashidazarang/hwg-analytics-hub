@@ -15,7 +15,7 @@ type Agreement = {
   HolderLastName?: string | null;
   dealerName?: string;
   DealerUUID?: string | null;
-  DealerID?: string | null; // <-- Add this line
+  DealerID?: string | null;
   EffectiveDate?: string | null;
   ExpireDate?: string | null;
   AgreementStatus?: string | null;
@@ -136,17 +136,15 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   const [pageSize, setPageSize] = useState(10);
   const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
   const initialFetchDone = useRef<boolean>(false);
 
-  
-
-
   // Create a stable query key that will be consistent with what's used in Index.tsx
-const agreementsQueryKey = useMemo(() => {
-  const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
-  const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-  return ["agreements-data", from, to];
-}, [dateRange]);
+  const agreementsQueryKey = useMemo(() => {
+    const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
+    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+    return ["agreements-data", from, to];
+  }, [dateRange]);
   
   useEffect(() => {
     if (dateRange) {
@@ -185,26 +183,57 @@ const agreementsQueryKey = useMemo(() => {
   // Force cast to array to ensure React Query always returns an array
   const agreements = Array.isArray(allAgreements) ? allAgreements : [];
   
-// Log the data received from React Query and update the displayed agreements
-useEffect(() => {
-  if (agreements.length > 0) {
-    setTotalCount(agreements.length);
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const slicedAgreements = agreements.slice(startIndex, endIndex);
-    console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(agreements.length / pageSize)}`);
-    if (slicedAgreements.length > 0) {
-      console.log("Sample agreement data:", slicedAgreements[0]);
+  // Advanced search functionality
+  const filteredAgreements = useMemo(() => {
+    if (!searchTerm.trim()) return agreements;
+    
+    const term = searchTerm.toLowerCase().trim();
+    return agreements.filter(agreement => {
+      // Check agreement ID
+      if (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) {
+        return true;
+      }
+      
+      // Check dealer ID 
+      if (agreement.DealerID && agreement.DealerID.toLowerCase().includes(term)) {
+        return true;
+      }
+      
+      // Check dealer UUID
+      if (agreement.DealerUUID && agreement.DealerUUID.toLowerCase().includes(term)) {
+        return true;
+      }
+      
+      // Check customer name
+      const firstName = formatName(agreement.HolderFirstName);
+      const lastName = formatName(agreement.HolderLastName);
+      const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
+      if (fullName.includes(term)) {
+        return true;
+      }
+      
+      return false;
+    });
+  }, [agreements, searchTerm]);
+  
+  // Update display agreements based on pagination and search
+  useEffect(() => {
+    if (filteredAgreements.length > 0) {
+      setTotalCount(filteredAgreements.length);
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const slicedAgreements = filteredAgreements.slice(startIndex, endIndex);
+      console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(filteredAgreements.length / pageSize)}`);
+      if (slicedAgreements.length > 0) {
+        console.log("Sample agreement data:", slicedAgreements[0]);
+      }
+      setDisplayAgreements(slicedAgreements);
+    } else {
+      console.warn("⚠️ No agreements to display, double-check Supabase.");
+      setDisplayAgreements([]);
+      setTotalCount(0);
     }
-    setDisplayAgreements(slicedAgreements);
-  } else {
-    console.warn("⚠️ No agreements to display, double-check Supabase.");
-    setDisplayAgreements([]);
-    setTotalCount(0);
-  }
-}, [agreements, page, pageSize]);
-
-
+  }, [filteredAgreements, page, pageSize]);
 
   // Fetch dealers data
   const { 
@@ -217,6 +246,7 @@ useEffect(() => {
     gcTime: 1000 * 60 * 60 * 2, // 2 hours
     refetchOnWindowFocus: false,
   });
+  
   const dealerMap = useMemo(() => {
     if (!dealers || dealers.length === 0) {
       console.warn("⚠️ No dealers found, returning empty map.");
@@ -244,6 +274,11 @@ useEffect(() => {
     }
   }, [agreements, dealers]);
 
+  // Handle search term changes
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    setPage(1); // Reset to first page on search
+  };
 
   // Define columns for the data table
   const columns: Column<Agreement>[] = [
@@ -251,12 +286,14 @@ useEffect(() => {
       key: 'id',
       title: 'Agreement ID',
       sortable: false,
+      searchable: true,
       render: (row) => row.AgreementID || '',
     },
     {
       key: 'customerName',
       title: 'Customer Name',
       sortable: false,
+      searchable: true,
       render: (row) => {
         const firstName = formatName(row.HolderFirstName);
         const lastName = formatName(row.HolderLastName);
@@ -266,6 +303,7 @@ useEffect(() => {
     {
       key: 'dealership',
       title: 'Dealership',
+      searchable: true,
       render: (row) => {
         const dealerUUID = row.DealerUUID?.trim().toLowerCase();
         const dealerID = row.DealerID?.trim().toLowerCase();
@@ -283,6 +321,7 @@ useEffect(() => {
     {
       key: 'DealerID',
       title: 'Dealer ID',
+      searchable: true,
       render: (row) => {
         const dealerUUID = row.DealerUUID?.trim().toLowerCase();
         const dealerID = row.DealerID?.trim().toLowerCase();
@@ -369,9 +408,6 @@ useEffect(() => {
   // Track loading state
   const isFetching = isFetchingAgreements || isFetchingDealers;
 
-
-
-
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     console.log(`Changing to page ${newPage}`);
@@ -386,14 +422,13 @@ useEffect(() => {
   }, [pageSize, setPage]);
 
   // Display status
-const currentStatus = isFetching
-  ? "Loading..."
-  : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
+  const currentStatus = isFetching
+    ? "Loading..."
+    : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
 
   // Manual refetch function for testing and debugging
   const handleManualRefetch = () => {
     console.log("Manually refetching agreements...");
-
     
     // First, check what's in the cache before invalidation
     const beforeInvalidation = queryClient.getQueryData(agreementsQueryKey);
@@ -406,7 +441,6 @@ const currentStatus = isFetching
     
     refetchAgreements().then(({ data }) => {
       if (Array.isArray(data)) {
-        // Toast removed!
         setTimeout(() => {
           const afterRefetch = queryClient.getQueryData(agreementsQueryKey);
           console.log("Cache after refetch:", afterRefetch);
@@ -433,9 +467,14 @@ const currentStatus = isFetching
       <DataTable
         data={displayAgreements}
         columns={columns}
-        searchKey="id"
         rowKey={(row) => row.id || row.AgreementID || ''}
         className={className}
+        searchConfig={{
+          enabled: true,
+          placeholder: "Search by Agreement ID, Dealer ID, or Customer name...",
+          onChange: handleSearch,
+          searchKeys: ["AgreementID", "DealerID", "DealerUUID"]
+        }}
         paginationProps={{
           currentPage: page,
           totalItems: totalCount,

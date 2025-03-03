@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Claim } from '@/lib/mockData';
@@ -11,23 +11,28 @@ type ClaimsTableProps = {
 };
 
 const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const columns: Column<Claim>[] = [
     {
       key: 'id',
       title: 'Claim ID',
       sortable: true,
+      searchable: true,
       render: (row) => row.id || row.ClaimID || '',
     },
     {
       key: 'agreementId',
       title: 'Agreement ID',
       sortable: true,
+      searchable: true,
       render: (row) => row.agreementId || row.AgreementID || '',
     },
     {
       key: 'dealerName',
       title: 'Dealer Name',
       sortable: true,
+      searchable: true,
     },
     {
       key: 'dateReported',
@@ -84,13 +89,23 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({ claims, className = '' }) => 
     },
   ];
 
+  // Handle search
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
+
   return (
     <DataTable
       data={claims}
       columns={columns}
-      searchKey="id"
       rowKey={(row) => row.id || row.ClaimID || ''}
       className={className}
+      searchConfig={{
+        enabled: true,
+        placeholder: "Search claims by ID, agreement, or dealer...",
+        onChange: handleSearch,
+        searchKeys: ["id", "ClaimID", "agreementId", "AgreementID", "dealerName"]
+      }}
     />
   );
 };
