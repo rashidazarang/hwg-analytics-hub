@@ -57,36 +57,12 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
 
     const { data, error } = await supabase
-    .from("agreements")
-    .select(`
-      id, 
-      AgreementID, 
-      HolderFirstName, 
-      HolderLastName, 
-      DealerUUID, 
-      DealerID, 
-      EffectiveDate, 
-      ExpireDate, 
-      AgreementStatus, 
-      Total, 
-      DealerCost, 
-      ReserveAmount
-    `);
-    if (error) {
-      console.error("❌ Supabase Fetch Error:", error);
-      return allAgreements;
-    }
-    
-    // ✅ Ensure DealerUUID has a fallback to DealerID if missing
-    allAgreements = data.map(agreement => ({
-      ...agreement,
-      DealerUUID: agreement.DealerUUID || agreement.DealerID || null, // Fallback logic
-    }));
-
-    .gte("EffectiveDate", from)
-    .lte("EffectiveDate", to)
-    .order("EffectiveDate", { ascending: false })
-    .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+      .from("agreements")
+      .select("id, AgreementID, HolderFirstName, HolderLastName, DealerUUID, EffectiveDate, ExpireDate, AgreementStatus, Total, DealerCost, ReserveAmount")
+      .gte("EffectiveDate", from)
+      .lte("EffectiveDate", to)
+      .order("EffectiveDate", { ascending: false })
+      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
 
     if (error) {
       console.error("❌ Supabase Fetch Error:", error);
@@ -107,32 +83,22 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
 }
 
 async function fetchDealers(): Promise<Dealer[]> {
-  let allDealers: Dealer[] = [];
-  let page = 0;
-  const PAGE_SIZE = 1000;
-  let hasMore = true;
-
-  while (hasMore) {
+  try {
     const { data, error } = await supabase
       .from("dealers")
-      .select("DealerUUID, PayeeID, Payee")
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      .select("DealerUUID, PayeeID, Payee"); // ✅ Keep only this one
 
     if (error) {
-      console.error("❌ Supabase Error fetching dealers:", error);
+      console.error("Supabase Error fetching dealers:", error);
       return [];
     }
 
-    if (data.length < PAGE_SIZE) {
-      hasMore = false;
-    }
-
-    allDealers = [...allDealers, ...data];
-    page++;
+    console.log("Fetched Dealers:", data?.length || 0, "records");
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching dealers:", error);
+    return [];
   }
-
-  console.log("✅ Fetched Dealers:", allDealers.length, "records");
-  return allDealers;
 }
 
 type AgreementsTableProps = {
@@ -153,10 +119,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
 
 
   // Create a stable query key that will be consistent with what's used in Index.tsx
-  const agreementsQueryKey = useMemo(() => {
-    if (!dateRange?.from || !dateRange?.to) return ["agreements-data", "default"];
-    return ["agreements-data", dateRange.from.toISOString(), dateRange.to.toISOString()];
-  }, [dateRange]);
+const agreementsQueryKey = useMemo(() => {
+  const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
+  const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+  return ["agreements-data", from, to];
+}, [dateRange]);
   
   useEffect(() => {
     if (dateRange) {
@@ -165,7 +132,27 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   }, [dateRange]);
   
   // React Query configuration with longer staleTime and cacheTime
-
+  const { 
+    data: allAgreements = [], 
+    isFetching: isFetchingAgreements,
+    error: agreementsError,
+    refetch: refetchAgreements
+  } = useQuery({
+    queryKey: [
+      "agreements-data",
+      dateRange?.from?.toISOString() || "null",
+      dateRange?.to?.toISOString() || "null",
+    ],
+    queryFn: async () => {
+      const agreements = await fetchAllAgreements(dateRange);
+      console.log(`🟢 Storing ${agreements.length} agreements in React Query cache`);
+      queryClient.setQueryData(["agreements-data", dateRange?.from?.toISOString(), dateRange?.to?.toISOString()], agreements);
+      return agreements;
+    },
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
+    refetchOnWindowFocus: false,
+  });
 
   if (agreementsError) {
     console.error("Failed to load agreements:", agreementsError);
@@ -207,20 +194,25 @@ useEffect(() => {
     gcTime: 1000 * 60 * 60 * 2, // 2 hours
     refetchOnWindowFocus: false,
   });
-
-  render: (row) => {
-    const dealerUUID = row.DealerUUID?.trim().toLowerCase() || "";
-    const dealerID = row.DealerID?.trim().toLowerCase() || "";
-    
-    // Try to match DealerUUID first, then fallback to DealerID
-    let dealer = dealerUUID && dealerMap[dealerUUID] ? dealerMap[dealerUUID] : null;
-    if (!dealer && dealerID && dealerMap[dealerID]) {
-      dealer = dealerMap[dealerID];
+  const dealerMap = useMemo(() => {
+    if (!dealers || dealers.length === 0) {
+      console.warn("⚠️ No dealers found, returning empty map.");
+      return {};
     }
-    
-    // ✅ Fallback if no dealer is found
-    return dealer ? dealer.Payee : (row.DealerUUID || row.DealerID ? "Unknown Dealership" : "Headstart Warranty Group");
-  };
+  
+    const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
+      if (dealer.DealerUUID) {
+        acc[dealer.DealerUUID.trim().toLowerCase()] = dealer;
+      }
+      if (dealer.PayeeID) {
+        acc[dealer.PayeeID.trim().toLowerCase()] = dealer;
+      }
+      return acc;
+    }, {});
+  
+    console.log("✅ Dealer Map Created:", JSON.stringify(map, null, 2)); // Debug
+    return map;
+  }, [dealers]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -252,22 +244,18 @@ useEffect(() => {
       key: 'dealership',
       title: 'Dealership',
       render: (row) => {
-        const dealerUUID = (row.DealerUUID || "").trim().toLowerCase();
-        const dealerID = (row.DealerID || "").trim().toLowerCase();
-        
-        let dealer = dealerUUID && dealerMap[dealerUUID] ? dealerMap[dealerUUID] : null;
-        if (!dealer && dealerID && dealerMap[dealerID]) {
+        const dealerUUID = row.DealerUUID?.trim().toLowerCase();
+        const dealerID = row.DealerID?.trim().toLowerCase();
+    
+        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
+        if (!dealer && dealerID) {
           dealer = dealerMap[dealerID];
         }
-      
-        if (!dealer) {
-          console.warn(`❌ No dealer found for AgreementID ${row.AgreementID} | UUID: ${dealerUUID} | ID: ${dealerID}`);
-        } else {
-          console.log(`✅ Dealer Found: ${dealer.Payee} for AgreementID ${row.AgreementID}`);
-        }
-      
-        return dealer ? dealer.Payee : "Unknown Dealership";
-      }
+    
+        console.log(`🔍 Dealer Lookup for UUID: ${dealerUUID} & ID: ${dealerID} → ${dealer?.Payee || 'Unknown Dealership'}`);
+    
+        return dealer ? dealer.Payee : 'Unknown Dealership';
+      },
     },
     {
       key: 'DealerID',
