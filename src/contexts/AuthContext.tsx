@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -123,14 +124,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (error) {
           console.error("AuthContext - Error getting session:", error);
-          setIsLoading(false);
-          setInitialCheckComplete(true);
-          return;
+          // Don't return early, continue to complete initialization
+          console.log("AuthContext - Continuing despite session error");
         }
         
-        console.log("AuthContext - Session data:", data.session ? "Session exists" : "No session");
+        console.log("AuthContext - Session data:", data?.session ? "Session exists" : "No session");
         
-        if (data.session?.user) {
+        if (data?.session?.user) {
           console.log("AuthContext - Session user found:", data.session.user.id);
           setSession(data.session);
           setUser(data.session.user);
@@ -141,22 +141,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           handleRedirection(isAdmin, window.location.pathname);
         } else {
           console.log("AuthContext - No session user found");
+          // Explicitly set these values to ensure state is consistent
+          setSession(null);
+          setUser(null);
+          setIsAdmin(false);
         }
       } catch (err) {
         console.error("AuthContext - Exception in setupAuth:", err);
+        // Reset states on error to ensure consistent state
+        setSession(null);
+        setUser(null);
+        setIsAdmin(false);
       } finally {
+        // Always complete initialization regardless of success or error
         setIsLoading(false);
         setInitialCheckComplete(true);
         console.log("AuthContext - setupAuth complete, isLoading set to false, initialCheckComplete set to true");
       }
     };
     
+    // Initialize auth
     setupAuth();
 
     try {
       console.log("AuthContext - Setting up auth state change listener");
       const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
         console.log('AuthContext - Auth state changed:', event, session ? "Session exists" : "No session");
+        
+        // Always set loading to false and complete initialization when auth state changes
+        if (!initialCheckComplete) {
+          setInitialCheckComplete(true);
+          setIsLoading(false);
+        }
         
         if (session?.user) {
           console.log("AuthContext - Auth state change detected user:", session.user.id);
@@ -187,6 +203,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
     } catch (err) {
       console.error("AuthContext - Error setting up auth listener:", err);
+      // Ensure we don't get stuck in loading state even if auth listener setup fails
+      if (!initialCheckComplete) {
+        setInitialCheckComplete(true);
+        setIsLoading(false);
+      }
       return () => {
         console.log("AuthContext - Empty cleanup due to error");
       };

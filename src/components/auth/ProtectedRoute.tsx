@@ -18,6 +18,7 @@ const ProtectedRoute = () => {
     );
   }
 
+  // We're explicitly checking for isAdmin here, not just for a session
   return isAdmin ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
