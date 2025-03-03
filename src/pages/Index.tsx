@@ -284,11 +284,13 @@ const Index = () => {
             <button
               type="button"
               onClick={handleClearSearch}
-              className="absolute inset-y-0 right-10 flex items-center justify-center w-8 h-full transition-colors hover:text-foreground"
+              className="absolute right-0 top-0 h-full flex items-center justify-center w-10 cursor-pointer"
               aria-label="Clear search"
               title="Clear search"
             >
-              <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+              <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted transition-colors duration-200">
+                <X className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+              </div>
             </button>
           )}
           
@@ -296,7 +298,7 @@ const Index = () => {
             type="submit" 
             variant="ghost" 
             size="sm" 
-            className="absolute inset-y-0 right-0 px-2"
+            className="absolute right-8 inset-y-0 px-2 opacity-0"
             disabled={isLoadingDealerships}
           >
             <Search className="h-4 w-4" />
