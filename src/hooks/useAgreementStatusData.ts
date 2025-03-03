@@ -23,6 +23,8 @@ export const STATUS_LABELS: Record<string, string> = {
   'CANCELLED': 'Cancelled',
   'PENDING': 'Pending',
   'TERMINATED': 'Terminated',
+  'VOID': 'Void',
+  'CLAIMABLE': 'Claimable',
   'Unknown': 'Unknown'
 };
 
