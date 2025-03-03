@@ -11,26 +11,26 @@ type DealersTableProps = {
   className?: string;
   searchQuery?: string;
   dealerFilter?: string;
+  dealerName?: string;
 };
 
 const DealersTable: React.FC<DealersTableProps> = ({ 
   dealers: mockDealers, 
   className = '', 
   searchQuery = '',
-  dealerFilter = ''
+  dealerFilter = '',
+  dealerName = ''
 }) => {
   const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(mockDealers);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   
-  // Load dealers on component mount
   useEffect(() => {
     const loadDealers = async () => {
       try {
         setIsLoading(true);
         setHasError(false);
         
-        // Try to fetch dealers from Supabase
         const { data: supabaseDealers, error } = await supabase
           .from('dealers')
           .select('*');
@@ -38,27 +38,22 @@ const DealersTable: React.FC<DealersTableProps> = ({
         if (error) {
           console.warn('⚠️ Error fetching dealers from Supabase:', error.message);
           console.log('📊 Falling back to mock data for dealers...');
-          // Show a toast notification about the error
           toast.error('Failed to load dealers from database', {
             description: 'Using fallback data instead'
           });
           
-          // Fall back to mock data
           applyFilters(dealerFilter, searchQuery, mockDealers);
         } else if (supabaseDealers && supabaseDealers.length > 0) {
           console.log(`✅ Successfully loaded ${supabaseDealers.length} dealers from Supabase`);
           toast.success(`Loaded ${supabaseDealers.length} dealers from database`);
-          // Use Supabase data
           applyFilters(dealerFilter, searchQuery, supabaseDealers);
         } else {
           console.log('📊 No dealers found in Supabase, using mock data');
-          // Fall back to mock data
           applyFilters(dealerFilter, searchQuery, mockDealers);
         }
       } catch (error) {
         console.error('❌ Unexpected error loading dealers:', error);
         setHasError(true);
-        // Fall back to mock data
         applyFilters(dealerFilter, searchQuery, mockDealers);
       } finally {
         setIsLoading(false);
@@ -68,16 +63,13 @@ const DealersTable: React.FC<DealersTableProps> = ({
     loadDealers();
   }, [mockDealers]);
 
-  // Effect to filter dealers when dealerFilter or searchQuery changes
   useEffect(() => {
     applyFilters(dealerFilter, searchQuery, filteredDealers.length ? filteredDealers : mockDealers);
   }, [dealerFilter, searchQuery, mockDealers]);
   
-  // Function to apply all filters (dealer name, search term)
   const applyFilters = (dealerName: string, searchTerm: string, data: Dealer[]) => {
     let filtered = [...data];
     
-    // Apply dealer name filter
     if (dealerName && dealerName.trim()) {
       const normalizedDealerName = dealerName.toLowerCase().trim();
       filtered = filtered.filter(dealer => 
@@ -85,7 +77,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
       );
     }
     
-    // Apply search term filter
     if (searchTerm && searchTerm.trim()) {
       const normalizedSearchTerm = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(dealer => {
@@ -127,7 +118,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
       sortable: true,
       searchable: true,
       render: (row) => {
-        // Combine city, region, and country if available
         const city = row.City || row.city || '';
         const region = row.Region || row.region || '';
         const country = row.Country || row.country || '';
@@ -182,7 +172,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
     },
   ];
 
-  // If data is loading, show loading state
   if (isLoading) {
     return (
       <div className="py-8 flex justify-center items-center">
@@ -196,7 +185,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
     );
   }
 
-  // If there's an error and no data, show error state
   if (hasError && filteredDealers.length === 0) {
     return (
       <div className="py-8 flex justify-center items-center">
@@ -209,7 +197,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
     );
   }
 
-  // If there's no data at all (not even mock data), show empty state
   if (filteredDealers.length === 0) {
     return (
       <div className="py-8 flex justify-center items-center">
@@ -220,7 +207,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
     );
   }
 
-  // Otherwise show the table with the data
   return (
     <DataTable
       data={filteredDealers}
@@ -228,7 +214,7 @@ const DealersTable: React.FC<DealersTableProps> = ({
       rowKey={(row) => row.id || row.DealerUUID || row.PayeeID || String(Math.random())}
       className={className}
       searchConfig={{
-        enabled: false // Disable the search in the table
+        enabled: false
       }}
     />
   );

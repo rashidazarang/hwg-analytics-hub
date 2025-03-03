@@ -10,13 +10,15 @@ type ClaimsTableProps = {
   className?: string;
   searchQuery?: string;
   dealerFilter?: string;
+  dealerName?: string;
 };
 
 const ClaimsTable: React.FC<ClaimsTableProps> = ({ 
   claims, 
   className = '', 
   searchQuery = '',
-  dealerFilter = ''
+  dealerFilter = '',
+  dealerName = ''
 }) => {
   const [filteredClaims, setFilteredClaims] = useState<Claim[]>(claims);
   
