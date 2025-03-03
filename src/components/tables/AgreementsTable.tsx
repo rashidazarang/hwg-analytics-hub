@@ -58,6 +58,7 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
     const offset = (page - 1) * SUPABASE_PAGE_SIZE;
 
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
+    console.log(`🚀 Using dealer UUID filter: "${dealerFilter}"`);
     
     // Start building the query
     let query = supabase
