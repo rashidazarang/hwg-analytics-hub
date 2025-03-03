@@ -53,7 +53,7 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
   let hasMore = true;
 
   while (hasMore) {
-    const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
+    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
     const offset = (page - 1) * SUPABASE_PAGE_SIZE;
 
@@ -66,9 +66,9 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
       .gte("EffectiveDate", from)
       .lte("EffectiveDate", to);
     
-    // Add dealer filter if specified - using UUID
+    // Add dealer filter if specified - BUG FIX: Check the dealerFilter directly
     if (dealerFilter && dealerFilter.trim()) {
-      console.log(`🔍 Adding dealer UUID filter: ${dealerFilter}`);
+      console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
       query = query.eq("DealerUUID", dealerFilter.trim());
     }
     
@@ -84,11 +84,16 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
     }
 
     if (!data || data.length === 0) {
-      console.log("No more agreements found for this query");
+      console.log(`⚠️ No more agreements found for this query. Total fetched: ${allAgreements.length}`);
       hasMore = false;
       break;
     }
 
+    console.log(`✅ Fetched ${data.length} agreements from page ${page}`);
+    if (data.length > 0) {
+      console.log(`📊 Sample agreement:`, data[0]);
+    }
+    
     allAgreements = [...allAgreements, ...data];
 
     if (data && data.length === SUPABASE_PAGE_SIZE) {
@@ -185,7 +190,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   }, [searchQuery]);
 
   const agreementsQueryKey = useMemo(() => {
-    const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
+    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
     // Include dealerFilter in the query key to ensure React Query refetches when it changes
     return ["agreements-data", from, to, dealerFilter];
@@ -267,9 +272,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const slicedAgreements = filteredAgreements.slice(startIndex, endIndex);
-      console.log(`Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(filteredAgreements.length / pageSize)}`);
+      console.log(`📋 Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(filteredAgreements.length / pageSize)}`);
       if (slicedAgreements.length > 0) {
-        console.log("Sample agreement data:", slicedAgreements[0]);
+        console.log("📊 Sample agreement data:", slicedAgreements[0]);
       }
       setDisplayAgreements(slicedAgreements);
     } else {

@@ -28,8 +28,8 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
 }) => {
   // Debug logging to verify props are correctly passed down
   useEffect(() => {
-    console.log("DashboardTables - Current dealer UUID filter:", dealerFilter);
-    console.log("DashboardTables - Current dealer name:", dealerName);
+    console.log("🔄 DashboardTables - Current dealer UUID filter:", dealerFilter);
+    console.log("🔄 DashboardTables - Current dealer name:", dealerName);
   }, [dealerFilter, dealerName]);
 
   return (

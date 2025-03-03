@@ -20,17 +20,18 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const handleDateRangeChange = (range: DateRange) => {
-    console.log("Date range changed in Index:", range);
+    console.log("📅 Date range changed in Index:", range);
     setDateRange(range);
   };
 
   const handleTabChange = (value: string) => {
-    console.log("Tab changed to:", value);
+    console.log("📑 Tab changed to:", value);
     setActiveTab(value);
   };
 
+  // This function is called from DealershipSearch when a dealer is selected
   const handleDealershipSelect = (dealershipId: string, dealershipName: string) => {
-    console.log(`Selected dealership in Index: ${dealershipName} (UUID: ${dealershipId})`);
+    console.log(`🏢 Selected dealership in Index: ID='${dealershipId}', Name='${dealershipName}'`);
     setDealershipUUID(dealershipId);     // This is the UUID, used for filtering
     setDealershipName(dealershipName);   // This is just for display purposes
   };
@@ -56,7 +57,7 @@ const Index = () => {
   );
 
   useEffect(() => {
-    console.log(`Index: Current dealership state - UUID: ${dealershipUUID}, Name: ${dealershipName}`);
+    console.log(`📊 Index: Current dealership state - UUID: '${dealershipUUID}', Name: '${dealershipName}'`);
   }, [dealershipUUID, dealershipName]);
 
   return (

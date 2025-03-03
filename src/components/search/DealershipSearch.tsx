@@ -117,11 +117,11 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
       );
       
       if (exactMatch) {
-        console.log(`🔍 DealershipSearch: Found exact match - UUID: ${exactMatch.id}, Name: ${exactMatch.name}`);
+        console.log(`🎯 DealershipSearch: Found exact match - UUID: "${exactMatch.id}", Name: "${exactMatch.name}"`);
         handleDealershipSelect(exactMatch.id, exactMatch.name);
       } else if (filteredDealerships.length > 0) {
         // If no exact match, use the first filtered result
-        console.log(`🔍 DealershipSearch: Using first match - UUID: ${filteredDealerships[0].id}, Name: ${filteredDealerships[0].name}`);
+        console.log(`🎯 DealershipSearch: Using first match - UUID: "${filteredDealerships[0].id}", Name: "${filteredDealerships[0].name}"`);
         handleDealershipSelect(filteredDealerships[0].id, filteredDealerships[0].name);
       } else {
         toast.info("No matching dealerships found");
@@ -146,7 +146,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     
     if (value && dealerName) {
       setSearchTerm(dealerName);
-      console.log(`🔍 DealershipSearch: Selected dealership - UUID: ${value}, Name: ${dealerName}`);
+      console.log(`🎯 DealershipSearch: Selected dealership - UUID: "${value}", Name: "${dealerName}"`);
       onDealershipSelect(value, dealerName); // Pass the UUID as value, and name separately
       
       // Invalidate the queries that depend on dealer filter
@@ -169,14 +169,14 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   };
 
   const handleDealershipClick = (dealership: {id: string, name: string}) => {
-    console.log(`🔍 DealershipSearch: Clicked dealership - UUID: ${dealership.id}, Name: ${dealership.name}`);
+    console.log(`🎯 DealershipSearch: Clicked dealership - UUID: "${dealership.id}", Name: "${dealership.name}"`);
     setSearchTerm(dealership.name);
     handleDealershipSelect(dealership.id, dealership.name);
   };
   
   const handleClearSearch = () => {
     setSearchTerm('');
-    console.log('🔍 DealershipSearch: Clearing dealership filter');
+    console.log('🧹 DealershipSearch: Clearing dealership filter');
     onDealershipSelect('', '');
     setSelectedDealershipId('');
     setShowSuggestions(false);
