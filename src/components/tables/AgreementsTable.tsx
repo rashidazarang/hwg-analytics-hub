@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -178,6 +179,38 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   }
   
   const agreements = Array.isArray(allAgreements) ? allAgreements : [];
+
+  const { 
+    data: dealers = [],
+    isFetching: isFetchingDealers 
+  } = useQuery({
+    queryKey: ["dealers-data"],
+    queryFn: fetchDealers,
+    staleTime: 1000 * 60 * 60, // 1 hour
+    gcTime: 1000 * 60 * 60 * 2, // 2 hours
+    refetchOnWindowFocus: false,
+  });
+  
+  // Move dealerMap creation before it's used in filteredAgreements
+  const dealerMap = useMemo(() => {
+    if (!dealers || dealers.length === 0) {
+      console.warn("⚠️ No dealers found, returning empty map.");
+      return {};
+    }
+  
+    const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
+      if (dealer.DealerUUID) {
+        acc[dealer.DealerUUID.trim().toLowerCase()] = dealer;
+      }
+      if (dealer.PayeeID) {
+        acc[dealer.PayeeID.trim().toLowerCase()] = dealer;
+      }
+      return acc;
+    }, {});
+  
+    console.log("✅ Dealer Map Created:", JSON.stringify(map, null, 2)); // Debug
+    return map;
+  }, [dealers]);
   
   const filteredAgreements = useMemo(() => {
     if (!searchTerm.trim()) return agreements;
@@ -243,37 +276,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
       setTotalCount(0);
     }
   }, [filteredAgreements, page, pageSize]);
-
-  const { 
-    data: dealers = [],
-    isFetching: isFetchingDealers 
-  } = useQuery({
-    queryKey: ["dealers-data"],
-    queryFn: fetchDealers,
-    staleTime: 1000 * 60 * 60, // 1 hour
-    gcTime: 1000 * 60 * 60 * 2, // 2 hours
-    refetchOnWindowFocus: false,
-  });
-  
-  const dealerMap = useMemo(() => {
-    if (!dealers || dealers.length === 0) {
-      console.warn("⚠️ No dealers found, returning empty map.");
-      return {};
-    }
-  
-    const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
-      if (dealer.DealerUUID) {
-        acc[dealer.DealerUUID.trim().toLowerCase()] = dealer;
-      }
-      if (dealer.PayeeID) {
-        acc[dealer.PayeeID.trim().toLowerCase()] = dealer;
-      }
-      return acc;
-    }, {});
-  
-    console.log("✅ Dealer Map Created:", JSON.stringify(map, null, 2)); // Debug
-    return map;
-  }, [dealers]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
