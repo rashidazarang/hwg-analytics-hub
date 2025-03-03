@@ -5,311 +5,316 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
-import { ChevronLeft, Save, User, Lock } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { User, Key, Save } from 'lucide-react';
 
 const Account = () => {
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<any>({
+    firstName: '',
+    lastName: '',
+    email: ''
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("profile");
   
-  // Form states
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
   useEffect(() => {
-    // Get current user and profile
-    const getProfile = async () => {
+    const fetchUserData = async () => {
       setLoading(true);
-      
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
         
-        if (!sessionData.session) {
-          navigate('/auth');
+        if (!user) {
+          navigate('/login');
           return;
         }
         
-        setUser(sessionData.session.user);
+        setUser(user);
         
-        // Get user profile data if available
-        const { data: profileData } = await supabase
+        // Get profile data if it exists
+        const { data: profileData, error } = await supabase
           .from('profiles')
-          .select('first_name, last_name')
-          .eq('id', sessionData.session.user.id)
+          .select('first_name, last_name, email')
+          .eq('id', user.id)
           .single();
-        
+          
         if (profileData) {
-          setFirstName(profileData.first_name || '');
-          setLastName(profileData.last_name || '');
+          setProfile({
+            firstName: profileData.first_name || '',
+            lastName: profileData.last_name || '',
+            email: profileData.email || user.email
+          });
+        } else {
+          // If no profile data exists yet, just use email from auth
+          setProfile({
+            firstName: '',
+            lastName: '',
+            email: user.email
+          });
         }
       } catch (error) {
-        console.error('Error loading user profile:', error);
-        toast.error('Failed to load profile information');
+        console.error('Error fetching user data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch your account information",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
     };
-    
-    getProfile();
-  }, [navigate]);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    setSaving(true);
-    
+    fetchUserData();
+  }, [navigate, toast]);
+  
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setProfile({
+      ...profile,
+      [name]: value
+    });
+  };
+  
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData({
+      ...passwordData,
+      [name]: value
+    });
+  };
+  
+  const saveProfile = async () => {
+    setLoading(true);
     try {
-      // Update profile information
-      const { error: profileError } = await supabase
+      // Update profile in the profiles table
+      const { error } = await supabase
         .from('profiles')
-        .update({
-          first_name: firstName,
-          last_name: lastName,
-          updated_at: new Date().toISOString() // Fixed: Convert Date to ISO string
-        })
-        .eq('id', user.id);
+        .upsert({
+          id: user.id,
+          first_name: profile.firstName,
+          last_name: profile.lastName,
+          email: profile.email,
+          updated_at: new Date().toISOString()
+        });
+        
+      if (error) throw error;
       
-      if (profileError) throw profileError;
-      
-      toast.success('Profile updated successfully');
-    } catch (error) {
+      toast({
+        title: "Success",
+        description: "Your profile has been updated",
+      });
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive"
+      });
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match');
+  
+  const changePassword = async () => {
+    // Validate passwords
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords don't match",
+        variant: "destructive"
+      });
       return;
     }
     
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters",
+        variant: "destructive"
+      });
       return;
     }
     
-    setSaving(true);
-    
+    setLoading(true);
     try {
-      // First verify current password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword
-      });
-      
-      if (signInError) {
-        toast.error('Current password is incorrect');
-        setSaving(false);
-        return;
-      }
-      
       // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
       });
       
-      if (updateError) throw updateError;
-      
-      toast.success('Password updated successfully');
+      if (error) throw error;
       
       // Clear password fields
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error) {
-      console.error('Error updating password:', error);
-      toast.error('Failed to update password');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      
+      toast({
+        title: "Success",
+        description: "Your password has been updated",
+      });
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update password",
+        variant: "destructive"
+      });
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex justify-center items-center">
-        <p>Loading account information...</p>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="container max-w-3xl mx-auto px-4">
-        <div className="mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')} 
-            className="mb-4"
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          
-          <h1 className="text-3xl font-bold">Account Settings</h1>
-          <p className="text-muted-foreground">Manage your account information and security settings</p>
-        </div>
+    <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="flex items-center mb-8">
+        <h1 className="text-3xl font-bold">Account Settings</h1>
+      </div>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
+          <TabsTrigger value="profile" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Profile
+          </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2">
+            <Key className="h-4 w-4" />
+            Security
+          </TabsTrigger>
+        </TabsList>
         
-        <div className="space-y-8">
-          {/* Profile Information */}
+        <TabsContent value="profile">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <User className="h-5 w-5 mr-2" />
-                Profile Information
-              </CardTitle>
+              <CardTitle>Profile Information</CardTitle>
               <CardDescription>
                 Update your personal information
               </CardDescription>
             </CardHeader>
-            
-            <form onSubmit={handleUpdateProfile}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email Address
-                  </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={user?.email || ''}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Your email address cannot be changed
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="firstName" className="text-sm font-medium">
-                      First Name
-                    </label>
-                    <Input
-                      id="firstName"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Your first name"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="lastName" className="text-sm font-medium">
-                      Last Name
-                    </label>
-                    <Input
-                      id="lastName"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Your last name"
-                    />
-                  </div>
-                </div>
-              </CardContent>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium">Email Address</label>
+                <Input
+                  id="email"
+                  name="email"
+                  value={profile.email}
+                  readOnly
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Your email address is linked to your account and cannot be changed
+                </p>
+              </div>
               
-              <CardFooter>
-                <Button type="submit" disabled={saving}>
-                  {saving ? (
-                    <>Saving...</>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
-            </form>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="firstName" className="text-sm font-medium">First Name</label>
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    value={profile.firstName}
+                    onChange={handleProfileChange}
+                    placeholder="First Name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="lastName" className="text-sm font-medium">Last Name</label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    value={profile.lastName}
+                    onChange={handleProfileChange}
+                    placeholder="Last Name"
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                onClick={saveProfile} 
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {loading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </CardFooter>
           </Card>
-          
-          {/* Security */}
+        </TabsContent>
+        
+        <TabsContent value="security">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Lock className="h-5 w-5 mr-2" />
-                Security
-              </CardTitle>
+              <CardTitle>Password</CardTitle>
               <CardDescription>
-                Update your password
+                Change your password
               </CardDescription>
             </CardHeader>
-            
-            <form onSubmit={handleUpdatePassword}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="currentPassword" className="text-sm font-medium">
-                    Current Password
-                  </label>
-                  <Input
-                    id="currentPassword"
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <Separator />
-                
-                <div className="space-y-2">
-                  <label htmlFor="newPassword" className="text-sm font-medium">
-                    New Password
-                  </label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="confirmPassword" className="text-sm font-medium">
-                    Confirm New Password
-                  </label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
-              </CardContent>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="currentPassword" className="text-sm font-medium">Current Password</label>
+                <Input
+                  id="currentPassword"
+                  name="currentPassword"
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Enter your current password"
+                />
+              </div>
               
-              <CardFooter>
-                <Button 
-                  type="submit" 
-                  disabled={saving || !currentPassword || !newPassword || !confirmPassword}
-                >
-                  {saving ? (
-                    <>Updating Password...</>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Update Password
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
-            </form>
+              <Separator />
+              
+              <div className="space-y-2">
+                <label htmlFor="newPassword" className="text-sm font-medium">New Password</label>
+                <Input
+                  id="newPassword"
+                  name="newPassword"
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Enter your new password"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="confirmPassword" className="text-sm font-medium">Confirm New Password</label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Confirm your new password"
+                />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                onClick={changePassword} 
+                disabled={loading || !passwordData.newPassword || !passwordData.confirmPassword}
+                className="flex items-center gap-2"
+              >
+                <Key className="h-4 w-4" />
+                {loading ? 'Updating...' : 'Update Password'}
+              </Button>
+            </CardFooter>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
