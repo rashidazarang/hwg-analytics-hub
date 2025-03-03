@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Session, User } from '@supabase/supabase-js';
+import { Loader2 } from 'lucide-react';
 
 // Define the shape of our auth context
 type AuthContextType = {
@@ -31,59 +32,96 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    console.log("AuthContext - setupAuth useEffect triggered");
+    
     const setupAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setUser(data.session?.user || null);
-      
-      if (data.session?.user) {
-        // Check if user is admin
-        // Use explicit typing with as to handle the custom table
-        const { data: profileData, error } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', data.session.user.id)
-          .single();
-          
-        if (!error && profileData) {
-          setIsAdmin((profileData as ProfileData).is_admin || false);
-        } else {
-          console.error('Error fetching profile data:', error);
+      console.log("AuthContext - Starting setupAuth");
+      try {
+        // Get the initial session
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error getting session:", error);
+          setUser(null);
+          setSession(null);
           setIsAdmin(false);
+          return;
         }
+        
+        setSession(data.session);
+        setUser(data.session?.user || null);
+        
+        if (data.session?.user) {
+          // Check if user is admin
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('is_admin')
+              .eq('id', data.session.user.id)
+              .single();
+              
+            if (profileError) {
+              console.error('Error fetching profile data:', profileError);
+              setIsAdmin(false);
+            } else if (profileData) {
+              setIsAdmin((profileData as ProfileData).is_admin || false);
+            }
+          } catch (err) {
+            console.error('Unexpected error fetching profile:', err);
+            setIsAdmin(false);
+          }
+        }
+      } catch (err) {
+        console.error("Unexpected error in setupAuth:", err);
+        setUser(null);
+        setSession(null);
+        setIsAdmin(false);
+      } finally {
+        // Always set loading to false when done, regardless of success/failure
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     setupAuth();
 
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Set up auth state change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event);
-      setSession(session);
-      setUser(session?.user || null);
       
-      if (session?.user) {
-        // Check if user is admin when auth state changes
-        const { data: profileData, error } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single();
-          
-        if (!error && profileData) {
-          setIsAdmin((profileData as ProfileData).is_admin || false);
+      try {
+        setSession(newSession);
+        setUser(newSession?.user || null);
+        
+        if (newSession?.user) {
+          // Check if user is admin when auth state changes
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', newSession.user.id)
+            .single();
+            
+          if (error) {
+            console.error('Error fetching profile data on auth change:', error);
+            setIsAdmin(false);
+          } else if (profileData) {
+            setIsAdmin((profileData as ProfileData).is_admin || false);
+          } else {
+            setIsAdmin(false);
+          }
         } else {
-          console.error('Error fetching profile data:', error);
           setIsAdmin(false);
         }
-      } else {
+      } catch (err) {
+        console.error('Error in auth state change handler:', err);
+        setUser(null);
+        setSession(null);
         setIsAdmin(false);
       }
     });
 
     return () => {
-      data.subscription.unsubscribe();
+      console.log("AuthContext - Cleaning up auth listener subscription");
+      authListener.subscription.unsubscribe();
     };
   }, [navigate]);
 
