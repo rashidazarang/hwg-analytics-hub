@@ -168,7 +168,20 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({ className = '', dateR
   
   // React Query configuration with longer staleTime and cacheTime
 
-
+  const { 
+    data: allAgreements = [], 
+    isFetching: isFetchingAgreements,
+    error: agreementsError, // ✅ Extract error from React Query
+    refetch: refetchAgreements
+  } = useQuery({
+    queryKey: agreementsQueryKey,
+    queryFn: () => fetchAllAgreements(dateRange),
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
+    refetchOnWindowFocus: false,
+  });
+  
+  // ✅ Now `agreementsError` is properly defined
   if (agreementsError) {
     console.error("Failed to load agreements:", agreementsError);
     return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
