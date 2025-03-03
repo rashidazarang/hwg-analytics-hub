@@ -34,14 +34,12 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         const fromDate = dateRange.from?.toISOString() || "2020-01-01T00:00:00.000Z";
         const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
 
-        // First, we'll get the count of agreements by status directly from the database
-        // This approach is more efficient than fetching all records and counting them client-side
-        const { data, error } = await supabase
-          .from('agreements')
-          .select('AgreementStatus, count(*)', { count: 'exact' })
-          .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate)
-          .group('AgreementStatus');
+        // First, we'll get the distribution of agreements by status
+        // Using a workaround for grouping since .group() isn't available in the type definitions
+        const { data, error } = await supabase.rpc('count_agreements_by_status', {
+          from_date: fromDate,
+          to_date: toDate
+        });
 
         if (error) {
           console.error('❌ Error fetching agreement status distribution:', error);
@@ -49,18 +47,55 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         }
 
         console.log('📊 Agreement status counts from database:', data);
-        console.log(`📊 Total agreements counted: ${data.reduce((sum, item) => sum + parseInt(item.count), 0)}`);
         
-        // Convert to chart data format
+        if (!data || data.length === 0) {
+          // Fallback to client-side counting if the RPC function fails or doesn't exist
+          console.log('📊 Falling back to client-side counting...');
+          const { data: agreements, error: fetchError } = await supabase
+            .from('agreements')
+            .select('AgreementStatus')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate);
+
+          if (fetchError) {
+            console.error('❌ Error fetching agreements:', fetchError);
+            return [];
+          }
+
+          // Count agreements by status
+          const statusCounts: Record<string, number> = {};
+          agreements.forEach(agreement => {
+            const status = agreement.AgreementStatus || 'Unknown';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+          });
+
+          // Convert to chart data format
+          const chartData = Object.entries(statusCounts).map(([status, count]) => ({
+            name: STATUS_LABELS[status] || status,
+            value: count,
+            rawStatus: status
+          }));
+
+          // Sort data by count (descending)
+          chartData.sort((a, b) => b.value - a.value);
+          
+          console.log('📊 Client-side counted agreement status distribution:', chartData);
+          console.log(`📊 Total agreements counted client-side: ${chartData.reduce((sum, item) => sum + item.value, 0)}`);
+          
+          return chartData;
+        }
+        
+        // Convert RPC result to chart data format
         const chartData = data.map(item => ({
-          name: STATUS_LABELS[item.AgreementStatus || 'Unknown'] || item.AgreementStatus || 'Unknown',
+          name: STATUS_LABELS[item.status || 'Unknown'] || item.status || 'Unknown',
           value: parseInt(item.count),
-          rawStatus: item.AgreementStatus || 'Unknown'
+          rawStatus: item.status || 'Unknown'
         }));
 
         // Sort data by count (descending)
         chartData.sort((a, b) => b.value - a.value);
         
+        console.log(`📊 Total agreements counted: ${chartData.reduce((sum, item) => sum + item.value, 0)}`);
         return chartData;
       } catch (error) {
         console.error('❌ Error processing agreement status data:', error);
