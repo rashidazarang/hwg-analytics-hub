@@ -168,7 +168,15 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
-  }, [dealerFilter, dealerName]);
+    
+    // Invalidate the query when dealer filter changes to force a refetch
+    if (dealerFilter) {
+      queryClient.invalidateQueries({
+        queryKey: ["agreements-data"],
+        exact: false,
+      });
+    }
+  }, [dealerFilter, dealerName, queryClient]);
 
   useEffect(() => {
     if (searchQuery !== undefined) {
@@ -233,7 +241,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       return acc;
     }, {});
   
-    console.log("✅ Dealer Map Created:", JSON.stringify(map, null, 2)); // Debug
     return map;
   }, [dealers]);
   
