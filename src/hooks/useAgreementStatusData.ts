@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -16,14 +15,14 @@ export type AgreementChartData = {
   rawStatus: string;
 };
 
-// Define the status labels mapping
+// Define the status labels mapping - now in UPPERCASE
 export const STATUS_LABELS: Record<string, string> = {
-  'ACTIVE': 'Active',
-  'EXPIRED': 'Expired',
-  'CANCELLED': 'Cancelled',
-  'PENDING': 'Pending',
-  'TERMINATED': 'Terminated',
-  'Unknown': 'Unknown'
+  'ACTIVE': 'ACTIVE',
+  'EXPIRED': 'EXPIRED',
+  'CANCELLED': 'CANCELLED',
+  'PENDING': 'PENDING',
+  'TERMINATED': 'TERMINATED',
+  'Unknown': 'UNKNOWN'
 };
 
 export function useAgreementStatusData(dateRange: DateRange) {

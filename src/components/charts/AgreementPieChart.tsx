@@ -73,7 +73,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
         <Tooltip
           formatter={(value: number, name: string) => [
             `${value.toLocaleString()} Agreements`, 
-            name
+            name.toUpperCase()
           ]}
           contentStyle={{
             borderRadius: '6px',
@@ -89,7 +89,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
           iconSize={10}
           iconType="circle"
           formatter={(value) => (
-            <span className="text-xs font-medium">{value}</span>
+            <span className="text-xs font-medium">{value.toUpperCase()}</span>
           )}
         />
       </PieChart>
