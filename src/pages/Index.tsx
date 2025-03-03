@@ -83,11 +83,13 @@ const Index = () => {
   // Subnavbar with tabs and search
   const subnavbar = (
     <div className="flex justify-between items-center">
-      <TabsList>
-        <TabsTrigger value="agreements">Agreements</TabsTrigger>
-        <TabsTrigger value="claims">Claims</TabsTrigger>
-        <TabsTrigger value="dealers">Dealers</TabsTrigger>
-      </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="agreements">Agreements</TabsTrigger>
+          <TabsTrigger value="claims">Claims</TabsTrigger>
+          <TabsTrigger value="dealers">Dealers</TabsTrigger>
+        </TabsList>
+      </Tabs>
       
       <div className="relative w-64">
         <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -169,7 +171,7 @@ const Index = () => {
       
       {/* Tables section with tabs */}
       <div className="space-y-6">
-        <Tabs defaultValue="agreements" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsContent value="agreements" className="mt-0">
             <AgreementsTable dateRange={dateRange} searchQuery={searchQuery} />
           </TabsContent>
