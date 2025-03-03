@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Session, User } from '@supabase/supabase-js';
-import { Loader2 } from 'lucide-react';
 
 // Define the shape of our auth context
 type AuthContextType = {
@@ -17,7 +16,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
-// Define the type for profile data to satisfy TypeScript
+// Define the type for profile data
 type ProfileData = {
   is_admin: boolean;
 };
@@ -32,10 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    console.log("AuthContext - setupAuth useEffect triggered");
-    
     const setupAuth = async () => {
-      console.log("AuthContext - Starting setupAuth");
       try {
         // Get the initial session
         const { data, error } = await supabase.auth.getSession();
@@ -77,7 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(null);
         setIsAdmin(false);
       } finally {
-        // Always set loading to false when done, regardless of success/failure
+        // Always set loading to false when done
         setIsLoading(false);
       }
     };
@@ -88,12 +84,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event);
       
-      try {
-        setSession(newSession);
-        setUser(newSession?.user || null);
-        
-        if (newSession?.user) {
-          // Check if user is admin when auth state changes
+      setSession(newSession);
+      setUser(newSession?.user || null);
+      
+      if (newSession?.user) {
+        // Check if user is admin when auth state changes
+        try {
           const { data: profileData, error } = await supabase
             .from('profiles')
             .select('is_admin')
@@ -108,25 +104,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } else {
             setIsAdmin(false);
           }
-        } else {
+        } catch (err) {
+          console.error('Error in auth state change handler:', err);
           setIsAdmin(false);
         }
-      } catch (err) {
-        console.error('Error in auth state change handler:', err);
-        setUser(null);
-        setSession(null);
+      } else {
         setIsAdmin(false);
       }
+      
+      // Always ensure loading is set to false after auth state changes
+      setIsLoading(false);
     });
 
     return () => {
-      console.log("AuthContext - Cleaning up auth listener subscription");
       authListener.subscription.unsubscribe();
     };
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -178,11 +175,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Sign in error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email,
         password
@@ -205,11 +205,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Note: The user will need to be made an admin manually in the database
     } catch (error) {
       console.error('Sign up error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       await supabase.auth.signOut();
       setIsAdmin(false);
       navigate('/login');
@@ -224,6 +227,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "Logout failed",
         description: "Failed to log out. Please try again."
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
