@@ -9,6 +9,3 @@ export interface KPIData {
   averageClaimAmount: number;
   totalClaimsAmount: number;
 }
-
-// Additional type definition to facilitate consistent date handling
-export type DateFieldType = string | Date | null;
