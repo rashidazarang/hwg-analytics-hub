@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { User, Key, Save } from 'lucide-react';
+import { User, Key, Save, ArrowLeft } from 'lucide-react';
 
 const Account = () => {
   const [loading, setLoading] = useState(false);
@@ -180,6 +180,15 @@ const Account = () => {
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
       <div className="flex items-center mb-8">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => navigate('/')}
+          className="mr-2"
+          aria-label="Back to dashboard"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <h1 className="text-3xl font-bold">Account Settings</h1>
       </div>
       
