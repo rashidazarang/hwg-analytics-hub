@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from '@/components/ui/use-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -23,10 +23,22 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (!email || !password) {
+      toast({
+        variant: "destructive",
+        title: "Missing information",
+        description: "Please provide both email and password"
+      });
+      return;
+    }
     
     try {
+      setIsLoading(true);
       await signIn(email, password);
+    } catch (error) {
+      console.error("Login error:", error);
+      // Note: signIn already shows a toast for errors
     } finally {
       setIsLoading(false);
     }
@@ -34,10 +46,31 @@ const Login = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (!email || !password) {
+      toast({
+        variant: "destructive",
+        title: "Missing information",
+        description: "Please provide both email and password"
+      });
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Password too short",
+        description: "Password must be at least 6 characters"
+      });
+      return;
+    }
     
     try {
+      setIsLoading(true);
       await signUp(email, password);
+    } catch (error) {
+      console.error("Signup error:", error);
+      // Note: signUp already shows a toast for errors
     } finally {
       setIsLoading(false);
     }

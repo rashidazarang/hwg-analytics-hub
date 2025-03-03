@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,65 +29,83 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Function to fetch admin status
+  const fetchAdminStatus = async (userId: string) => {
+    try {
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', userId)
+        .single();
+        
+      if (!error && profileData) {
+        setIsAdmin((profileData as ProfileData).is_admin || false);
+        return (profileData as ProfileData).is_admin || false;
+      } else {
+        console.error('Error fetching profile data:', error);
+        setIsAdmin(false);
+        return false;
+      }
+    } catch (err) {
+      console.error('Exception fetching profile data:', err);
+      setIsAdmin(false);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const setupAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setUser(data.session?.user || null);
-      
-      if (data.session?.user) {
-        // Check if user is admin
-        // Use explicit typing with as to handle the custom table
-        const { data: profileData, error } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', data.session.user.id)
-          .single();
-          
-        if (!error && profileData) {
-          setIsAdmin((profileData as ProfileData).is_admin || false);
-        } else {
-          console.error('Error fetching profile data:', error);
-          setIsAdmin(false);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error getting session:", error);
+          setIsLoading(false);
+          return;
         }
+        
+        setSession(data.session);
+        setUser(data.session?.user || null);
+        
+        if (data.session?.user) {
+          await fetchAdminStatus(data.session.user.id);
+        }
+      } catch (err) {
+        console.error("Exception in setupAuth:", err);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     setupAuth();
 
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
-      setSession(session);
-      setUser(session?.user || null);
-      
-      if (session?.user) {
-        // Check if user is admin when auth state changes
-        const { data: profileData, error } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single();
-          
-        if (!error && profileData) {
-          setIsAdmin((profileData as ProfileData).is_admin || false);
+    // Set up auth state change listener with error handling
+    try {
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event);
+        
+        setSession(session);
+        setUser(session?.user || null);
+        
+        if (session?.user) {
+          await fetchAdminStatus(session.user.id);
         } else {
-          console.error('Error fetching profile data:', error);
           setIsAdmin(false);
         }
-      } else {
-        setIsAdmin(false);
-      }
-    });
+      });
 
-    return () => {
-      data.subscription.unsubscribe();
-    };
+      return () => {
+        data.subscription.unsubscribe();
+      };
+    } catch (err) {
+      console.error("Error setting up auth listener:", err);
+      return () => {};
+    }
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -105,23 +122,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (data.user) {
         // Check if user is admin
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', data.user.id)
-          .single();
+        const isUserAdmin = await fetchAdminStatus(data.user.id);
         
-        if (profileError) {
-          toast({
-            variant: "destructive",
-            title: "Error verifying admin status",
-            description: profileError.message
-          });
-          await supabase.auth.signOut();
-          throw new Error('Failed to verify admin status');
-        }
-        
-        if (profileData && !(profileData as ProfileData).is_admin) {
+        if (!isUserAdmin) {
           toast({
             variant: "destructive",
             title: "Access denied",
@@ -131,7 +134,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Not an admin user');
         }
         
-        setIsAdmin(true);
         toast({
           title: "Login successful",
           description: "Welcome back, admin!"
@@ -140,6 +142,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Sign in error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
