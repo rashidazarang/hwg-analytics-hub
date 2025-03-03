@@ -5,12 +5,14 @@ import AuthNav from '@/components/navigation/AuthNav';
 import { DateRange } from '@/lib/dateUtils';
 import KPISection from '@/components/metrics/KPISection';
 import DashboardCharts from '@/components/charts/DashboardCharts';
+import { mockClaims } from '@/lib/mockData';
 
 const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(new Date().getFullYear(), 0, 1), // Jan 1st of current year
     to: new Date()
   });
+  const [dealershipFilter, setDealershipFilter] = useState<string>('');
 
   const handleDateRangeChange = (range: DateRange) => {
     console.log("Date range changed in Index:", range);
@@ -28,7 +30,11 @@ const Index = () => {
           onDateRangeChange={handleDateRangeChange}
           kpiSection={<KPISection dateRange={dateRange} />}
         >
-          <DashboardCharts dateRange={dateRange} />
+          <DashboardCharts 
+            dateRange={dateRange}
+            dealershipFilter={dealershipFilter}
+            claims={mockClaims}
+          />
         </Dashboard>
       </main>
     </div>
