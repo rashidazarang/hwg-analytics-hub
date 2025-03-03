@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
-import { toast } from 'sonner';
 
 type Agreement = {
   id: string;
@@ -227,6 +226,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     let filtered = agreements;
     
     if (dealerFilter && dealerFilter.trim()) {
+      const normalizedDealerFilter = dealerFilter.toLowerCase().trim();
       filtered = filtered.filter(agreement => {
         const dealerUUID = agreement.DealerUUID?.trim().toLowerCase();
         const dealerID = agreement.DealerID?.trim().toLowerCase();
@@ -236,44 +236,18 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
           dealer = dealerMap[dealerID];
         }
         
-        return dealer && dealer.Payee && dealer.Payee.toLowerCase() === dealerFilter.toLowerCase();
+        return dealer && dealer.Payee && dealer.Payee.toLowerCase().includes(normalizedDealerFilter);
       });
     }
     
-    if (!searchTerm.trim()) return filtered;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(agreement => 
+        agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)
+      );
+    }
     
-    const term = searchTerm.toLowerCase().trim();
-    
-    return filtered.filter(agreement => {
-      if (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) {
-        return true;
-      }
-      
-      if (agreement.DealerID && agreement.DealerID.toLowerCase().includes(term)) {
-        return true;
-      }
-      
-      if (agreement.DealerUUID && agreement.DealerUUID.toLowerCase().includes(term)) {
-        return true;
-      }
-      
-      const dealerUUID = agreement.DealerUUID?.trim().toLowerCase();
-      const dealerID = agreement.DealerID?.trim().toLowerCase();
-      
-      if (dealerUUID || dealerID) {
-        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
-        
-        if (!dealer && dealerID) {
-          dealer = dealerMap[dealerID];
-        }
-        
-        if (dealer && dealer.Payee && dealer.Payee.toLowerCase().includes(term)) {
-          return true;
-        }
-      }
-      
-      return false;
-    });
+    return filtered;
   }, [agreements, searchTerm, dealerMap, dealerFilter]);
   
   useEffect(() => {
@@ -449,39 +423,10 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     ? "Loading..."
     : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
 
-  const handleManualRefetch = () => {
-    console.log("Manually refetching agreements...");
-    
-    const beforeInvalidation = queryClient.getQueryData(agreementsQueryKey);
-    console.log("Cache before invalidation:", beforeInvalidation);
-    
-    if (agreementsQueryKey.length) {
-      queryClient.invalidateQueries({ queryKey: agreementsQueryKey });
-    }
-    
-    refetchAgreements().then(({ data }) => {
-      if (Array.isArray(data)) {
-        setTimeout(() => {
-          const afterRefetch = queryClient.getQueryData(agreementsQueryKey);
-          console.log("Cache after refetch:", afterRefetch);
-          console.log("Cache size after refetch:", Array.isArray(afterRefetch) ? (afterRefetch as Agreement[]).length : 0);
-        }, 500);
-      }
-    });
-  };
-
   return (
     <>
-      <div className="flex justify-between items-center mb-2">
-        <div className="text-sm text-muted-foreground">
-          {currentStatus}
-        </div>
-        <button 
-          onClick={handleManualRefetch} 
-          className="text-xs px-2 py-1 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors"
-        >
-          Refresh Data
-        </button>
+      <div className="text-sm text-muted-foreground mb-2">
+        {currentStatus}
       </div>
       
       <DataTable
@@ -491,9 +436,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         className={className}
         searchConfig={{
           enabled: true,
-          placeholder: "Search by Agreement ID, Dealer ID, or Dealership name...",
+          placeholder: "Search by Agreement ID only...",
           onChange: handleSearch,
-          searchKeys: ["AgreementID", "DealerID", "DealerUUID"]
+          searchKeys: ["AgreementID"]
         }}
         paginationProps={{
           currentPage: page,
