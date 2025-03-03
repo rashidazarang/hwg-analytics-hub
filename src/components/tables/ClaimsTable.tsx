@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +16,7 @@ type ClaimType = Claim & {
   IncurredDate?: string | null;
   Deductible?: number | null;
   amount?: number;
-  status?: string;
+  status?: 'OPEN' | 'CLOSED' | 'PENDING';
   dealerName?: string;
   Cause?: string;
   Complaint?: string;
@@ -96,11 +97,13 @@ async function fetchClaimsPage(
     
     console.log(`✅ Raw Supabase claims data:`, data);
     
-    // For demonstration, add mock amounts and statuses
+    // For demonstration, add mock amounts and statuses with proper typing
+    const statusOptions: ('OPEN' | 'CLOSED' | 'PENDING')[] = ['OPEN', 'CLOSED', 'PENDING'];
+    
     const enrichedData: ClaimType[] = (data || []).map(claim => ({
       ...claim,
       amount: Math.floor(Math.random() * 5000) + 500, // Mock amount
-      status: ['OPEN', 'CLOSED', 'PENDING'][Math.floor(Math.random() * 3)] // Mock status as valid claim status
+      status: statusOptions[Math.floor(Math.random() * 3)] // Properly typed status
     }));
     
     // Determine if there are more pages (if we got the full page size)
