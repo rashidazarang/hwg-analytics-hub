@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -8,6 +7,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 type AgreementChartProps = {
   dateRange: DateRange;
+};
+
+// Define the type for our RPC function return
+type AgreementStatusCount = {
+  status: string;
+  count: number;
 };
 
 const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#6366f1'];
@@ -37,7 +42,7 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         // First, we'll get the distribution of agreements by status
         // Using the RPC function we created for grouping
         const { data, error } = await supabase
-          .rpc('count_agreements_by_status', {
+          .rpc<AgreementStatusCount>('count_agreements_by_status', {
             from_date: fromDate,
             to_date: toDate
           });
@@ -89,7 +94,7 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange }) => {
         // Convert RPC result to chart data format
         const chartData = data.map(item => ({
           name: STATUS_LABELS[item.status || 'Unknown'] || item.status || 'Unknown',
-          value: parseInt(item.count as any),
+          value: Number(item.count),
           rawStatus: item.status || 'Unknown'
         }));
 

@@ -670,6 +670,16 @@ export type Database = {
       }
     }
     Functions: {
+      count_agreements_by_status: {
+        Args: {
+          from_date: string
+          to_date: string
+        }
+        Returns: {
+          status: string
+          count: number
+        }[]
+      }
       delete_duplicate_dealers: {
         Args: Record<PropertyKey, never>
         Returns: undefined
