@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
@@ -25,33 +24,40 @@ import { toast } from 'sonner';
 const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => {
   console.log('🔍 Fetching dealership names from Supabase...');
   
-  const { data, error } = await supabase
-    .from('dealers')
-    .select('DealerUUID, Payee')
-    .not('Payee', 'is', null)
-    .order('Payee', { ascending: true });
-  
-  if (error) {
-    console.error('❌ Error fetching dealerships:', error);
-    toast.error("Failed to load dealerships. Please try again.");
+  try {
+    const { data, error } = await supabase
+      .from('dealers')
+      .select('DealerUUID, Payee')
+      .not('Payee', 'is', null)
+      .order('Payee', { ascending: true });
+    
+    if (error) {
+      console.error('❌ Error fetching dealerships:', error);
+      toast.error("Failed to load dealerships. Please try again.");
+      return [];
+    }
+    
+    const dealerships = data
+      .filter(dealer => dealer.Payee && dealer.Payee.trim() !== '')
+      .map(dealer => ({
+        id: dealer.DealerUUID,
+        name: dealer.Payee
+      }));
+    
+    console.log(`✅ Successfully fetched ${dealerships.length} dealerships`);
+    
+    if (dealerships.length > 0) {
+      console.log('📋 Sample dealerships:', dealerships.slice(0, 5));
+    } else {
+      console.warn('⚠️ No dealerships found in the database');
+    }
+    
+    return dealerships;
+  } catch (err) {
+    console.error('❌ Exception when fetching dealerships:', err);
+    toast.error("An error occurred while loading dealerships");
     return [];
   }
-  
-  const dealerships = data
-    .filter(dealer => dealer.Payee) // Ensure Payee exists
-    .map(dealer => ({
-      id: dealer.DealerUUID,
-      name: dealer.Payee
-    }));
-  
-  console.log(`✅ Successfully fetched ${dealerships.length} dealerships`);
-  
-  // Debug: Log the first few dealerships to check data
-  if (dealerships.length > 0) {
-    console.log('📋 Sample dealerships:', dealerships.slice(0, 5));
-  }
-  
-  return dealerships;
 };
 
 const Index = () => {
@@ -93,22 +99,11 @@ const Index = () => {
     }, 2000);
   }, [queryClient, dateRange, dealerships.length]);
   
-  // Close suggestions when clicking outside search container
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchContainerRef.current && 
-        !searchContainerRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+    setDealershipFilter('');
+    setSearchTerm('');
+    setSelectedDealershipId('');
+  }, [activeTab]);
 
   const handleDateRangeChange = (range: DateRange) => {
     console.log("📅 Date range changed to:", range);
@@ -138,19 +133,16 @@ const Index = () => {
     }, 500);
   };
 
-  useEffect(() => {
-    setDealershipFilter('');
-    setSearchTerm('');
-    setSelectedDealershipId('');
-  }, [activeTab]);
-
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setShowSuggestions(Boolean(e.target.value.trim()));
+    const searchValue = e.target.value;
+    setSearchTerm(searchValue);
+    setShowSuggestions(Boolean(searchValue.trim()));
     
-    if (!e.target.value.trim()) {
+    if (!searchValue.trim()) {
       handleDealershipSelect("");
     }
+    
+    console.log('🔍 Search Term:', searchValue);
   };
 
   const filteredDealerships = dealerships.filter(dealership => 
