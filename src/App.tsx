@@ -8,6 +8,7 @@ import { useState } from "react";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import Account from "./pages/Account";
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient({
@@ -31,6 +32,7 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/account" element={<Account />} />
             <Route path="/" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
