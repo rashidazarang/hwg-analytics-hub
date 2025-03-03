@@ -8,21 +8,59 @@ import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealersTable from '@/components/tables/DealersTable';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
-import { Users, FileSignature, FileCheck, TrendingUp, Search } from 'lucide-react';
+import { Users, FileSignature, FileCheck, TrendingUp, Check, ChevronsUpDown } from 'lucide-react';
 import { 
   mockClaims, 
   mockDealers, 
   calculateKPIs 
 } from '@/lib/mockData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { supabase } from '@/integrations/supabase/client';
+
+// Function to fetch dealership names
+const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => {
+  const { data, error } = await supabase
+    .from('dealers')
+    .select('DealerUUID, Payee')
+    .not('Payee', 'is', null)
+    .order('Payee', { ascending: true });
+  
+  if (error) {
+    console.error('Error fetching dealerships:', error);
+    return [];
+  }
+  
+  return data
+    .filter(dealer => dealer.Payee) // Ensure Payee exists
+    .map(dealer => ({
+      id: dealer.DealerUUID,
+      name: dealer.Payee
+    }));
+};
 
 const Index = () => {
   // Set default date range to YTD (Year-to-Date)
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [activeTab, setActiveTab] = useState('agreements');
   const [dealershipFilter, setDealershipFilter] = useState('');
+  const [open, setOpen] = useState(false);
+  const [selectedDealership, setSelectedDealership] = useState<string>('');
   const queryClient = useQueryClient();
   
   // Calculate KPIs based on the selected date range
@@ -34,6 +72,15 @@ const Index = () => {
     dateRange?.from?.toISOString() || "null",
     dateRange?.to?.toISOString() || "null",
   ];
+
+  // Fetch dealership names for autofill
+  const { data: dealerships = [] } = useQuery({
+    queryKey: ['dealership-names'],
+    queryFn: fetchDealershipNames,
+    staleTime: 1000 * 60 * 60, // 1 hour
+    gcTime: 1000 * 60 * 60 * 2, // 2 hours
+    refetchOnWindowFocus: false,
+  });
 
   // Log React Query cache for debugging
   useEffect(() => {
@@ -84,7 +131,38 @@ const Index = () => {
   // Reset search when changing tabs
   useEffect(() => {
     setDealershipFilter('');
+    setSelectedDealership('');
   }, [activeTab]);
+
+  // Apply filter when a dealership is selected
+  const handleDealershipSelect = (value: string) => {
+    setSelectedDealership(value);
+    
+    // Get the dealership name from the selected value
+    const selected = dealerships.find(d => d.id === value);
+    if (selected) {
+      setDealershipFilter(selected.name);
+      
+      // Invalidate the agreement status distribution query
+      queryClient.invalidateQueries({
+        queryKey: ['agreement-status-distribution'],
+        exact: false
+      });
+      
+      console.log(`🔍 Selected dealership: ${selected.name} (${value})`);
+    } else {
+      // If no dealership is selected (clear selection)
+      setDealershipFilter('');
+      
+      // Invalidate the agreement status distribution query
+      queryClient.invalidateQueries({
+        queryKey: ['agreement-status-distribution'],
+        exact: false
+      });
+      
+      console.log('🧹 Cleared dealership filter');
+    }
+  };
 
   // Subnavbar with tabs and search
   const subnavbar = (
@@ -98,20 +176,47 @@ const Index = () => {
       </Tabs>
       
       <div className="relative w-64">
-        <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={dealershipFilter}
-          onChange={(e) => {
-            setDealershipFilter(e.target.value);
-            // Invalidate the agreement status distribution query when dealership filter changes
-            queryClient.invalidateQueries({
-              queryKey: ['agreement-status-distribution'],
-              exact: false
-            });
-          }}
-          placeholder="Search by dealership..."
-          className="pl-8"
-        />
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className="w-full justify-between pl-8"
+            >
+              {selectedDealership
+                ? dealerships.find((dealership) => dealership.id === selectedDealership)?.name
+                : "Search by dealership..."}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[300px] p-0">
+            <Command>
+              <CommandInput placeholder="Search dealership..." />
+              <CommandEmpty>No dealership found.</CommandEmpty>
+              <CommandGroup className="max-h-[300px] overflow-y-auto">
+                {dealerships.map((dealership) => (
+                  <CommandItem
+                    key={dealership.id}
+                    value={dealership.name}
+                    onSelect={() => {
+                      handleDealershipSelect(dealership.id === selectedDealership ? "" : dealership.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedDealership === dealership.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {dealership.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );
