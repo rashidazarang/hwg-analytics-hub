@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -91,7 +90,7 @@ async function fetchAgreementsPage(
   }
   
   // Execute the query with pagination
-  const { data, error, count } = await query
+  const { data, error } = await query
     .order("EffectiveDate", { ascending: false })
     .range(offset, offset + pageSize - 1)
     .returns<Agreement[]>();
@@ -102,11 +101,12 @@ async function fetchAgreementsPage(
     return { data: [], nextPage: null };
   }
 
+  console.log(`✅ Fetched ${data?.length || 0} agreements from page ${pageParam}`);
+  console.log(`✅ First few agreements:`, data?.slice(0, 3));
+  
   // Determine if there are more pages (if we got the full page size)
   const hasMore = data && data.length === pageSize;
   const nextPage = hasMore ? pageParam + 1 : null;
-
-  console.log(`✅ Fetched ${data?.length || 0} agreements from page ${pageParam}`);
   
   return { 
     data: data || [], 

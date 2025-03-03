@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +7,7 @@ import VirtualizedTable, { VirtualColumn } from './VirtualizedTable';
 import { Claim } from '@/lib/mockData';
 
 // Define a more comprehensive Claim type that includes database fields
-type ClaimType = Claim & {
+type ClaimType = {
   id?: string;
   ClaimID?: string;
   AgreementID?: string;
@@ -21,7 +20,7 @@ type ClaimType = Claim & {
   Cause?: string;
   Complaint?: string;
   Closed?: string | null;
-};
+} & Partial<Claim>;
 
 const SUPABASE_PAGE_SIZE = 50;
 
@@ -95,7 +94,8 @@ async function fetchClaimsPage(
       return { data: [], nextPage: null };
     }
     
-    console.log(`✅ Raw Supabase claims data:`, data);
+    console.log(`✅ Raw Supabase claims data:`, data?.length, "records");
+    console.log(`✅ First few records:`, data?.slice(0, 3));
     
     // For demonstration, add mock amounts and statuses with proper typing
     const statusOptions: ('OPEN' | 'CLOSED' | 'PENDING')[] = ['OPEN', 'CLOSED', 'PENDING'];
@@ -111,7 +111,7 @@ async function fetchClaimsPage(
     const nextPage = hasMore ? pageParam + 1 : null;
     
     console.log(`✅ Fetched ${data?.length || 0} claims from page ${pageParam}`);
-    console.log(`✅ Enriched claims data:`, enrichedData);
+    console.log(`✅ Enriched data length:`, enrichedData.length);
     
     return { 
       data: enrichedData, 

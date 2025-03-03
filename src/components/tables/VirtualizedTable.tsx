@@ -78,17 +78,20 @@ const VirtualizedTable = <T extends Record<string, any>>({
     isFetchingNextPage,
     isFetching,
     isLoading,
-    refetch
+    refetch,
+    status,
+    error
   } = useInfiniteQuery({
     queryKey: [...queryKey, searchTerm, JSON.stringify(filters)],
     queryFn: async ({ pageParam = 0 }) => {
+      console.log(`🔄 Fetching page ${pageParam} with searchTerm: ${searchTerm}`);
       const result = await fetchData({
         pageParam,
         pageSize,
         searchTerm,
         filters
       });
-      console.log(`📊 Page ${pageParam} data:`, result);
+      console.log(`📊 Page ${pageParam} data:`, result?.data?.length || 0, "items");
       return result;
     },
     getNextPageParam: (lastPage) => {
@@ -128,14 +131,24 @@ const VirtualizedTable = <T extends Record<string, any>>({
       observer.disconnect();
       console.log("👀 Intersection Observer disconnected");
     };
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, loadMoreRef]);
 
   // Flatten all pages of data into a single array
   const flatData = React.useMemo(() => {
-    const result = data?.pages.flatMap(page => page.data) || [];
-    console.log("🔍 Merged data from useInfiniteQuery:", result);
-    return result;
-  }, [data]);
+    const allData = data?.pages?.flatMap(page => page.data) || [];
+    console.log("🔍 Merged data from useInfiniteQuery:", allData.length, "total items");
+    
+    if (allData.length === 0) {
+      console.log("⚠️ Warning: No data after merging. Check fetch function!");
+      console.log("🔄 Current query status:", status);
+      if (error) console.error("🔴 Query error:", error);
+      console.log("📄 Raw data pages:", data?.pages);
+    } else {
+      console.log("✅ Data merged successfully. First few items:", allData.slice(0, 3));
+    }
+    
+    return allData;
+  }, [data, status, error]);
 
   // Set up virtualizer
   const virtualizer = useVirtualizer({
@@ -193,9 +206,11 @@ const VirtualizedTable = <T extends Record<string, any>>({
       dataLoaded: flatData.length > 0,
       hasNextPage,
       isFetchingNextPage,
-      isLoading
+      isLoading,
+      virtualItems: virtualizer.getVirtualItems().length,
+      sortedDataLength: sortedData.length
     });
-  }, [flatData.length, hasNextPage, isFetchingNextPage, isLoading]);
+  }, [flatData.length, hasNextPage, isFetchingNextPage, isLoading, virtualizer, sortedData.length]);
 
   return (
     <div className={`w-full ${className}`}>
@@ -294,9 +309,19 @@ const VirtualizedTable = <T extends Record<string, any>>({
                   
                   const row = sortedData[virtualRow.index];
                   
+                  if (!row) {
+                    console.warn(`⚠️ Missing row data at index ${virtualRow.index}`);
+                    return null;
+                  }
+                  
+                  const rowId = rowKey(row);
+                  if (!rowId) {
+                    console.warn(`⚠️ Invalid rowKey for row at index ${virtualRow.index}:`, row);
+                  }
+                  
                   return (
                     <TableRow 
-                      key={rowKey(row)} 
+                      key={rowId || `row-${virtualRow.index}`} 
                       className={onRowClick ? 'cursor-pointer hover:bg-accent/50' : ''}
                       onClick={() => onRowClick && onRowClick(row)}
                       data-index={virtualRow.index}
@@ -311,7 +336,7 @@ const VirtualizedTable = <T extends Record<string, any>>({
                     >
                       {columns.map((column) => (
                         <TableCell 
-                          key={`${rowKey(row)}-${column.key}`}
+                          key={`${rowId || virtualRow.index}-${column.key}`}
                           style={{ width: column.width ? `${column.width}px` : 'auto' }}
                         >
                           {column.render ? column.render(row) : row[column.key]}
