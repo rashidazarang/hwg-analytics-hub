@@ -23,6 +23,7 @@ const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [activeTab, setActiveTab] = useState('agreements');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dealershipFilter, setDealershipFilter] = useState('');
   const queryClient = useQueryClient();
   
   // Calculate KPIs based on the selected date range
@@ -78,7 +79,11 @@ const Index = () => {
   // Reset search when changing tabs
   useEffect(() => {
     setSearchQuery('');
+    setDealershipFilter('');
   }, [activeTab]);
+
+  // Get unique dealership names for the filter
+  const uniqueDealerships = [...new Set(mockDealers.map(dealer => dealer.name || dealer.Payee || ''))].filter(Boolean).sort();
 
   // Subnavbar with tabs and search
   const subnavbar = (
@@ -91,14 +96,29 @@ const Index = () => {
         </TabsList>
       </Tabs>
       
-      <div className="relative w-64">
-        <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={`Search ${activeTab}...`}
-          className="pl-8"
-        />
+      <div className="flex items-center space-x-2">
+        <select 
+          className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={dealershipFilter}
+          onChange={(e) => setDealershipFilter(e.target.value)}
+        >
+          <option value="">All Dealerships</option>
+          {uniqueDealerships.map((dealership) => (
+            <option key={dealership} value={dealership}>
+              {dealership}
+            </option>
+          ))}
+        </select>
+        
+        <div className="relative w-64">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search ${activeTab}...`}
+            className="pl-8"
+          />
+        </div>
       </div>
     </div>
   );
@@ -173,11 +193,11 @@ const Index = () => {
       <div className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsContent value="agreements" className="mt-0">
-            <AgreementsTable dateRange={dateRange} searchQuery={searchQuery} />
+            <AgreementsTable dateRange={dateRange} searchQuery={searchQuery} dealerFilter={dealershipFilter} />
           </TabsContent>
           
           <TabsContent value="claims" className="mt-0">
-            <ClaimsTable claims={mockClaims} searchQuery={searchQuery} />
+            <ClaimsTable claims={mockClaims} searchQuery={searchQuery} dealerFilter={dealershipFilter} />
           </TabsContent>
           
           <TabsContent value="dealers" className="mt-0">

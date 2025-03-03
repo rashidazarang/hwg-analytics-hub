@@ -7,10 +7,16 @@ import { Progress } from '@/components/ui/progress';
 type DealersTableProps = {
   dealers: Dealer[];
   className?: string;
-  searchQuery?: string; // Add searchQuery prop
+  searchQuery?: string;
+  dealerFilter?: string;
 };
 
-const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '', searchQuery = '' }) => {
+const DealersTable: React.FC<DealersTableProps> = ({ 
+  dealers, 
+  className = '', 
+  searchQuery = '',
+  dealerFilter = ''
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(dealers);
   
@@ -18,42 +24,49 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '', se
   useEffect(() => {
     if (searchQuery !== undefined) {
       setSearchTerm(searchQuery);
-      handleSearch(searchQuery);
+      handleSearch(searchQuery, dealerFilter);
     }
-  }, [searchQuery, dealers]);
+  }, [searchQuery, dealerFilter, dealers]);
   
   // Apply search filter
-  const handleSearch = (term: string) => {
+  const handleSearch = (term: string, dealerName: string) => {
     setSearchTerm(term);
     
-    if (!term.trim()) {
-      setFilteredDealers(dealers);
-      return;
+    let filtered = dealers;
+    
+    // First filter by dealer name if specified
+    if (dealerName) {
+      filtered = filtered.filter(dealer => 
+        (dealer.name || dealer.Payee || '').toLowerCase() === dealerName.toLowerCase()
+      );
     }
     
-    const normalizedTerm = term.toLowerCase().trim();
-    const filtered = dealers.filter(dealer => {
-      // Check dealer ID
-      if ((dealer.id || dealer.DealerUUID || '').toLowerCase().includes(normalizedTerm)) {
-        return true;
-      }
-      
-      // Check dealer name
-      if ((dealer.name || dealer.Payee || '').toLowerCase().includes(normalizedTerm)) {
-        return true;
-      }
-      
-      // Check location
-      const city = (dealer.City || dealer.city || '').toLowerCase();
-      const region = (dealer.Region || dealer.region || '').toLowerCase();
-      const country = (dealer.Country || dealer.country || '').toLowerCase();
-      
-      if (city.includes(normalizedTerm) || region.includes(normalizedTerm) || country.includes(normalizedTerm)) {
-        return true;
-      }
-      
-      return false;
-    });
+    // Then apply search term if it exists
+    if (term.trim()) {
+      const normalizedTerm = term.toLowerCase().trim();
+      filtered = filtered.filter(dealer => {
+        // Check dealer ID
+        if ((dealer.id || dealer.DealerUUID || '').toLowerCase().includes(normalizedTerm)) {
+          return true;
+        }
+        
+        // Check dealer name
+        if ((dealer.name || dealer.Payee || '').toLowerCase().includes(normalizedTerm)) {
+          return true;
+        }
+        
+        // Check location
+        const city = (dealer.City || dealer.city || '').toLowerCase();
+        const region = (dealer.Region || dealer.region || '').toLowerCase();
+        const country = (dealer.Country || dealer.country || '').toLowerCase();
+        
+        if (city.includes(normalizedTerm) || region.includes(normalizedTerm) || country.includes(normalizedTerm)) {
+          return true;
+        }
+        
+        return false;
+      });
+    }
     
     setFilteredDealers(filtered);
   };
@@ -138,7 +151,7 @@ const DealersTable: React.FC<DealersTableProps> = ({ dealers, className = '', se
       searchConfig={{
         enabled: true,
         placeholder: "Search dealers by ID, name, or location...",
-        onChange: handleSearch,
+        onChange: (term) => handleSearch(term, dealerFilter),
         searchKeys: ["id", "DealerUUID", "name", "Payee", "city", "City", "region", "Region", "country", "Country"]
       }}
     />
