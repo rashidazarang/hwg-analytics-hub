@@ -15,6 +15,7 @@ const Index = () => {
     to: new Date()
   });
   const [dealershipFilter, setDealershipFilter] = useState<string>('');
+  const [dealershipName, setDealershipName] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('agreements');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -30,7 +31,8 @@ const Index = () => {
 
   const handleDealershipSelect = (dealershipId: string, dealershipName: string) => {
     console.log(`Selected dealership: ${dealershipName} (${dealershipId})`);
-    setDealershipFilter(dealershipName); // Change to use dealership name instead of ID
+    setDealershipFilter(dealershipId);
+    setDealershipName(dealershipName);
   };
 
   // Create the subnavbar content with tabs on the left and dealership search on the right
@@ -70,6 +72,7 @@ const Index = () => {
             activeTab={activeTab}
             dateRange={dateRange}
             dealerFilter={dealershipFilter}
+            dealerName={dealershipName}
             searchQuery={searchTerm}
             claims={mockClaims}
             dealers={mockDealers}

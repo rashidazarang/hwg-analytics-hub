@@ -128,13 +128,15 @@ type AgreementsTableProps = {
   dateRange?: DateRange;
   searchQuery?: string;
   dealerFilter?: string;
+  dealerName?: string;
 };
 
 const AgreementsTable: React.FC<AgreementsTableProps> = ({ 
   className = '', 
   dateRange, 
   searchQuery = '',
-  dealerFilter = ''
+  dealerFilter = '',
+  dealerName = ''
 }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -143,6 +145,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const initialFetchDone = useRef<boolean>(false);
+
+  useEffect(() => {
+    console.log('🔍 AgreementsTable - Current dealer filter:', dealerFilter);
+    console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
+  }, [dealerFilter, dealerName]);
 
   useEffect(() => {
     if (searchQuery !== undefined) {
@@ -156,23 +163,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return ["agreements-data", from, to];
   }, [dateRange]);
   
-  useEffect(() => {
-    if (dateRange) {
-      console.log("📆 Date range updated. Keeping page:", page);
-    }
-  }, [dateRange]);
-  
   const { 
     data: allAgreements = [], 
     isFetching: isFetchingAgreements,
     error: agreementsError,
     refetch: refetchAgreements
   } = useQuery({
-    queryKey: [
-      "agreements-data",
-      dateRange?.from?.toISOString() || "null",
-      dateRange?.to?.toISOString() || "null",
-    ],
+    queryKey: agreementsQueryKey,
     queryFn: async () => {
       const agreements = await fetchAllAgreements(dateRange);
       console.log(`🟢 Storing ${agreements.length} agreements in React Query cache`);
@@ -226,18 +223,10 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     let filtered = agreements;
     
     if (dealerFilter && dealerFilter.trim()) {
-      const normalizedDealerFilter = dealerFilter.toLowerCase().trim();
-      filtered = filtered.filter(agreement => {
-        const dealerUUID = agreement.DealerUUID?.trim().toLowerCase();
-        const dealerID = agreement.DealerID?.trim().toLowerCase();
-        
-        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
-        if (!dealer && dealerID) {
-          dealer = dealerMap[dealerID];
-        }
-        
-        return dealer && dealer.Payee && dealer.Payee.toLowerCase().includes(normalizedDealerFilter);
-      });
+      console.log(`🔍 Filtering agreements by dealer UUID: ${dealerFilter}`);
+      filtered = filtered.filter(agreement => 
+        agreement.DealerUUID?.trim() === dealerFilter.trim()
+      );
     }
     
     if (searchTerm.trim()) {
@@ -248,7 +237,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     }
     
     return filtered;
-  }, [agreements, searchTerm, dealerMap, dealerFilter]);
+  }, [agreements, searchTerm, dealerFilter]);
   
   useEffect(() => {
     if (filteredAgreements.length > 0) {
@@ -267,13 +256,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       setTotalCount(0);
     }
   }, [filteredAgreements, page, pageSize]);
-
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log("🔍 Agreements Data:", agreements);
-      console.log("🔍 Dealers Data:", dealers);
-    }
-  }, [agreements, dealers]);
 
   const handleSearch = (term: string) => {
     console.log("🔍 Search term updated:", term);
@@ -421,7 +403,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
 
   const currentStatus = isFetching
     ? "Loading..."
-    : `Displaying ${displayAgreements.length} of ${totalCount} agreements`;
+    : `Displaying ${displayAgreements.length} of ${totalCount} agreements${dealerName ? ` for ${dealerName}` : ''}`;
 
   return (
     <>

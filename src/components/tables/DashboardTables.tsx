@@ -11,6 +11,7 @@ type DashboardTablesProps = {
   activeTab: string;
   dateRange: DateRange;
   dealerFilter: string;
+  dealerName?: string;
   searchQuery?: string;
   claims: Claim[];
   dealers: Dealer[];
@@ -20,6 +21,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
   activeTab,
   dateRange,
   dealerFilter,
+  dealerName = '',
   searchQuery = '',
   claims,
   dealers
@@ -31,6 +33,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
           <AgreementsTable 
             dateRange={dateRange} 
             dealerFilter={dealerFilter}
+            dealerName={dealerName}
             searchQuery={searchQuery} 
           />
         </TabsContent>
@@ -39,6 +42,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
           <ClaimsTable 
             claims={claims} 
             dealerFilter={dealerFilter}
+            dealerName={dealerName}
             searchQuery={searchQuery}
           />
         </TabsContent>
@@ -47,6 +51,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
           <DealersTable 
             dealers={dealers} 
             dealerFilter={dealerFilter}
+            dealerName={dealerName}
             searchQuery={searchQuery}
           />
         </TabsContent>

@@ -53,9 +53,9 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange, dealerFilter
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-medium">
           Agreement Status Distribution
-          {dealerFilter && dealerName && (
+          {dealerFilter && (
             <span className="text-sm font-normal text-muted-foreground ml-2">
-              (Filtered by: {dealerName})
+              (Filtered by: {dealerName || 'Loading...'})
             </span>
           )}
         </CardTitle>
