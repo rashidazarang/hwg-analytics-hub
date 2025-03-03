@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import KPICard from '@/components/metrics/KPICard';
 import AgreementChart from '@/components/charts/AgreementChart';
@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => {
   console.log('🔍 Fetching dealership names from Supabase...');
@@ -32,6 +33,7 @@ const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => 
   
   if (error) {
     console.error('❌ Error fetching dealerships:', error);
+    toast.error("Failed to load dealerships. Please try again.");
     return [];
   }
   
@@ -43,6 +45,12 @@ const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => 
     }));
   
   console.log(`✅ Successfully fetched ${dealerships.length} dealerships`);
+  
+  // Debug: Log the first few dealerships to check data
+  if (dealerships.length > 0) {
+    console.log('📋 Sample dealerships:', dealerships.slice(0, 5));
+  }
+  
   return dealerships;
 };
 
@@ -53,6 +61,7 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   
   const kpis = calculateKPIs([], mockClaims, mockDealers, dateRange);
@@ -83,6 +92,23 @@ const Index = () => {
       console.log("📏 Cache Size:", cacheData && Array.isArray(cacheData) ? cacheData.length : 0);
     }, 2000);
   }, [queryClient, dateRange, dealerships.length]);
+  
+  // Close suggestions when clicking outside search container
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current && 
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const handleDateRangeChange = (range: DateRange) => {
     console.log("📅 Date range changed to:", range);
@@ -131,6 +157,14 @@ const Index = () => {
     dealership.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  console.log("🔍 Search Term:", searchTerm);
+  console.log("🏪 Filtered Dealerships Count:", filteredDealerships.length);
+  
+  if (filteredDealerships.length > 0 && searchTerm) {
+    console.log("🏪 First Few Filtered Dealerships:", 
+      filteredDealerships.slice(0, 3).map(d => d.name));
+  }
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -167,6 +201,7 @@ const Index = () => {
       });
       
       console.log(`🔍 Selected dealership: ${selected.name} (${value})`);
+      toast.success(`Filtered to dealership: ${selected.name}`);
     } else {
       setDealershipFilter('');
       
@@ -180,6 +215,9 @@ const Index = () => {
       });
       
       console.log('🧹 Cleared dealership filter');
+      if (searchTerm) {
+        toast.info("Cleared dealership filter");
+      }
     }
     
     setShowSuggestions(false);
@@ -200,6 +238,8 @@ const Index = () => {
       queryKey: ['agreement-status-distribution'],
       exact: false
     });
+    
+    toast.info("Cleared dealership filter");
   };
 
   const subnavbar = (
@@ -212,7 +252,7 @@ const Index = () => {
         </TabsList>
       </Tabs>
       
-      <div className="relative w-64">
+      <div ref={searchContainerRef} className="relative w-64">
         <form onSubmit={handleSearchSubmit} className="relative">
           <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
             <Search className="h-4 w-4 text-muted-foreground" />
@@ -226,6 +266,7 @@ const Index = () => {
             onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))}
             className="pl-8 pr-10 w-full"
             autoComplete="off"
+            disabled={isLoadingDealerships}
           />
           
           {searchTerm && (
@@ -243,6 +284,7 @@ const Index = () => {
             variant="ghost" 
             size="sm" 
             className="absolute inset-y-0 right-0 px-2"
+            disabled={isLoadingDealerships}
           >
             <Search className="h-4 w-4" />
           </Button>
@@ -258,7 +300,10 @@ const Index = () => {
                   {filteredDealerships.slice(0, 10).map(dealership => (
                     <div
                       key={dealership.id}
-                      className="px-4 py-2 text-sm hover:bg-accent cursor-pointer"
+                      className={cn(
+                        "px-4 py-2 text-sm hover:bg-accent cursor-pointer",
+                        selectedDealershipId === dealership.id && "bg-accent"
+                      )}
                       onClick={() => handleDealershipClick(dealership)}
                     >
                       {dealership.name}
