@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
-import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -31,21 +30,19 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              {/* Public route - accessible without authentication */}
-              <Route path="/login" element={<Login />} />
-              
-              {/* Protected routes - require authentication and admin status */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Index />} />
-                {/* Add other protected routes here */}
-              </Route>
-              
-              {/* 404 route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
+          <Routes>
+            {/* Public routes - accessible to everyone */}
+            <Route path="/login" element={<Login />} />
+            
+            {/* All routes are now accessible without authentication */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Index />} />
+              {/* Add other routes here */}
+            </Route>
+            
+            {/* 404 route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
