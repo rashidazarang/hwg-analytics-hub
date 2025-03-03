@@ -12,16 +12,7 @@ type AuthContextType = {
   isLoading: boolean;
   isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-};
-
-// Define the type for profile data to satisfy TypeScript
-type ProfileData = {
-  is_admin: boolean;
-  first_name?: string;
-  last_name?: string;
-  email?: string;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,118 +24,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Function to fetch admin status
-  const fetchAdminStatus = async (userId: string) => {
-    try {
-      console.log("Fetching admin status for user:", userId);
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('is_admin, first_name, last_name')
-        .eq('id', userId)
-        .single();
-        
-      if (!error && profileData) {
-        console.log("Profile data fetched:", profileData);
-        setIsAdmin((profileData as ProfileData).is_admin || false);
-        return (profileData as ProfileData).is_admin || false;
-      } else {
-        console.error('Error fetching profile data:', error);
-        setIsAdmin(false);
-        return false;
-      }
-    } catch (err) {
-      console.error('Exception fetching profile data:', err);
-      setIsAdmin(false);
-      return false;
-    }
-  };
-
-  // Clear any stale sessions that might be causing issues
-  const clearStaleSession = async () => {
-    try {
-      // Force clear the session from localStorage
-      localStorage.removeItem('supabase.auth.token');
-      
-      // Additional Supabase specific storage items that might need clearing
-      const keysToRemove = Object.keys(localStorage).filter(
-        key => key.startsWith('supabase.auth.')
-      );
-      
-      keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-      });
-      
-      console.log("Cleared potential stale session data");
-    } catch (err) {
-      console.error("Error clearing stale session:", err);
-    }
-  };
-
   useEffect(() => {
     const setupAuth = async () => {
-      try {
-        // Clear potential stale data on initial load
-        await clearStaleSession();
-        
-        setIsLoading(true);
-        
-        // Get the current session
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error("Error getting session:", error);
-          setIsLoading(false);
-          return;
-        }
-        
-        console.log("Session data:", data.session ? "Session exists" : "No session");
-        
-        setSession(data.session);
-        setUser(data.session?.user || null);
-        
-        if (data.session?.user) {
-          await fetchAdminStatus(data.session.user.id);
-        }
-      } catch (err) {
-        console.error("Exception in setupAuth:", err);
-      } finally {
-        setIsLoading(false);
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      setUser(data.session?.user || null);
+      
+      if (data.session?.user) {
+        // Check if user is admin
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', data.session.user.id)
+          .single();
+          
+        setIsAdmin(profileData?.is_admin || false);
       }
+      
+      setIsLoading(false);
     };
     
     setupAuth();
 
-    // Set up auth state change listener with error handling
-    try {
-      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth state changed:', event);
-        
-        setSession(session);
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          await fetchAdminStatus(session.user.id);
-        } else {
-          setIsAdmin(false);
-        }
-      });
+    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+      setSession(session);
+      setUser(session?.user || null);
+      
+      if (session?.user) {
+        // Check if user is admin when auth state changes
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', session.user.id)
+          .single();
+          
+        setIsAdmin(profileData?.is_admin || false);
+      } else {
+        setIsAdmin(false);
+      }
+    });
 
-      return () => {
-        data.subscription.unsubscribe();
-      };
-    } catch (err) {
-      console.error("Error setting up auth listener:", err);
-      return () => {};
-    }
+    return () => {
+      data.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
-      
-      // Clear any potential stale session data before login attempt
-      await clearStaleSession();
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -156,15 +83,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           title: "Login failed",
           description: error.message
         });
-        console.error("Login error:", error.message);
-        return;
+        throw error;
       }
 
       if (data.user) {
         // Check if user is admin
-        const isUserAdmin = await fetchAdminStatus(data.user.id);
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', data.user.id)
+          .single();
         
-        if (!isUserAdmin) {
+        if (profileError) {
+          toast({
+            variant: "destructive",
+            title: "Error verifying admin status",
+            description: profileError.message
+          });
+          await supabase.auth.signOut();
+          throw new Error('Failed to verify admin status');
+        }
+        
+        if (!profileData?.is_admin) {
           toast({
             variant: "destructive",
             title: "Access denied",
@@ -174,6 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Not an admin user');
         }
         
+        setIsAdmin(true);
         toast({
           title: "Login successful",
           description: "Welcome back, admin!"
@@ -182,41 +123,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Sign in error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password
-      });
-
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Registration failed",
-          description: error.message
-        });
-        throw error;
-      }
-
-      toast({
-        title: "Registration successful",
-        description: "Account created successfully. Please check your email to confirm your account."
-      });
-      
-      // Redirect to confirmation page instead of staying on login
-      navigate('/signup-confirmation');
-      
-      // Note: The user will need to be made an admin manually in the database
-    } catch (error) {
-      console.error('Sign up error:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -240,7 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, isAdmin, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, isAdmin, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
