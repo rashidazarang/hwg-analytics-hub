@@ -25,19 +25,38 @@ const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => 
   console.log('🔍 Fetching dealership names from Supabase...');
   
   try {
-    const { data, error } = await supabase
-      .from('dealers')
-      .select('DealerUUID, Payee')
-      .not('Payee', 'is', null)
-      .order('Payee', { ascending: true });
-    
-    if (error) {
-      console.error('❌ Error fetching dealerships:', error);
-      toast.error("Failed to load dealerships. Please try again.");
-      return [];
+    const PAGE_SIZE = 1000;
+    let allDealers: any[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('dealers')
+        .select('DealerUUID, PayeeID, Payee')
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      
+      if (error) {
+        console.error('❌ Error fetching dealerships:', error);
+        toast.error("Failed to load dealerships. Please try again.");
+        return [];
+      }
+      
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+      
+      allDealers = [...allDealers, ...data];
+      
+      if (data.length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        page++;
+      }
     }
     
-    const dealerships = data
+    const dealerships = allDealers
       .filter(dealer => dealer.Payee && dealer.Payee.trim() !== '')
       .map(dealer => ({
         id: dealer.DealerUUID,
