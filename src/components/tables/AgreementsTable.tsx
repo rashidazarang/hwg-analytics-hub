@@ -60,11 +60,25 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
     
     // Start building the query
-    let query = supabase
-      .from("agreements")
-      .select("id, AgreementID, HolderFirstName, HolderLastName, DealerUUID, DealerID, EffectiveDate, ExpireDate, AgreementStatus, Total, DealerCost, ReserveAmount")
-      .gte("EffectiveDate", from)
-      .lte("EffectiveDate", to);
+let query = supabase
+  .from("agreements")
+  .select(`
+    id, 
+    AgreementID, 
+    HolderFirstName, 
+    HolderLastName, 
+    DealerUUID, 
+    DealerID, 
+    EffectiveDate, 
+    ExpireDate, 
+    AgreementStatus, 
+    Total, 
+    DealerCost, 
+    ReserveAmount, 
+    dealers(Payee)  -- 👈 Fetch dealer name
+  `)
+  .gte("EffectiveDate", from)
+  .lte("EffectiveDate", to);
     
     // Add dealer filter if specified
     if (dealerFilter && dealerFilter.trim()) {
@@ -250,20 +264,24 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return map;
   }, [dealers]);
   
-  const filteredAgreements = useMemo(() => {
-    console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
-    let filtered = agreements;
-    
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(agreement => 
-        agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)
+const filteredAgreements = useMemo(() => {
+  console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
+  let filtered = agreements;
+  
+  if (searchTerm.trim()) {
+    const term = searchTerm.toLowerCase().trim();
+    filtered = filtered.filter(agreement => {
+      const dealerName = agreement.dealers?.Payee?.toLowerCase() || ""; // 👈 Get dealer name
+      return (
+        (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
+        (dealerName && dealerName.includes(term)) // 👈 Now filters by dealership name
       );
-    }
-    
-    console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
-    return filtered;
-  }, [agreements, searchTerm, dealerFilter]);
+    });
+  }
+
+  console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
+  return filtered;
+}, [agreements, searchTerm, dealerFilter]);
   
   useEffect(() => {
     if (filteredAgreements.length > 0) {
@@ -305,22 +323,14 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         return firstName || lastName ? `${firstName} ${lastName}`.trim() : 'N/A';
       },
     },
-    {
-      key: 'dealership',
-      title: 'Dealership',
-      searchable: true,
-      render: (row) => {
-        const dealerUUID = row.DealerUUID?.trim().toLowerCase();
-        const dealerID = row.DealerID?.trim().toLowerCase();
-    
-        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
-        if (!dealer && dealerID) {
-          dealer = dealerMap[dealerID];
-        }
-    
-        return dealer ? dealer.Payee : 'Unknown Dealership';
-      },
-    },
+{
+  key: 'dealership',
+  title: 'Dealership',
+  searchable: true,
+  render: (row) => {
+    return row.dealers?.Payee || "Unknown Dealership"; // ✅ Uses fetched dealer name directly
+  },
+},
     {
       key: 'DealerID',
       title: 'Dealer ID',
