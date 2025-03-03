@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, AuthError } from '@supabase/supabase-js';
 
 // Define the shape of our auth context
 type AuthContextType = {
@@ -11,8 +11,8 @@ type AuthContextType = {
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ error?: AuthError }>;
+  signUp: (email: string, password: string) => Promise<{ error?: AuthError }>;
   signOut: () => Promise<void>;
 };
 
@@ -147,7 +147,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           description: error.message
         });
         setIsLoading(false);
-        return;
+        return { error };
       }
 
       console.log("Sign in successful:", data);
@@ -165,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             description: "You don't have administrator privileges"
           });
           setIsLoading(false);
-          return;
+          return { error: { name: 'NotAdminError', message: "You don't have administrator privileges" } as AuthError };
         }
         
         setIsAdmin(true);
@@ -175,6 +175,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         navigate('/');
       }
+      
+      return {};
     } catch (error) {
       console.error('Sign in error:', error);
       toast({
@@ -182,6 +184,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "Login error",
         description: "An unexpected error occurred. Please try again."
       });
+      return { error: error as AuthError };
     } finally {
       setIsLoading(false);
     }
@@ -205,7 +208,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           description: error.message
         });
         setIsLoading(false);
-        return;
+        return { error };
       }
 
       console.log("Sign up successful:", data);
@@ -213,6 +216,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "Registration successful",
         description: "Account created successfully. Please check your email to confirm your account."
       });
+      
+      return {};
     } catch (error) {
       console.error('Sign up error:', error);
       toast({
@@ -220,6 +225,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "Registration error",
         description: "An unexpected error occurred. Please try again."
       });
+      return { error: error as AuthError };
     } finally {
       setIsLoading(false);
     }
