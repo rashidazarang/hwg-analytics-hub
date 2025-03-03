@@ -228,17 +228,17 @@ export const calculateKPIs = (
   const totalClaimsAmount = filteredClaims.reduce((sum, c) => sum + c.amount, 0);
   
   const activeDealers = [...new Set(filteredAgreements.map(a => a.dealerId))].length;
+  const totalDealers = dealers.length;
   
   return {
     activeAgreements,
-    totalAgreementsValue,
-    openClaims,
-    closedClaims,
-    totalClaimsAmount,
-    activeDealers,
     totalAgreements: filteredAgreements.length,
+    openClaims,
     totalClaims: filteredClaims.length,
-    averageClaimAmount: filteredClaims.length ? totalClaimsAmount / filteredClaims.length : 0
+    activeDealers,
+    totalDealers,
+    averageClaimAmount: filteredClaims.length ? totalClaimsAmount / filteredClaims.length : 0,
+    totalClaimsAmount
   };
 };
 

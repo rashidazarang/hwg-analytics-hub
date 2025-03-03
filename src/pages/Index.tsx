@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import DashboardTabs from '@/components/navigation/DashboardTabs';
@@ -6,7 +5,7 @@ import KPISection from '@/components/metrics/KPISection';
 import DashboardCharts from '@/components/charts/DashboardCharts';
 import DashboardTables from '@/components/tables/DashboardTables';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
-import { mockClaims, mockDealers, calculateKPIs } from '@/lib/mockData';
+import { mockAgreements, mockClaims, mockDealers, calculateKPIs } from '@/lib/mockData';
 import { useQueryClient } from '@tanstack/react-query';
 
 const Index = () => {
@@ -17,7 +16,7 @@ const Index = () => {
   const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
   const queryClient = useQueryClient();
   
-  const kpis = calculateKPIs([], mockClaims, mockDealers, dateRange);
+  const kpis = calculateKPIs(mockAgreements, mockClaims, mockDealers, dateRange);
   
   const agreementsQueryKey = [
     "agreements-data",
@@ -81,7 +80,6 @@ const Index = () => {
     });
   };
 
-  // Subnavbar component with search and tabs
   const subnavbar = (
     <DashboardTabs
       activeTab={activeTab}
@@ -92,7 +90,6 @@ const Index = () => {
     />
   );
 
-  // KPI metrics section
   const kpiSection = <KPISection kpis={kpis} />;
 
   return (
@@ -101,14 +98,12 @@ const Index = () => {
       kpiSection={kpiSection}
       subnavbar={subnavbar}
     >
-      {/* Charts Section */}
       <DashboardCharts 
         dateRange={dateRange} 
         dealershipFilter={dealershipFilter}
         claims={mockClaims}
       />
       
-      {/* Data Tables Section */}
       <DashboardTables
         activeTab={activeTab}
         dateRange={dateRange}
