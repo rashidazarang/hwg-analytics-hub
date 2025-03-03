@@ -23,10 +23,13 @@ export const STATUS_LABELS: Record<string, string> = {
   'CANCELLED': 'CANCELLED',
   'PENDING': 'PENDING',
   'TERMINATED': 'TERMINATED',
+  'VOID': 'VOID',
+  'CLAIMABLE': 'CLAIMABLE',
   'Unknown': 'UNKNOWN'
 };
 
 export function useAgreementStatusData(dateRange: DateRange, dealerFilter: string = '') {
+  // Use dealerFilter in the query key to ensure React Query can detect changes to the filter
   return useQuery({
     queryKey: ['agreement-status-distribution', dateRange.from?.toISOString(), dateRange.to?.toISOString(), dealerFilter],
     queryFn: async () => {
@@ -53,6 +56,10 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
           } else if (dealersData && dealersData.length > 0) {
             dealerUUIDs = dealersData.map(dealer => dealer.DealerUUID);
             console.log('📊 Found dealers matching filter:', dealerUUIDs.length);
+          } else {
+            // If no dealers match the filter but a filter was provided, return empty data
+            console.log('📊 No dealers found matching filter:', normalizedDealerFilter);
+            return [];
           }
         }
 

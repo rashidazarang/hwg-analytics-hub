@@ -101,7 +101,14 @@ const Index = () => {
         <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={dealershipFilter}
-          onChange={(e) => setDealershipFilter(e.target.value)}
+          onChange={(e) => {
+            setDealershipFilter(e.target.value);
+            // Invalidate the agreement status distribution query when dealership filter changes
+            queryClient.invalidateQueries({
+              queryKey: ['agreement-status-distribution'],
+              exact: false
+            });
+          }}
           placeholder="Search by dealership..."
           className="pl-8"
         />

@@ -23,6 +23,11 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
     }
   }, [data]);
 
+  // Logging to help debug
+  useEffect(() => {
+    console.log('🥧 PieChart data updated:', data);
+  }, [data]);
+
   const onPieEnter = (_: any, index: number) => {
     setActiveIndex(index);
   };

@@ -11,6 +11,9 @@ type AgreementChartProps = {
 };
 
 const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange, dealerFilter = '' }) => {
+  // Add logging to verify the dealerFilter is being passed correctly
+  console.log('🔍 AgreementChart - dealerFilter:', dealerFilter);
+  
   const { data: statusData = [], isLoading } = useAgreementStatusData(dateRange, dealerFilter);
 
   return (
