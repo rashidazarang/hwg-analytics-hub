@@ -48,7 +48,7 @@ const Login = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
-                Email
+                Email Address
               </label>
               <Input
                 id="email"
@@ -60,6 +60,9 @@ const Login = () => {
                 autoComplete="email"
                 disabled={isLoading}
               />
+              <p className="text-xs text-muted-foreground">
+                Enter the complete email address used for your admin account
+              </p>
             </div>
 
             <div className="space-y-2">
