@@ -16,11 +16,6 @@ type AuthContextType = {
   signOut: () => Promise<void>;
 };
 
-// Define the type for profile data
-type ProfileData = {
-  is_admin: boolean;
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -153,27 +148,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("Sign in successful:", data);
 
       if (data.user) {
-        const isUserAdmin = await checkIsAdmin(data.user.id);
-        console.log(`User admin status: ${isUserAdmin}`);
-        
-        if (!isUserAdmin) {
-          console.log("User is not an admin, signing out");
+        try {
+          const isUserAdmin = await checkIsAdmin(data.user.id);
+          console.log(`User admin status after sign in: ${isUserAdmin}`);
+          
+          if (!isUserAdmin) {
+            console.log("User is not an admin, signing out");
+            await supabase.auth.signOut();
+            setUser(null);
+            setSession(null);
+            setIsAdmin(false);
+            toast({
+              variant: "destructive",
+              title: "Access denied",
+              description: "You don't have administrator privileges"
+            });
+            setIsLoading(false);
+            return { error: { name: 'NotAdminError', message: "You don't have administrator privileges" } as AuthError };
+          }
+          
+          setIsAdmin(true);
+          toast({
+            title: "Login successful",
+            description: "Welcome back, admin!"
+          });
+          navigate('/');
+        } catch (err) {
+          console.error("Error checking admin status:", err);
           await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
           toast({
             variant: "destructive",
-            title: "Access denied",
-            description: "You don't have administrator privileges"
+            title: "Authentication error",
+            description: "Error verifying admin status. Please try again."
           });
+          return { error: { name: 'AdminCheckError', message: "Error verifying admin status" } as AuthError };
+        } finally {
           setIsLoading(false);
-          return { error: { name: 'NotAdminError', message: "You don't have administrator privileges" } as AuthError };
         }
-        
-        setIsAdmin(true);
-        toast({
-          title: "Login successful",
-          description: "Welcome back, admin!"
-        });
-        navigate('/');
+      } else {
+        setIsLoading(false);
       }
       
       return {};
@@ -184,9 +200,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: "Login error",
         description: "An unexpected error occurred. Please try again."
       });
-      return { error: error as AuthError };
-    } finally {
       setIsLoading(false);
+      return { error: error as AuthError };
     }
   };
 

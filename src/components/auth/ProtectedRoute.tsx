@@ -15,7 +15,13 @@ const ProtectedRoute = () => {
       isAdmin,
       user: session?.user?.email
     });
-  }, [isLoading, session, isAdmin]);
+    
+    // If auth check is done and user is not authenticated or not admin, redirect to login
+    if (!isLoading && (!session || !isAdmin)) {
+      console.log("Protected route: Redirecting to login (not authenticated or not admin)");
+      navigate('/login');
+    }
+  }, [isLoading, session, isAdmin, navigate]);
 
   // Show loading spinner while authentication is being checked
   if (isLoading) {

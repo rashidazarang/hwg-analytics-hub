@@ -95,12 +95,23 @@ const Login = () => {
     }
   };
 
-  // Show loading spinner while authentication state is being checked
+  // Show loading spinner while initial authentication state is being checked
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin mr-2" />
         <span>Loading authentication...</span>
+      </div>
+    );
+  }
+
+  // If user is already authenticated and is admin, they will be redirected in the useEffect hook
+  // This content will only render briefly or if there's an issue with the redirect
+  if (session && isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin mr-2" />
+        <span>Authenticated, redirecting...</span>
       </div>
     );
   }
