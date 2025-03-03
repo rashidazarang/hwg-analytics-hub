@@ -201,16 +201,14 @@ useEffect(() => {
       return {};
     }
     
+    // Use only DealerUUID as the key for unambiguous lookups
     const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
       if (dealer.DealerUUID) {
         acc[dealer.DealerUUID] = dealer;
       }
-      if (dealer.PayeeID) {
-        acc[dealer.PayeeID] = dealer;
-      }
       return acc;
     }, {});
-  
+    
     console.log("✅ Dealer Map Created:", map);
     return map;
   }, [dealers]);
@@ -245,16 +243,15 @@ useEffect(() => {
       key: 'dealership',
       title: 'Dealership',
       render: (row) => {
-        const key = row.DealerUUID || row.DealerID;
-        return key ? dealerMap[key]?.Payee || 'Unknown Dealership' : '';
+        return row.DealerUUID ? dealerMap[row.DealerUUID]?.Payee || 'Unknown Dealership' : '';
       },
     },
     {
       key: 'DealerID',
       title: 'Dealer ID',
       render: (row) => {
-        const key = row.DealerUUID || row.DealerID;
-        return key ? dealerMap[key]?.PayeeID || key : 'No Dealer Assigned';
+        // Use the DealerUUID as the identifier; if missing, show "No Dealer Assigned"
+        return row.DealerUUID ? dealerMap[row.DealerUUID]?.PayeeID || row.DealerUUID : 'No Dealer Assigned';
       },
     },
     {
@@ -291,7 +288,7 @@ useEffect(() => {
         };
         
         return (
-          <Badge variant="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
+          <Badge color="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
             {status}
           </Badge>
         );
