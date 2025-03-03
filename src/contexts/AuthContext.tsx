@@ -21,6 +21,7 @@ type ProfileData = {
   is_admin: boolean;
   first_name?: string;
   last_name?: string;
+  email?: string;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,13 +36,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Function to fetch admin status
   const fetchAdminStatus = async (userId: string) => {
     try {
+      console.log("Fetching admin status for user:", userId);
       const { data: profileData, error } = await supabase
         .from('profiles')
-        .select('is_admin')
+        .select('is_admin, first_name, last_name')
         .eq('id', userId)
         .single();
         
       if (!error && profileData) {
+        console.log("Profile data fetched:", profileData);
         setIsAdmin((profileData as ProfileData).is_admin || false);
         return (profileData as ProfileData).is_admin || false;
       } else {
@@ -56,9 +59,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Clear any stale sessions that might be causing issues
+  const clearStaleSession = async () => {
+    try {
+      // Force clear the session from localStorage
+      localStorage.removeItem('supabase.auth.token');
+      
+      // Additional Supabase specific storage items that might need clearing
+      const keysToRemove = Object.keys(localStorage).filter(
+        key => key.startsWith('supabase.auth.')
+      );
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      console.log("Cleared potential stale session data");
+    } catch (err) {
+      console.error("Error clearing stale session:", err);
+    }
+  };
+
   useEffect(() => {
     const setupAuth = async () => {
       try {
+        // Clear potential stale data on initial load
+        await clearStaleSession();
+        
+        setIsLoading(true);
+        
         // Get the current session
         const { data, error } = await supabase.auth.getSession();
         
@@ -67,6 +96,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsLoading(false);
           return;
         }
+        
+        console.log("Session data:", data.session ? "Session exists" : "No session");
         
         setSession(data.session);
         setUser(data.session?.user || null);
@@ -110,6 +141,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      
+      // Clear any potential stale session data before login attempt
+      await clearStaleSession();
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password

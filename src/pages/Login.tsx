@@ -12,6 +12,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginAttempt, setLoginAttempt] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn, signUp, isAdmin, session } = useAuth();
   const navigate = useNavigate();
 
@@ -35,11 +36,14 @@ const Login = () => {
     }
     
     try {
+      setIsSubmitting(true);
       setLoginAttempt(prev => prev + 1); // Increment login attempt counter
       await signIn(email, password);
     } catch (error) {
       console.error("Login error:", error);
       // signIn already shows a toast for errors
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -65,10 +69,13 @@ const Login = () => {
     }
     
     try {
+      setIsSubmitting(true);
       await signUp(email, password);
     } catch (error) {
       console.error("Signup error:", error);
       // signUp already shows a toast for errors
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -128,9 +135,9 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={!email || !password}
+                disabled={!email || !password || isSubmitting}
               >
-                {loginAttempt > 0 ? (
+                {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
@@ -182,9 +189,16 @@ const Login = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={!email || !password}
+                disabled={!email || !password || isSubmitting}
               >
-                <span>Sign up</span>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing up...
+                  </>
+                ) : (
+                  "Sign up"
+                )}
               </Button>
               
               <p className="text-xs text-center text-muted-foreground mt-4">
