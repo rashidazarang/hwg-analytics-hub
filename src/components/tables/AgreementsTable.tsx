@@ -85,17 +85,39 @@ async function fetchAllAgreements(dateRange?: DateRange): Promise<Agreement[]> {
 
 async function fetchDealers(): Promise<Dealer[]> {
   try {
-    const { data, error } = await supabase
-      .from("dealers")
-      .select("DealerUUID, PayeeID, Payee"); // ✅ Keep only this one
+    const PAGE_SIZE = 1000;
+    let allDealers: Dealer[] = [];
+    let page = 0;
+    let hasMore = true;
 
-    if (error) {
-      console.error("Supabase Error fetching dealers:", error);
-      return [];
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("dealers")
+        .select("DealerUUID, PayeeID, Payee")
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (error) {
+        console.error("❌ Supabase Error fetching dealers:", error);
+        return allDealers; // Return what we have so far
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      allDealers = [...allDealers, ...data];
+
+      // If we got fewer than PAGE_SIZE, we're at the last batch
+      if (data.length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        page++;
+      }
     }
 
-    console.log("Fetched Dealers:", data?.length || 0, "records");
-    return data || [];
+    console.log("✅ Fetched Dealers:", allDealers.length, "records");
+    return allDealers;
   } catch (error) {
     console.error("Error fetching dealers:", error);
     return [];
