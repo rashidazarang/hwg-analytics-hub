@@ -41,10 +41,9 @@ const Index = () => {
     <div className="flex items-center justify-between">
       <div>
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsList className="grid grid-cols-2 w-full max-w-md">
             <TabsTrigger value="agreements">Agreements</TabsTrigger>
             <TabsTrigger value="claims">Claims</TabsTrigger>
-            <TabsTrigger value="dealers">Dealers</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>

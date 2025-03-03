@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import ClaimsTable from '@/components/tables/ClaimsTable';
-import DealersTable from '@/components/tables/DealersTable';
 import { Claim, Dealer } from '@/lib/mockData';
 import { DateRange } from '@/lib/dateUtils';
 
@@ -47,15 +46,6 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
         <TabsContent value="claims" className="mt-0">
           <ClaimsTable 
             claims={claims} 
-            dealerFilter={dealerFilter} // Passing UUID here
-            dealerName={dealerName}
-            searchQuery={searchQuery}
-          />
-        </TabsContent>
-        
-        <TabsContent value="dealers" className="mt-0">
-          <DealersTable 
-            dealers={dealers} 
             dealerFilter={dealerFilter} // Passing UUID here
             dealerName={dealerName}
             searchQuery={searchQuery}
