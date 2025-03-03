@@ -3,8 +3,7 @@ import React, { ReactNode } from 'react';
 import DateRangeFilter from '../filters/DateRangeFilter';
 import { DateRange } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { User } from 'lucide-react';
 
 type DashboardProps = {
   onDateRangeChange: (range: DateRange) => void;
@@ -19,8 +18,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   children,
   subnavbar,
 }) => {
-  const { signOut, user } = useAuth();
-  
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur-sm">
@@ -31,15 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <DateRangeFilter onChange={onDateRangeChange} />
               <div className="flex items-center gap-2 text-sm">
                 <User className="w-4 h-4" />
-                <span>{user?.email}</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={signOut}
-                  className="flex items-center gap-1"
-                >
-                  <LogOut className="w-4 h-4" /> Logout
-                </Button>
+                <span>Admin User</span>
               </div>
             </div>
           </div>
