@@ -205,6 +205,9 @@ useEffect(() => {
       if (dealer.DealerUUID) {
         acc[dealer.DealerUUID] = dealer;
       }
+      if (dealer.PayeeID) {
+        acc[dealer.PayeeID] = dealer;
+      }
       return acc;
     }, {});
   
@@ -241,13 +244,18 @@ useEffect(() => {
     {
       key: 'dealership',
       title: 'Dealership',
-      render: (row) => row.DealerUUID ? dealerMap[row.DealerUUID]?.Payee || 'Unknown Dealership' : '',
+      render: (row) => {
+        const key = row.DealerUUID || row.DealerID;
+        return key ? dealerMap[key]?.Payee || 'Unknown Dealership' : '';
+      },
     },
     {
       key: 'DealerID',
       title: 'Dealer ID',
-      render: (row) =>
-        row.DealerUUID ? dealerMap[row.DealerUUID]?.PayeeID || row.DealerUUID : 'No Dealer Assigned',
+      render: (row) => {
+        const key = row.DealerUUID || row.DealerID;
+        return key ? dealerMap[key]?.PayeeID || key : 'No Dealer Assigned';
+      },
     },
     {
       key: 'effectiveDate',
