@@ -243,14 +243,29 @@ useEffect(() => {
       key: 'dealership',
       title: 'Dealership',
       render: (row) => {
-        return row.DealerUUID ? dealerMap[row.DealerUUID.trim()]?.Payee || 'Unknown Dealership' : '';
+        // Use DealerUUID if available; if not, fall back to DealerID.
+        const dealerKey = row.DealerUUID
+          ? row.DealerUUID.trim()
+          : row.DealerID
+          ? row.DealerID.trim()
+          : null;
+        const dealer = dealerKey ? dealerMap[dealerKey] : null;
+        return dealer ? dealer.Payee : 'Unknown Dealership';
       },
     },
     {
       key: 'DealerID',
       title: 'Dealer ID',
-      render: (row) =>
-      row.DealerUUID ? dealerMap[row.DealerUUID.trim()]?.PayeeID || row.DealerUUID : 'No Dealer Assigned',
+      render: (row) => {
+        // Use DealerUUID if available; if not, fall back to DealerID.
+        const dealerKey = row.DealerUUID
+          ? row.DealerUUID.trim()
+          : row.DealerID
+          ? row.DealerID.trim()
+          : null;
+        const dealer = dealerKey ? dealerMap[dealerKey] : null;
+        return dealer ? dealer.PayeeID : 'No Dealer Assigned';
+      },
     },
     {
       key: 'effectiveDate',
