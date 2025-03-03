@@ -2,14 +2,13 @@
 import React, { ReactNode } from 'react';
 import DateRangeFilter from '../filters/DateRangeFilter';
 import { DateRange } from '@/lib/dateUtils';
-import { Button } from '@/components/ui/button';
-import { User } from 'lucide-react';
+import AuthNav from '../navigation/AuthNav';
 
 type DashboardProps = {
   onDateRangeChange: (range: DateRange) => void;
   kpiSection: ReactNode;
   children: ReactNode;
-  subnavbar?: ReactNode; // New prop for the subnavbar content
+  subnavbar?: ReactNode; // Prop for the subnavbar content
 };
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -26,10 +25,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <h1 className="text-2xl font-semibold tracking-tight">Analytics Dashboard</h1>
             <div className="flex items-center gap-4">
               <DateRangeFilter onChange={onDateRangeChange} />
-              <div className="flex items-center gap-2 text-sm">
-                <User className="w-4 h-4" />
-                <span>Admin User</span>
-              </div>
+              <AuthNav />
             </div>
           </div>
         </div>

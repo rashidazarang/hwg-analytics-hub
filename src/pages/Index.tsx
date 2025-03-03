@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
-import AuthNav from '@/components/navigation/AuthNav';
 import { DateRange } from '@/lib/dateUtils';
 import KPISection from '@/components/metrics/KPISection';
 import DashboardCharts from '@/components/charts/DashboardCharts';
 import DashboardTables from '@/components/tables/DashboardTables';
 import { mockClaims, mockDealers } from '@/lib/mockData';
 import DealershipSearch from '@/components/search/DealershipSearch';
+import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -33,25 +33,26 @@ const Index = () => {
     setDealershipFilter(dealershipId);
   };
 
-  // Create the subnavbar content with the dealership search
+  // Create the subnavbar content with tabs on the left and dealership search on the right
   const subnavbarContent = (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <DealershipSearch 
-          onDealershipSelect={handleDealershipSelect}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-        />
+      <div>
+        <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsTrigger value="agreements" onClick={() => handleTabChange('agreements')}>Agreements</TabsTrigger>
+          <TabsTrigger value="claims" onClick={() => handleTabChange('claims')}>Claims</TabsTrigger>
+          <TabsTrigger value="dealers" onClick={() => handleTabChange('dealers')}>Dealers</TabsTrigger>
+        </TabsList>
       </div>
+      <DealershipSearch 
+        onDealershipSelect={handleDealershipSelect}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+      />
     </div>
   );
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b py-2 px-4 flex items-center justify-between shadow-sm">
-        <h1 className="text-xl font-bold">Dealer Management System</h1>
-        <AuthNav />
-      </header>
       <main>
         <Dashboard 
           onDateRangeChange={handleDateRangeChange}

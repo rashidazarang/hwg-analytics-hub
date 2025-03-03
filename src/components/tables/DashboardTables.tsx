@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealersTable from '@/components/tables/DealersTable';
@@ -24,13 +24,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
 }) => {
   return (
     <div className="space-y-6 mt-6">
-      <Tabs defaultValue={activeTab} className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto mb-4">
-          <TabsTrigger value="agreements">Agreements</TabsTrigger>
-          <TabsTrigger value="claims">Claims</TabsTrigger>
-          <TabsTrigger value="dealers">Dealers</TabsTrigger>
-        </TabsList>
-        
+      <Tabs value={activeTab} className="w-full">
         <TabsContent value="agreements" className="mt-0">
           <AgreementsTable dateRange={dateRange} dealerFilter={dealerFilter} />
         </TabsContent>

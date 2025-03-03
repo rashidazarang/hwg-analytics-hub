@@ -1,14 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { LogOut, LogIn } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { toast } from 'sonner';
+import AccountMenu from './AccountMenu';
 
 const AuthNav = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,28 +38,44 @@ const AuthNav = () => {
     await supabase.auth.signOut();
     toast.success('You have been signed out');
     navigate('/auth');
+    setMenuOpen(false);
+  };
+
+  const toggleMenu = () => {
+    setMenuOpen(!menuOpen);
+  };
+
+  const navigateToAccount = () => {
+    navigate('/account');
+    setMenuOpen(false);
   };
 
   if (loading) {
-    return <Button variant="ghost" disabled>Loading...</Button>;
+    return <Button variant="ghost" size="icon" disabled><span className="sr-only">Loading</span></Button>;
   }
 
   return user ? (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">
-        {user.email}
-      </span>
-      <Button variant="outline" size="sm" onClick={handleSignOut}>
-        <LogOut className="h-4 w-4 mr-2" />
-        Sign Out
+    <div className="relative">
+      <Button 
+        variant="ghost" 
+        size="icon"
+        onClick={toggleMenu}
+        aria-label="Account menu"
+      >
+        {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
+      
+      <AccountMenu 
+        isOpen={menuOpen} 
+        onClose={() => setMenuOpen(false)}
+        onAccountClick={navigateToAccount}
+        onLogoutClick={handleSignOut}
+        email={user.email} 
+      />
     </div>
   ) : (
-    <Button variant="default" size="sm" asChild>
-      <Link to="/auth">
-        <LogIn className="h-4 w-4 mr-2" />
-        Sign In
-      </Link>
+    <Button variant="default" size="sm" onClick={() => navigate('/auth')}>
+      Sign In
     </Button>
   );
 };
