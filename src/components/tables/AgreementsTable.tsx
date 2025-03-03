@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -165,19 +166,17 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const initialFetchDone = useRef<boolean>(false);
 
+  // Debug logging for dealerFilter changes
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
     
-    // Invalidate the query when dealer filter changes to force a refetch
-    if (dealerFilter) {
-      console.log(`🔄 Invalidating agreements-data query with dealer UUID: ${dealerFilter}`);
-      queryClient.invalidateQueries({
-        queryKey: ["agreements-data"],
-        exact: false,
-      });
+    if (dealerFilter && dealerFilter.trim()) {
+      // Force a refetch when the dealer filter changes
+      console.log(`🔄 Forcing refetch of agreements with dealer UUID: ${dealerFilter}`);
+      refetchAgreements();
     }
-  }, [dealerFilter, dealerName, queryClient]);
+  }, [dealerFilter, dealerName]);
 
   useEffect(() => {
     if (searchQuery !== undefined) {
@@ -188,6 +187,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2025-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+    // Include dealerFilter in the query key to ensure React Query refetches when it changes
     return ["agreements-data", from, to, dealerFilter];
   }, [dateRange, dealerFilter]);
   
