@@ -49,52 +49,31 @@ if (dealerFilter && dealerFilter.trim() !== '') {
   console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
   query = query.eq("agreements.DealerUUID", dealerFilter.trim());
 }
-
-// Apply status filters correctly
+// Apply status filters correctly using OR conditions
 if (statusFilters && statusFilters.length > 0) {
   console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
 
-  const filterConditions: string[] = [];
-  for (const status of statusFilters) {
+  // Build conditions – each condition is wrapped in parentheses.
+  const conditions = statusFilters.map(status => {
     if (status === 'OPEN') {
-      // OPEN: ReportedDate is NOT NULL AND Closed is NULL
-      filterConditions.push(`ReportedDate.is.not.null,Closed.is.not.null`);
-      // NOTE: We use Closed.is.not.null here only if you want to force a condition—
-      // however, based on your earlier logic for OPEN, you want Closed to be NULL.
-      // So the correct condition for OPEN should be:
-      // filterConditions.push(`ReportedDate.is.not.null,Closed.is.null`);
-      // I'll assume you want the original OPEN logic:
-      filterConditions.push(`ReportedDate.is.not.null,Closed.is.null`);
+      // OPEN: ReportedDate is NOT NULL AND Closed IS NULL
+      return `(ReportedDate.not.is.null,Closed.is.null)`;
     } else if (status === 'CLOSED') {
       // CLOSED: Closed is NOT NULL
-      filterConditions.push(`Closed.is.not.null`);
+      return `(Closed.not.is.null)`;
     } else if (status === 'PENDING') {
       // PENDING: ReportedDate is NULL
-      filterConditions.push(`ReportedDate.is.null`);
+      return `(ReportedDate.is.null)`;
     }
-  }
+    return null;
+  }).filter(Boolean) as string[];
 
-  if (filterConditions.length > 0) {
-    if (filterConditions.length === 1) {
-      // For a single condition, apply each filter separately (this creates an AND condition)
-      const parts = filterConditions[0].split(',');
-      for (const part of parts) {
-        const tokens = part.split('.');
-        if (tokens.length === 4 && tokens[1] === 'is' && tokens[2] === 'not' && tokens[3] === 'null') {
-          // e.g. "ReportedDate.is.not.null"
-          query = query.not(tokens[0], 'is', null);
-        } else if (tokens.length === 3 && tokens[1] === 'is' && tokens[2] === 'null') {
-          // e.g. "Closed.is.null"
-          query = query.is(tokens[0], null);
-        }
-      }
-    } else {
-      // For multiple status filters, combine them using OR
-      query = query.or(filterConditions.join(','));
-    }
+  if (conditions.length > 0) {
+    // Combine conditions with commas to represent an OR between them.
+    const orFilter = conditions.join(',');
+    query = query.or(orFilter);
   }
 }
-
 
   // Apply pagination last
   query = query.range(startRow, endRow);
