@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/types';
@@ -35,25 +36,34 @@ const DealersTable: React.FC<DealersTableProps> = ({
         
         let query = supabase.from('dealers').select('*');
 
-        // Apply status filters if provided
-        if (statusFilters && statusFilters.length > 0) {
-          console.log('🔍 DealersTable: Applying status filters:', statusFilters);
-          
-          // Use more straightforward filtering approach
-          if (statusFilters.length === 1) {
-            // For a single status filter
-            query = query.eq('status', statusFilters[0]);
-          } else if (statusFilters.length > 1) {
-            // Fixed: Use a simple string array to avoid TypeScript recursion issues
-            const statusValues: string[] = statusFilters.map(s => s);
-            query = query.in('status', statusValues);
-          }
-        }
-        
         // Apply dealer filter if provided
         if (dealerFilter && dealerFilter.trim()) {
           console.log(`🔍 DealersTable: Filtering by dealership ID: "${dealerFilter}"`);
           query = query.eq('DealerUUID', dealerFilter);
+        }
+        
+        // Apply status filters if provided - completely revised approach
+        if (statusFilters && statusFilters.length > 0) {
+          console.log('🔍 DealersTable: Applying status filters:', statusFilters);
+          
+          // For a single status, use eq()
+          if (statusFilters.length === 1) {
+            query = query.eq('status', statusFilters[0]);
+          } else {
+            // For multiple statuses, build a filter expression manually
+            let filterExpression = '';
+            
+            for (let i = 0; i < statusFilters.length; i++) {
+              if (i > 0) {
+                filterExpression += ',';
+              }
+              filterExpression += `status.eq.${statusFilters[i]}`;
+            }
+            
+            if (filterExpression) {
+              query = query.or(filterExpression);
+            }
+          }
         }
         
         const { data: supabaseDealers, error } = await query;
