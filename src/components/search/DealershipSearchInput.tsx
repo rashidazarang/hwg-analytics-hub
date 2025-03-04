@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -37,7 +38,7 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
           >
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.3-4.3"></path>
@@ -54,7 +55,7 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
         onFocus={onFocus} 
         autoComplete="off" 
         disabled={isLoading} 
-        className="pl-10 pr-10 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
+        className="pl-10 pr-10 w-full h-8 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
       />
 
       {/* Right side: Show "X" when a dealership is selected, show search icon otherwise */}
@@ -89,7 +90,7 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="h-4 w-4 text-muted-foreground hover:text-primary"
+              className="h-3.5 w-3.5 text-muted-foreground hover:text-primary"
             >
               <circle cx="11" cy="11" r="8"></circle>
               <path d="m21 21-4.3-4.3"></path>
