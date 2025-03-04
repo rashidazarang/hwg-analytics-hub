@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -55,16 +56,16 @@ const DataTable = <T extends Record<string, any>>({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
 
-useEffect(() => {
-  setFilteredData(data);
-  applySearchFilter(searchTerm); // Ensure filtering logic runs even on data updates
-}, [data, searchTerm]);
+  useEffect(() => {
+    setFilteredData(data);
+    applySearchFilter(searchTerm); // Ensure filtering logic runs even on data updates
+  }, [data, searchTerm]);
 
   const applySearchFilter = (term: string) => {
-if (!term || term.trim() === '') {
-  setFilteredData(data); // Reset filtered data when search is cleared
-  return; // Stop further execution
-}
+    if (!term || term.trim() === '') {
+      setFilteredData(data); // Reset filtered data when search is cleared
+      return; // Stop further execution
+    }
 
     const normalizedTerm = term.toLowerCase().trim();
     
@@ -125,16 +126,14 @@ if (!term || term.trim() === '') {
       })
     : filteredData;
 
-  const displayData = paginationProps 
-    ? sortedData.slice(
-        0, 
-        paginationProps.pageSize
-      )
-    : sortedData;
+  // Display all data if pagination is not provided
+  // If pagination is provided, we're already getting paginated data from the server
+  const displayData = sortedData;
 
+  // Calculate total pages based on pagination props (for the pagination UI)
   const totalPages = paginationProps 
-    ? Math.ceil(sortedData.length / paginationProps.pageSize)
-    : Math.ceil(sortedData.length / 10);
+    ? Math.ceil(paginationProps.totalItems / paginationProps.pageSize)
+    : 1;
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -187,6 +186,7 @@ if (!term || term.trim() === '') {
                   <SelectItem value="10">10 per page</SelectItem>
                   <SelectItem value="20">20 per page</SelectItem>
                   <SelectItem value="50">50 per page</SelectItem>
+                  <SelectItem value="100">100 per page</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -249,7 +249,7 @@ if (!term || term.trim() === '') {
         </div>
       </div>
       
-      {paginationProps && totalPages > 1 && (
+      {paginationProps && totalPages > 0 && (
         <div className="flex justify-between items-center mt-4">
           <div className="text-sm text-muted-foreground">
             {loading ? (
@@ -267,6 +267,8 @@ if (!term || term.trim() === '') {
               size="icon"
               onClick={() => paginationProps.onPageChange(1)}
               disabled={paginationProps.currentPage === 1 || loading}
+              aria-label="First page"
+              title="First page"
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
@@ -275,6 +277,8 @@ if (!term || term.trim() === '') {
               size="icon"
               onClick={() => paginationProps.onPageChange(paginationProps.currentPage - 1)}
               disabled={paginationProps.currentPage === 1 || loading}
+              aria-label="Previous page"
+              title="Previous page"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -288,6 +292,8 @@ if (!term || term.trim() === '') {
               size="icon"
               onClick={() => paginationProps.onPageChange(paginationProps.currentPage + 1)}
               disabled={paginationProps.currentPage === totalPages || loading}
+              aria-label="Next page"
+              title="Next page"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -296,6 +302,8 @@ if (!term || term.trim() === '') {
               size="icon"
               onClick={() => paginationProps.onPageChange(totalPages)}
               disabled={paginationProps.currentPage === totalPages || loading}
+              aria-label="Last page"
+              title="Last page"
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>
