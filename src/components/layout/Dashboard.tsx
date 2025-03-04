@@ -36,7 +36,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         {/* Subnavbar - if provided */}
         {subnavbar && (
-          <div className="border-t border-border/30 bg-muted/20">
+          <div className="border-t border-border/30 bg-gray-100/10">
             <div className="dashboard-container py-2">
               {subnavbar}
             </div>
