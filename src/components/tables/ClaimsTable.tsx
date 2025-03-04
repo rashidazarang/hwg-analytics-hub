@@ -10,20 +10,21 @@ import { supabase } from '@/integrations/supabase/client';
 async function fetchClaims(dealerFilter?: string) {
   let query = supabase
     .from("claims")
-    .select(`
-      id,
-      ClaimID, 
-      AgreementID, 
-      ReportedDate, 
-      IncurredDate, 
-      Closed,
-      Deductible,
-      Complaint,
-      Cause,
-      Correction,
-      agreements(DealerUUID, dealers(PayeeID, Payee))
-    `)
-    .order("ModifiedDate", { ascending: false });
+ .select(`
+  id,
+  ClaimID, 
+  AgreementID, 
+  ReportedDate, 
+  IncurredDate, 
+  Closed,
+  Deductible,
+  Complaint,
+  Cause,
+  Correction,
+  LastModified,
+  agreements(DealerUUID, dealers(PayeeID, Payee))
+`)
+    .order("LastModified", { ascending: false });
 
   if (dealerFilter) {
     query = query.eq("agreements.DealerUUID", dealerFilter);
