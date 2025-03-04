@@ -149,7 +149,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     return chartData;
   }, [claims]);
 
-  // Update animated data when processed data changes
+  // Update animated data when processed data changes with smooth animation
   useEffect(() => {
     if (processedData.length > 0) {
       setAnimatedData(processedData);
@@ -173,6 +173,21 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     OPEN: '#10b981',   // Green 
     PENDING: '#f59e0b', // Yellow/Amber
     CLOSED: '#ef4444'   // Red
+  };
+
+  // Custom tooltip component to match the PieChart tooltip
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-2 rounded-md shadow-md border border-gray-100">
+          <p className="text-sm font-medium">
+            {data.status}: {data.count.toLocaleString()} Claims
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
   if (isError) {
@@ -216,11 +231,10 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
             <BarChart
               layout="vertical"
               data={animatedData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
-              barSize={28}
-              barGap={4}
-              animationDuration={750}
-              animationEasing="ease-in-out"
+              margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
+              barSize={20} // Slimmer bars
+              barGap={8} // Reduced spacing
+              barCategoryGap={12} // Add gap between bar categories
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
               <YAxis
@@ -238,15 +252,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 domain={[0, 'auto']}
               />
               <Tooltip
-                formatter={(value: number, name: string, props: { payload: { percentage: number } }) => {
-                  return [`${value} Claims (${props.payload.percentage}%)`, ''];
-                }}
-                contentStyle={{
-                  borderRadius: '6px',
-                  border: '1px solid rgba(0,0,0,0.1)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  fontSize: '14px',
-                }}
+                content={<CustomTooltip />}
+                cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
               />
               <Legend 
                 layout="horizontal" 
@@ -263,6 +270,9 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 radius={[4, 4, 4, 4]}
                 onMouseEnter={onBarEnter}
                 onMouseLeave={onBarLeave}
+                animationBegin={0}
+                animationDuration={800}
+                animationEasing="ease-in-out"
               >
                 {animatedData.map((entry, index) => (
                   <Cell 
