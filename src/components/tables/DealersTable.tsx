@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
-import { Dealer } from '@/lib/mockData';
+import { Dealer } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle } from 'lucide-react';
@@ -40,25 +39,13 @@ const DealersTable: React.FC<DealersTableProps> = ({
         if (statusFilters && statusFilters.length > 0) {
           console.log('🔍 DealersTable: Applying status filters:', statusFilters);
           
-          // Create OR conditions for multiple statuses
-          const filterConditions = statusFilters.map(status => {
-            if (status === 'ACTIVE') {
-              return `status.eq.ACTIVE`;
-            } else if (status === 'INACTIVE') {
-              return `status.eq.INACTIVE`;
-            } else {
-              return `status.eq.${status}`;
-            }
-          });
-          
-          if (filterConditions.length === 1) {
-            // For a single status, apply directly
-            const condition = filterConditions[0];
-            const [field, operatorValue] = condition.split('.eq.');
-            query = query.eq(field, operatorValue);
-          } else if (filterConditions.length > 1) {
-            // For multiple statuses, use OR
-            query = query.or(filterConditions.join(','));
+          // Fixed: Instead of creating complex OR conditions, handle this more simply
+          if (statusFilters.length === 1) {
+            // For a single status filter
+            query = query.eq('status', statusFilters[0]);
+          } else if (statusFilters.length > 1) {
+            // For multiple statuses, use in() instead of building a complex OR string
+            query = query.in('status', statusFilters);
           }
         }
         
@@ -135,8 +122,8 @@ const DealersTable: React.FC<DealersTableProps> = ({
     // Apply status filters (for client-side filtering when needed)
     if (statusFilters && statusFilters.length > 0) {
       filtered = filtered.filter(dealer => {
-        // Get dealer status, default to active if not specified
-        const dealerStatus = dealer.status || 'ACTIVE';
+        // Fixed: Use optional chaining and provide default
+        const dealerStatus = dealer?.status || 'ACTIVE';
         // Check if any of the selected statuses match this dealer
         return statusFilters.some(status => status === dealerStatus);
       });
