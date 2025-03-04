@@ -9,36 +9,57 @@ import { supabase } from '@/integrations/supabase/client';
 
 async function fetchClaims(dealerFilter?: string) {
   console.log('🔍 ClaimsTable: Fetching claims with dealerFilter:', dealerFilter);
-  
-  let query = supabase
-    .from("claims")
-    .select(`
-      id,
-      ClaimID, 
-      AgreementID, 
-      ReportedDate, 
-      Closed,
-      Cause,
-      Correction,
-      LastModified,
-      agreements(DealerUUID, dealers(Payee))
-    `)
-    .order("LastModified", { ascending: false });
 
-  if (dealerFilter && dealerFilter.trim() !== '') {
-    console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
-    query = query.eq("agreements.DealerUUID", dealerFilter);
+  const PAGE_SIZE = 1000;
+  let allData: any[] = [];
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    let query = supabase
+      .from("claims")
+      .select(`
+        id,
+        ClaimID, 
+        AgreementID, 
+        ReportedDate, 
+        Closed,
+        Cause,
+        Correction,
+        LastModified,
+        agreements(DealerUUID, dealers(Payee))
+      `)
+      .order("LastModified", { ascending: false })
+      .range(from, to);
+
+    if (dealerFilter && dealerFilter.trim() !== '') {
+      console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
+      query = query.eq("agreements.DealerUUID", dealerFilter);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error("❌ Error fetching claims:", error);
+      return allData;
+    }
+
+    if (!data || data.length === 0) {
+      hasMore = false;
+    } else {
+      allData = [...allData, ...data];
+      if (data.length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    }
   }
 
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("❌ Error fetching claims:", error);
-    return [];
-  }
-
-  console.log(`✅ ClaimsTable: Fetched ${data?.length || 0} claims`);
-  return data || [];
+  console.log(`✅ ClaimsTable: Fetched a total of ${allData.length} claims`);
+  return allData;
 }
 
 // Function to check if a claim is denied based on Correction field
