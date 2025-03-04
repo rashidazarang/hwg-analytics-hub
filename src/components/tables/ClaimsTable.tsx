@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -139,7 +138,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         loading={isFetching}
         searchConfig={{
           enabled: true,
-          placeholder: "Search by Claim ID, Agreement ID, or Dealership...",
+          placeholder: "Search by ID",
           onChange: handleSearch,
           searchKeys: ["ClaimID", "AgreementID", "agreements.dealers.Payee"]
         }}
