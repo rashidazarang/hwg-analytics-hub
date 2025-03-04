@@ -35,6 +35,12 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   dealerName = '',
   searchQuery = ''
 }) => {
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [agreements, setAgreements] = useState<Agreement[]>([]);
+  const [totalAgreements, setTotalAgreements] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
   const columns: ColumnDef<Agreement>[] = [
     {
       accessorKey: 'AgreementID',
@@ -108,14 +114,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     },
   ];
 
-  // Move these variable declarations before they're used
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [agreements, setAgreements] = useState<Agreement[]>([]);
-  const [totalAgreements, setTotalAgreements] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load agreements from Supabase with pagination, filtering, and sorting
   const { data, isLoading: queryLoading, error } = useQuery({
     queryKey: ['agreements', dealerFilter, searchQuery, dateRange, pageIndex, pageSize],
     queryFn: async () => {
@@ -123,7 +121,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       setIsLoading(true);
 
       try {
-        // Get date range for filtering
         const fromDate = dateRange.from?.toISOString() || "2020-01-01T00:00:00.000Z";
         const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
 
@@ -134,16 +131,14 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
           .gte('EffectiveDate', fromDate)
           .lte('EffectiveDate', toDate);
 
-        // Apply dealer UUID filter if it exists
         if (dealerFilter) {
           console.log(`Filtering agreements by dealer UUID: ${dealerFilter}`);
           query = query.eq('DealerUUID', dealerFilter);
         }
 
-        // Apply search query filter if it exists
         if (searchQuery) {
           console.log(`Filtering agreements by search query: ${searchQuery}`);
-          query = query.ilike('AgreementID', `%${searchQuery}%`); // Adjust column name as needed
+          query = query.ilike('AgreementID', `%${searchQuery}%`);
         }
 
         const { data, error, count } = await query;
@@ -153,8 +148,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
           throw error;
         }
 
-        // Safely cast data to the Agreement type array
-        const typedData: Agreement[] = data as Agreement[];
+        const typedData = data as Agreement[];
 
         setAgreements(typedData || []);
         setTotalAgreements(count || 0);
@@ -169,7 +163,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         setIsLoading(false);
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -178,12 +172,18 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    onPageIndexChange: setPageIndex,
-    onPageSizeChange: setPageSize,
-    state: {
-      pageIndex: pageIndex,
-      pageSize: pageSize,
+    onPaginationChange: state => {
+      setPageIndex(state.pageIndex);
+      setPageSize(state.pageSize);
     },
+    state: {
+      pagination: {
+        pageIndex,
+        pageSize,
+      }
+    },
+    manualPagination: true,
+    pageCount: Math.ceil(totalAgreements / pageSize),
   });
 
   return (

@@ -4,6 +4,7 @@ import { Tabs, TabsContent } from '@/components/ui/tabs';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import ClaimsTable from '@/components/tables/ClaimsTable';
 import { DateRange } from '@/lib/dateUtils';
+import { Claim } from '@/lib/types';
 
 type DashboardTablesProps = {
   activeTab: string;
@@ -11,7 +12,7 @@ type DashboardTablesProps = {
   dealerFilter: string; // This should be the UUID of the dealer
   dealerName?: string;  // This is the display name of the dealer
   searchQuery?: string;
-  claims: any[]; // Use a more generic type to avoid type conflicts
+  claims: Claim[]; // Using our defined Claim type
   dealers: any[]; // Use a more generic type to avoid type conflicts
 };
 

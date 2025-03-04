@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/formatters';
-import { Claim } from '@/lib/mockData';
+import { Claim } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 type ClaimsTableProps = {
@@ -29,7 +30,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   dealerName = '',
   searchQuery = '',
 }) => {
-  // Move these variable declarations before they're used
+  // Define state variables first
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -73,14 +74,14 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         }
         
         return {
-          claims: data || [],
+          claims: data as Claim[] || [],
           totalCount: count || 0
         };
       } catch (error) {
         console.error('Error fetching claims:', error);
         // Fallback to mock data
         return {
-          claims: initialClaims.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
+          claims: initialClaims.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize) as Claim[],
           totalCount: initialClaims.length
         };
       } finally {
