@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -160,8 +161,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
 
   const COLORS = {
     OPEN: '#10b981',
-    PENDING: '#f59e0b',
-    CLOSED: '#ef4444'
+    PENDING: '#ef4444',
+    CLOSED: '#f59e0b'
   };
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -237,70 +238,78 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
             No claims data available for the selected filters.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart
-              layout="vertical"
-              data={animatedData}
-              margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
-              barSize={20}
-              barGap={8}
-              barCategoryGap={12}
-            >
-              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
-              <YAxis
-                dataKey="status"
-                type="category"
-                axisLine={false}
-                tickLine={false}
-                hide={true}
-              />
-              <XAxis
-                type="number"
-                axisLine={false}
-                tickLine={false}
-                tick={false}
-                domain={[0, 'auto']}
-              />
-              <Tooltip
-                content={<CustomTooltip />}
-                cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
-              />
-              <Legend 
-                content={<CustomizedLegend />}
-                layout="horizontal" 
-                verticalAlign="bottom" 
-                align="center"
-                height={36}
-                iconSize={10}
-                iconType="circle"
-                formatter={renderLegendText}
-              />
-              <Bar 
-                dataKey="count" 
-                radius={[4, 4, 4, 4]}
-                onMouseEnter={onBarEnter}
-                onMouseLeave={onBarLeave}
-                animationBegin={0}
-                animationDuration={800}
-                animationEasing="ease-in-out"
+          <div className="flex flex-col h-[240px]">
+            <ResponsiveContainer width="100%" height="85%">
+              <BarChart
+                layout="vertical"
+                data={animatedData}
+                margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
+                barSize={20}
+                barGap={8}
+                barCategoryGap={12}
               >
-                {animatedData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={COLORS[entry.status as keyof typeof COLORS]} 
-                    stroke={activeIndex === index ? 'rgba(255,255,255,0.3)' : 'transparent'}
-                    strokeWidth={activeIndex === index ? 2 : 0}
-                    className="transition-all duration-200"
-                    style={{
-                      filter: activeIndex === index ? 'drop-shadow(0 0 4px rgba(0,0,0,0.2))' : 'none',
-                      opacity: activeIndex === null || activeIndex === index ? 1 : 0.7,
-                      transition: 'opacity 0.3s, filter 0.3s',
-                    }}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
+                <YAxis
+                  dataKey="status"
+                  type="category"
+                  axisLine={false}
+                  tickLine={false}
+                  hide={true}
+                />
+                <XAxis
+                  type="number"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={false}
+                  domain={[0, 'auto']}
+                />
+                <Tooltip
+                  content={<CustomTooltip />}
+                  cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
+                />
+                <Bar 
+                  dataKey="count" 
+                  radius={[4, 4, 4, 4]}
+                  onMouseEnter={onBarEnter}
+                  onMouseLeave={onBarLeave}
+                  animationBegin={0}
+                  animationDuration={800}
+                  animationEasing="ease-in-out"
+                >
+                  {animatedData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[entry.status as keyof typeof COLORS]} 
+                      stroke={activeIndex === index ? 'rgba(255,255,255,0.3)' : 'transparent'}
+                      strokeWidth={activeIndex === index ? 2 : 0}
+                      className="transition-all duration-200"
+                      style={{
+                        filter: activeIndex === index ? 'drop-shadow(0 0 4px rgba(0,0,0,0.2))' : 'none',
+                        opacity: activeIndex === null || activeIndex === index ? 1 : 0.7,
+                        transition: 'opacity 0.3s, filter 0.3s',
+                      }}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            
+            {/* Static legend that matches the AgreementChart */}
+            <div className="flex justify-center items-center gap-4 mt-2 mb-1">
+              <div className="flex items-center">
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }}></span>
+                <span className="text-xs font-medium">OPEN</span>
+              </div>
+              <div className="flex items-center">
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#ef4444' }}></span>
+                <span className="text-xs font-medium">PENDING</span>
+              </div>
+              <div className="flex items-center">
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#f59e0b' }}></span>
+                <span className="text-xs font-medium">CLOSED</span>
+              </div>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
