@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -164,20 +163,6 @@ const DataTable = <T extends Record<string, any>>({
     <div className={className}>
       {searchConfig.enabled && (
         <div className="mb-4">
-          <div className="text-sm text-muted-foreground mb-2">
-            {loading ? (
-              <span>Loading records...</span>
-            ) : (
-              <span>
-                {paginationProps?.totalItems === 0 ? (
-                  "No entries to display"
-                ) : (
-                  `Displaying ${Math.min((paginationProps?.pageSize || 0) * ((paginationProps?.currentPage || 1) - 1) + 1, paginationProps?.totalItems || 0)} of ${paginationProps?.totalItems || 0} ${paginationProps?.totalItems === 1 ? 'entry' : 'entries'}`
-                )}
-              </span>
-            )}
-          </div>
-
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <div className="relative">
