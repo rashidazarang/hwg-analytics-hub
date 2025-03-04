@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -30,12 +31,12 @@ export const STATUS_LABELS: Record<string, string> = {
   'Unknown': 'UNKNOWN'
 };
 
-// Define status colors with updated values
+// Define status colors
 export const STATUS_COLORS: Record<string, string> = {
-  'ACTIVE': '#10b981', // Green
-  'PENDING': '#1EAEDB', // Blue
+  'ACTIVE': '#3b82f6', // Blue 
+  'PENDING': '#10b981', // Green
   'CANCELLED': '#ef4444', // Red
-  'OTHER': '#9b87f5', // Purple
+  'OTHER': '#6366f1', // Purple for "Other" category
 };
 
 // Define status grouping

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -160,8 +161,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
 
   const COLORS = {
     OPEN: '#10b981',
-    PENDING: '#f59e0b',
-    CLOSED: '#ef4444'
+    PENDING: '#ef4444',
+    CLOSED: '#f59e0b'
   };
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -293,17 +294,18 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
               </BarChart>
             </ResponsiveContainer>
             
+            {/* Static legend that matches the AgreementChart */}
             <div className="flex justify-center items-center gap-4 mt-2 mb-1">
               <div className="flex items-center">
                 <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }}></span>
                 <span className="text-xs font-medium">OPEN</span>
               </div>
               <div className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#f59e0b' }}></span>
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#ef4444' }}></span>
                 <span className="text-xs font-medium">PENDING</span>
               </div>
               <div className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#ef4444' }}></span>
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#f59e0b' }}></span>
                 <span className="text-xs font-medium">CLOSED</span>
               </div>
             </div>
