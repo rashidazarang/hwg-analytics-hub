@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -71,11 +72,21 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             .not('Correction', 'ilike', '%rejected%')
             .gte('ReportedDate', dateRange.from.toISOString())
             .lte('ReportedDate', dateRange.to.toISOString())
-            .eq(dealerFilter ? 'agreements.DealerUUID' : 'id', dealerFilter || 'id')
         ]);
 
+        // Additional filtering for claims by dealer if needed
+        let openClaimsCount = openClaimsQuery.count || 0;
+        
+        // If dealer filter is active, filter the open claims client-side
+        if (dealerFilter && openClaimsQuery.data) {
+          const filteredClaims = openClaimsQuery.data.filter(
+            claim => claim.agreements?.DealerUUID === dealerFilter
+          );
+          openClaimsCount = filteredClaims.length;
+        }
+
         console.log('[KPI_DATA] Open claims query result:', {
-          count: openClaimsQuery.count,
+          count: openClaimsCount,
           dealerFilter,
           error: openClaimsQuery.error
         });
@@ -96,7 +107,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           pendingContracts: pendingContractsCount.count || 0,
           newlyActiveContracts: newlyActiveContractsCount.count || 0,
           cancelledContracts: cancelledContractsCount.count || 0,
-          openClaims: openClaimsQuery.count || 0,
+          openClaims: openClaimsCount,
           activeAgreements: newlyActiveContractsCount.count || 0,
           totalAgreements: (await supabase.from('agreements').select('*', { count: 'exact' })).count || 0,
           totalClaims: (await supabase.from('claims').select('*', { count: 'exact' })).count || 0,
