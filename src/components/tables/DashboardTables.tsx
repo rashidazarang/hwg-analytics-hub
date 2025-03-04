@@ -24,7 +24,8 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
   useEffect(() => {
     console.log("🔄 DashboardTables - Current dealer UUID filter:", dealerFilter);
     console.log("🔄 DashboardTables - Current dealer name:", dealerName);
-  }, [dealerFilter, dealerName]);
+    console.log("🔄 DashboardTables - Current date range:", dateRange);
+  }, [dealerFilter, dealerName, dateRange]);
 
   return (
     <div className="space-y-6 mt-6">
@@ -42,6 +43,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
           <ClaimsTable 
             dealerFilter={dealerFilter} // Passing UUID here
             searchQuery={searchQuery}
+            dateRange={dateRange}       // Now passing dateRange to ClaimsTable
           />
         </TabsContent>
       </Tabs>

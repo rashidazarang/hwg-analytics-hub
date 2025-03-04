@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -6,17 +5,20 @@ import { Claim } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { DateRange } from '@/lib/dateUtils';
 
 const PAGE_SIZE = 100; // Set consistent page size for claims
 
 async function fetchClaims(
   page: number = 1, 
   pageSize: number = PAGE_SIZE,
-  dealerFilter?: string
+  dealerFilter?: string,
+  dateRange?: DateRange
 ) {
   console.log('🔍 ClaimsTable: Fetching claims with parameters:');
   console.log(`🔍 Page: ${page}, Page size: ${pageSize}`);
   console.log('🔍 Dealer filter:', dealerFilter);
+  console.log('🔍 Date range:', dateRange ? `${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}` : 'Not provided');
   
   const startRow = (page - 1) * pageSize;
   const endRow = startRow + pageSize - 1;
@@ -36,6 +38,15 @@ async function fetchClaims(
     `, { count: 'exact' })
     .order("LastModified", { ascending: false });
 
+  // Apply date range filter if provided
+  if (dateRange) {
+    console.log(`🔍 ClaimsTable: Filtering by date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
+    query = query
+      .gte("ReportedDate", dateRange.from.toISOString())
+      .lte("ReportedDate", dateRange.to.toISOString());
+  }
+
+  // Apply dealer filter if provided
   if (dealerFilter && dealerFilter.trim() !== '') {
     console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
     query = query.eq("agreements.DealerUUID", dealerFilter);
@@ -73,10 +84,16 @@ const getClaimStatus = (claim: any): string => {
   return 'OPEN'; // Default to OPEN if it has a ReportedDate but is not yet Closed
 };
 
-const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQuery?: string; }> = ({
+const ClaimsTable: React.FC<{ 
+  className?: string; 
+  dealerFilter?: string; 
+  searchQuery?: string;
+  dateRange?: DateRange; 
+}> = ({
   className = '',
   dealerFilter = '',
-  searchQuery = ''
+  searchQuery = '',
+  dateRange
 }) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
@@ -86,15 +103,15 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
   useEffect(() => {
     setPage(1);
     setLocalSearchQuery(searchQuery);
-  }, [dealerFilter, searchQuery]);
+  }, [dealerFilter, searchQuery, dateRange]);
 
   const { 
     data: claimsData, 
     isFetching,
     refetch
   } = useQuery({
-    queryKey: ['claims', page, pageSize, dealerFilter],
-    queryFn: () => fetchClaims(page, pageSize, dealerFilter),
+    queryKey: ['claims', page, pageSize, dealerFilter, dateRange?.from, dateRange?.to],
+    queryFn: () => fetchClaims(page, pageSize, dealerFilter, dateRange),
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
   });
   
@@ -200,7 +217,7 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
       <div className="text-sm text-muted-foreground mb-2">
         {isFetching 
           ? "Loading claims..."
-          : `Displaying ${filteredClaims.length} of ${totalCount} claims${dealerFilter ? " (filtered by dealership)" : ""}`
+          : `Displaying ${filteredClaims.length} of ${totalCount} claims${dealerFilter ? " (filtered by dealership)" : ""}${dateRange ? " (filtered by date range)" : ""}`
         }
       </div>
       
