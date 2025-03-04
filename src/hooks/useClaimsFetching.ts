@@ -29,6 +29,7 @@ export async function fetchClaims(
       Closed,
       Cause,
       Correction,
+      Deductible,
       LastModified,
       agreements!inner(DealerUUID, dealers(Payee))
     `, { count: 'exact' })

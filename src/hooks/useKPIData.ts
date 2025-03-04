@@ -79,6 +79,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             ReportedDate,
             Closed,
             Correction,
+            Deductible,
             LastModified,
             agreements(DealerUUID)
           `)
@@ -128,9 +129,9 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           denied: deniedClaimsCount
         });
 
-        // Calculate claim amounts from Deductible
+        // Calculate claim amounts from Deductible (if available)
         const totalClaimsAmount = filteredClaims.reduce((sum, claim) => 
-          sum + (claim.Deductible || 0), 0);
+          sum + (Number(claim.Deductible) || 0), 0);
         
         const averageClaimAmount = filteredClaims.length > 0 
           ? totalClaimsAmount / filteredClaims.length 

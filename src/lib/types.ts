@@ -37,9 +37,9 @@ export interface Claim {
   id: string;
   ClaimID: string;
   AgreementID: string;
-  ReportedDate?: Date | null;
-  IncurredDate?: Date | null;
-  Closed?: Date | null;
+  ReportedDate?: Date | string | null;
+  IncurredDate?: Date | string | null;
+  Closed?: Date | string | null;
   Complaint?: string | null;
   Cause?: string | null;
   Correction?: string | null;
@@ -47,6 +47,7 @@ export interface Claim {
   CauseID?: string | null;
   CorrectionID?: string | null;
   ComplaintID?: string | null;
+  LastModified?: string | null;
   agreements?: {
     DealerUUID?: string | null;
     dealers?: {
