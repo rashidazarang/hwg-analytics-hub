@@ -260,21 +260,7 @@ const DataTable = <T extends Record<string, any>>({
       </div>
       
       {paginationProps && totalPages > 0 && (
-        <div className="flex justify-between items-center mt-4">
-          <div className="text-sm text-muted-foreground">
-            {loading ? (
-              <span>Loading records...</span>
-            ) : (
-              <span>
-                {paginationProps.totalItems === 0 ? (
-                  "No entries to display"
-                ) : (
-                  `Showing ${pageStart} to ${pageEnd} of ${paginationProps.totalItems} entries`
-                )}
-              </span>
-            )}
-          </div>
-          
+        <div className="flex justify-center items-center mt-4">
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
