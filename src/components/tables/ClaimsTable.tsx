@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -48,10 +47,9 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
 
-  // Apply client-side search filtering only (status filtering is now done on server)
+  // Apply client-side search filtering only
   const filteredClaims = useMemo(() => {
     console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', localSearchQuery);
-    console.log('🔍 ClaimsTable: Filtering claims by status:', statusFilters);
     
     let filtered = claims;
     
@@ -65,7 +63,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     }
     
     return filtered;
-  }, [claims, localSearchQuery, statusFilters]);
+  }, [claims, localSearchQuery]);
 
   // Define table columns
   const columns: Column<any>[] = [
