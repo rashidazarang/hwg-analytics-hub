@@ -1,5 +1,5 @@
 import React from 'react';
-import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,7 @@ const SUPABASE_PAGE_SIZE = 500;
 
 async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string): Promise<Agreement[]> {
   console.log("🔍 Fetching agreements with parameters:");
-  console.log("���� Date Range:", dateRange);
+  console.log("🔍 Date Range:", dateRange);
   console.log("🔍 Dealer UUID filter:", dealerFilter);
 
   let allAgreements: Agreement[] = [];
@@ -321,25 +321,14 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       key: 'DealerID',
       title: 'Dealer ID',
       searchable: true,
-      render: (row) => {
-        const dealerUUID = row.DealerUUID?.trim().toLowerCase();
-        const dealerID = row.DealerID?.trim().toLowerCase();
-    
-        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
-        if (!dealer && dealerID) {
-          dealer = dealerMap[dealerID];
-        }
-    
-        return dealer ? dealer.PayeeID : 'No Dealer Assigned';
-      },
+      render: (row) => row.DealerID || 'No Dealer Assigned',
     },
     {
       key: 'effectiveDate',
       title: 'Effective Date',
       sortable: false,
       render: (row) => {
-        const date = row.EffectiveDate || row.startDate;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
+        return row.EffectiveDate ? format(new Date(row.EffectiveDate), 'MMM d, yyyy') : 'N/A';
       },
     },
     {
@@ -347,8 +336,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       title: 'Expire Date',
       sortable: false,
       render: (row) => {
-        const date = row.ExpireDate || row.endDate;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
+        return row.ExpireDate ? format(new Date(row.ExpireDate), 'MMM d, yyyy') : 'N/A';
       },
     },
     {
@@ -356,7 +344,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       title: 'Status',
       sortable: false,
       render: (row) => {
-        const status = row.AgreementStatus || row.status || 'UNKNOWN';
+        const status = row.AgreementStatus || 'UNKNOWN';
         const variants = {
           ACTIVE: 'bg-success/15 text-success border-success/20',
           EXPIRED: 'bg-muted/30 text-muted-foreground border-muted/40',
@@ -378,8 +366,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       title: 'Total Value',
       sortable: false,
       render: (row) => {
-        const value = row.Total || row.value || 0;
-        return `$${(value).toLocaleString()}`;
+        return `$${(row.Total || 0).toLocaleString()}`;
       },
     },
     {
@@ -387,8 +374,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       title: 'Dealer Cost',
       sortable: false,
       render: (row) => {
-        const cost = row.DealerCost || row.dealerCost || 0;
-        return `$${(cost).toLocaleString()}`;
+        return `$${(row.DealerCost || 0).toLocaleString()}`;
       },
     },
     {
@@ -396,8 +382,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       title: 'Reserve Amount',
       sortable: false,
       render: (row) => {
-        const reserve = row.ReserveAmount || row.reserveAmount || 0;
-        return `$${(reserve).toLocaleString()}`;
+        return `$${(row.ReserveAmount || 0).toLocaleString()}`;
       },
     },
   ];

@@ -17,66 +17,61 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
       const toDate = dateRange.to?.toISOString() || new Date().toISOString();
       
       try {
-        // Base query filters for all queries
-        const dateFilter = {
-          fromDate,
-          toDate,
-        };
-        
-        // Prepare all queries first to avoid deep nesting
-        let pendingContractsQuery = supabase
-          .from('agreements')
-          .select('count', { count: 'exact' })
-          .eq('AgreementStatus', 'PENDING')
-          .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate);
-          
-        let newlyActiveContractsQuery = supabase
-          .from('agreements')
-          .select('count', { count: 'exact' })
-          .eq('AgreementStatus', 'ACTIVE')
-          .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate);
-          
-        let cancelledContractsQuery = supabase
-          .from('agreements')
-          .select('count', { count: 'exact' })
-          .eq('AgreementStatus', 'CANCELLED')
-          .gte('StatusChangeDate', fromDate)
-          .lte('StatusChangeDate', toDate);
-          
-        let openClaimsQuery = supabase
-          .from('claims')
-          .select('count', { count: 'exact' })
-          .eq('ClaimStatus', 'OPEN')
-          .gte('ReportedDate', fromDate)
-          .lte('ReportedDate', toDate);
-        
-        // Apply dealer filter if provided
-        if (dealerFilter) {
-          pendingContractsQuery = pendingContractsQuery.eq('DealerUUID', dealerFilter);
-          newlyActiveContractsQuery = newlyActiveContractsQuery.eq('DealerUUID', dealerFilter);
-          cancelledContractsQuery = cancelledContractsQuery.eq('DealerUUID', dealerFilter);
-          openClaimsQuery = openClaimsQuery.eq('DealerUUID', dealerFilter);
-        }
-        
-        // Execute baseline queries for compatibility
-        const totalAgreementsQuery = supabase.from('agreements').select('count', { count: 'exact' });
-        const activeDealersQuery = supabase.from('dealers').select('count', { count: 'exact' }).eq('IsActive', true);
-        const totalDealersQuery = supabase.from('dealers').select('count', { count: 'exact' });
-        
-        // Execute all queries in parallel, but handle them individually to avoid type recursion
-        const pendingContractsResult = await pendingContractsQuery;
-        const newlyActiveContractsResult = await newlyActiveContractsQuery;
-        const cancelledContractsResult = await cancelledContractsQuery;
-        const openClaimsResult = await openClaimsQuery;
-        const totalAgreementsResult = await totalAgreementsQuery;
-        const activeDealersResult = await activeDealersQuery;
-        const totalDealersResult = await totalDealersQuery;
-        
-        // For claim amounts, make a separate query since we need the data, not just a count
-        const claimsDataResult = await supabase.from('claims').select('Deductible');
-        
+        // Prepare base query options
+        const baseQueryOpts = {
+          count: 'exact',
+          head: true
+        } as const;
+
+        // Execute all queries in parallel with proper type handling
+        const [
+          pendingContractsResult,
+          newlyActiveContractsResult,
+          cancelledContractsResult,
+          openClaimsResult,
+          totalAgreementsResult,
+          activeDealersResult,
+          totalDealersResult,
+          claimsDataResult
+        ] = await Promise.all([
+          supabase
+            .from('agreements')
+            .select('*', baseQueryOpts)
+            .eq('AgreementStatus', 'PENDING')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate)
+            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+
+          supabase
+            .from('agreements')
+            .select('*', baseQueryOpts)
+            .eq('AgreementStatus', 'ACTIVE')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate)
+            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+
+          supabase
+            .from('agreements')
+            .select('*', baseQueryOpts)
+            .eq('AgreementStatus', 'CANCELLED')
+            .gte('StatusChangeDate', fromDate)
+            .lte('StatusChangeDate', toDate)
+            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+
+          supabase
+            .from('claims')
+            .select('*', baseQueryOpts)
+            .eq('ClaimStatus', 'OPEN')
+            .gte('ReportedDate', fromDate)
+            .lte('ReportedDate', toDate)
+            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+
+          supabase.from('agreements').select('*', baseQueryOpts),
+          supabase.from('dealers').select('*', baseQueryOpts).eq('IsActive', true),
+          supabase.from('dealers').select('*', baseQueryOpts),
+          supabase.from('claims').select('Deductible')
+        ]);
+
         // Extract counts and handle errors
         const pendingContracts = pendingContractsResult.count || 0;
         const newlyActiveContracts = newlyActiveContractsResult.count || 0;
@@ -86,22 +81,19 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         const activeDealers = activeDealersResult.count || 0;
         const totalDealers = totalDealersResult.count || 0;
         
-        // Calculate claim amounts (using Deductible as a fallback for ClaimAmount)
+        // Calculate claim amounts from Deductible
         const claimsData = claimsDataResult.data || [];
         const totalClaimsAmount = claimsData.reduce((sum, claim) => 
           sum + (claim.Deductible || 0), 0);
         const averageClaimAmount = claimsData.length > 0 
           ? totalClaimsAmount / claimsData.length 
           : 0;
-        
-        // Return complete KPI data
+
         return {
-          // New KPIs
           pendingContracts,
           newlyActiveContracts,
           cancelledContracts,
           openClaims,
-          // Maintain backward compatibility
           activeAgreements: newlyActiveContracts,
           totalAgreements,
           totalClaims: openClaims,
@@ -112,7 +104,6 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         };
       } catch (error) {
         console.error("Error fetching KPI data:", error);
-        // Return fallback data
         return {
           pendingContracts: 0,
           newlyActiveContracts: 0,
@@ -128,7 +119,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         };
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 }
