@@ -11,19 +11,52 @@ type ClaimChartProps = {
 
 // Function to group claims by status
 const getClaimsByStatus = (claims: Claim[], dateRange: DateRange) => {
-  const filteredClaims = claims.filter(claim => {
-    const reportedDate = new Date(claim.ReportedDate);
-    return reportedDate >= new Date(dateRange.start) && reportedDate <= new Date(dateRange.end);
-  });
+  if (!claims || claims.length === 0) return [];
 
   return [
-    { status: 'OPEN', count: filteredClaims.filter(claim => !claim.Closed && !claim.Cause).length },
-    { status: 'PENDING', count: filteredClaims.filter(claim => claim.ReportedDate && !claim.Closed && !claim.Cause).length },
-    { status: 'DENIED', count: filteredClaims.filter(claim => claim.Cause && !claim.Closed).length },
+    {
+      status: 'OPEN',
+      count: claims.filter(claim => !claim?.Closed && !claim?.Cause).length,
+    },
+    {
+      status: 'PENDING',
+      count: claims.filter(claim => claim?.ReportedDate && !claim?.Closed && !claim?.Cause).length,
+    },
+    {
+      status: 'DENIED',
+      count: claims.filter(claim => claim?.Cause && !claim?.Closed).length,
+    },
   ];
 };
 
-const ClaimChart: React.FC<ClaimChartProps> = ({ claims, dateRange }) => {
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+const fetchClaimsData = async (dateRange: DateRange, dealerFilter?: string) => {
+  let query = supabase
+    .from("claims")
+    .select("id, ReportedDate, Closed, Cause, agreements(DealerUUID, dealers(Payee))");
+
+  if (dealerFilter) {
+    query = query.eq("agreements.dealers.DealerUUID", dealerFilter);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("❌ Error fetching claims:", error);
+    return [];
+  }
+
+  return data;
+};
+
+const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) => {
+  const { data: claims = [], isFetching } = useQuery({
+    queryKey: ['claims-data', dateRange, dealershipFilter],
+    queryFn: () => fetchClaimsData(dateRange, dealershipFilter),
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+  });
+
   const data = getClaimsByStatus(claims, dateRange);
 
   return (
@@ -81,9 +114,9 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ claims, dateRange }) => {
             />
 
             {/* Horizontal Bars for Each Claim Status */}
-            <Bar dataKey="count" fill="#3b82f6" name="OPEN" barSize={20} radius={[4, 4, 4, 4]} />
-            <Bar dataKey="count" fill="#f59e0b" name="PENDING" barSize={20} radius={[4, 4, 4, 4]} />
-            <Bar dataKey="count" fill="#ef4444" name="DENIED" barSize={20} radius={[4, 4, 4, 4]} />
+<Bar dataKey="OPEN" fill="#3b82f6" name="OPEN" barSize={20} radius={[4, 4, 4, 4]} />
+<Bar dataKey="PENDING" fill="#f59e0b" name="PENDING" barSize={20} radius={[4, 4, 4, 4]} />
+<Bar dataKey="DENIED" fill="#ef4444" name="DENIED" barSize={20} radius={[4, 4, 4, 4]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>
