@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { 
@@ -56,20 +55,24 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   }, [dateRange]);
 
   return (
-    <div className="flex items-center bg-white rounded-md px-2 py-1.5 border border-border/30 shadow-sm">
+    <div className="flex items-center space-x-2 bg-muted/30 rounded-md px-2 py-1.5 border border-border/10">
+      <div className="inline-flex items-center space-x-1 text-muted-foreground">
+        <Calendar className="h-4 w-4" />
+        <span className="text-sm font-medium hidden sm:inline">Date Range:</span>
+      </div>
+      
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button 
             variant="ghost" 
-            className="px-2 py-1 h-8 hover:bg-accent date-range-selector flex items-center"
+            className="pl-2 pr-1 py-1 h-8 hover:bg-accent date-range-selector"
             onClick={() => setIsOpen(true)}
           >
-            <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
             <span className="text-sm font-medium">{formatDateRange(dateRange)}</span>
             <ChevronDown className="ml-1 h-3 w-3 text-muted-foreground" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
+        <PopoverContent className="w-auto p-0" align="start">
           <div className="p-3 border-b">
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Select Range</div>

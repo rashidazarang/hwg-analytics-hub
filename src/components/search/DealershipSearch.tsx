@@ -215,7 +215,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
           value={searchTerm}
           onChange={handleSearchChange}
           onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))}
-          className="pl-9 pr-9 w-full h-9 text-sm bg-white border-border/30 search-field rounded-md shadow-sm"
+          className="pl-9 pr-9 w-full h-9 text-sm bg-muted/30 border-border/30 search-field rounded-md"
           autoComplete="off"
           disabled={isLoadingDealerships}
         />

@@ -43,11 +43,20 @@ const fetchClaimsForCharts = async (dealerFilter?: string): Promise<Claim[]> => 
   }));
 };
 
-const SubNavbar = ({ isDesktopHeader = false, isMobileMenu = false, isDesktopSubnavbar = false }) => {
-  const [activeTab, setActiveTab] = useState<string>('agreements');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+const Index = () => {
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(new Date().getFullYear(), 0, 1),
+    to: new Date()
+  });
   const [dealershipUUID, setDealershipUUID] = useState<string>('');
   const [dealershipName, setDealershipName] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>('agreements');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const handleDateRangeChange = (range: DateRange) => {
+    console.log("📅 Date range changed in Index:", range);
+    setDateRange(range);
+  };
 
   const handleTabChange = (value: string) => {
     console.log("📑 Tab changed to:", value);
@@ -55,82 +64,32 @@ const SubNavbar = ({ isDesktopHeader = false, isMobileMenu = false, isDesktopSub
   };
 
   const handleDealershipSelect = (dealershipId: string, dealershipName: string) => {
-    console.log(`🏢 Selected dealership: ID='${dealershipId}', Name='${dealershipName}'`);
+    console.log(`🏢 Selected dealership in Index: ID='${dealershipId}', Name='${dealershipName}'`);
     setDealershipUUID(dealershipId);
     setDealershipName(dealershipName);
   };
 
-  if (typeof window !== 'undefined') {
-    (window as any).dashboardActiveTab = activeTab;
-    (window as any).dashboardDealershipUUID = dealershipUUID;
-    (window as any).dashboardDealershipName = dealershipName;
-    (window as any).dashboardSearchTerm = searchTerm;
-  }
-
-  if (isDesktopHeader) {
-    return (
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="h-8 p-0.5 bg-muted/70">
-          <TabsTrigger 
-            value="agreements" 
-            className="text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            Agreements
-          </TabsTrigger>
-          <TabsTrigger 
-            value="claims" 
-            className="text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            Claims
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-    );
-  }
-
-  if (isMobileMenu) {
-    return (
-      <div className="space-y-4">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="h-9 w-full p-0.5 bg-muted/70">
+  const subnavbarContent = (
+    <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+      <div>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="h-9 p-0.5 bg-muted/70">
             <TabsTrigger 
               value="agreements" 
-              className="flex-1 text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Agreements
             </TabsTrigger>
             <TabsTrigger 
               value="claims" 
-              className="flex-1 text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Claims
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="w-full">
-          <DealershipSearch 
-            onDealershipSelect={handleDealershipSelect}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-          />
-        </div>
       </div>
-    );
-  }
-
-  if (isDesktopSubnavbar) {
-    return (
-      <DealershipSearch 
-        onDealershipSelect={handleDealershipSelect}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-      />
-    );
-  }
-
-  return (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
-      <div className="w-full md:w-auto">
+      <div className="w-full sm:w-auto min-w-0 sm:min-w-[240px]">
         <DealershipSearch 
           onDealershipSelect={handleDealershipSelect}
           searchTerm={searchTerm}
@@ -139,52 +98,6 @@ const SubNavbar = ({ isDesktopHeader = false, isMobileMenu = false, isDesktopSub
       </div>
     </div>
   );
-};
-
-const Index = () => {
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(new Date().getFullYear(), 0, 1),
-    to: new Date()
-  });
-
-  const [activeTab, setActiveTab] = useState<string>('agreements');
-  const [dealershipUUID, setDealershipUUID] = useState<string>('');
-  const [dealershipName, setDealershipName] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-
-  useEffect(() => {
-    const syncInterval = setInterval(() => {
-      if (typeof window !== 'undefined') {
-        const globalActiveTab = (window as any).dashboardActiveTab;
-        const globalDealershipUUID = (window as any).dashboardDealershipUUID;
-        const globalDealershipName = (window as any).dashboardDealershipName;
-        const globalSearchTerm = (window as any).dashboardSearchTerm;
-        
-        if (globalActiveTab && globalActiveTab !== activeTab) {
-          setActiveTab(globalActiveTab);
-        }
-        
-        if (globalDealershipUUID !== undefined && globalDealershipUUID !== dealershipUUID) {
-          setDealershipUUID(globalDealershipUUID || '');
-        }
-        
-        if (globalDealershipName !== undefined && globalDealershipName !== dealershipName) {
-          setDealershipName(globalDealershipName || '');
-        }
-        
-        if (globalSearchTerm !== undefined && globalSearchTerm !== searchTerm) {
-          setSearchTerm(globalSearchTerm || '');
-        }
-      }
-    }, 100);
-    
-    return () => clearInterval(syncInterval);
-  }, [activeTab, dealershipUUID, dealershipName, searchTerm]);
-
-  const handleDateRangeChange = (range: DateRange) => {
-    console.log("📅 Date range changed in Index:", range);
-    setDateRange(range);
-  };
 
   const { data: claims = [] } = useQuery({
     queryKey: ['claims-for-charts', dealershipUUID],
@@ -203,7 +116,7 @@ const Index = () => {
         <Dashboard 
           onDateRangeChange={handleDateRangeChange}
           kpiSection={<KPISection dateRange={dateRange} dealerFilter={dealershipUUID} />}
-          subnavbar={<SubNavbar />}
+          subnavbar={subnavbarContent}
         >
           <DashboardCharts 
             dateRange={dateRange}
