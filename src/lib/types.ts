@@ -29,26 +29,29 @@ export interface Agreement {
   StatusChangeDate?: string | null;
   dealers?: {
     Payee?: string | null;
+    PayeeID?: string | null;
   } | null;
 }
 
 export interface Claim {
   id: string;
   ClaimID: string;
-  ClaimStatus: string;
-  ClaimAmount: number;
-  VIN: string;
-  DealerName: string;
   AgreementID: string;
-  Cause?: string | null;
-  CauseID?: string | null;
+  ReportedDate?: string | null;
+  IncurredDate?: string | null;
   Closed?: string | null;
   Complaint?: string | null;
-  ComplaintID?: string | null;
+  Cause?: string | null;
   Correction?: string | null;
-  CorrectionID?: string | null;
   Deductible?: number | null;
-  IncurredDate?: string | null;
-  LastModified?: string | null;
-  ReportedDate?: string | null;
+  CauseID?: string | null;
+  CorrectionID?: string | null;
+  ComplaintID?: string | null;
+  agreements?: {
+    DealerUUID?: string | null;
+    dealers?: {
+      PayeeID?: string | null;
+      Payee?: string | null;
+    } | null;
+  } | null;
 }

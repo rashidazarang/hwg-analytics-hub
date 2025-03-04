@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import ClaimsTable from '@/components/tables/ClaimsTable';
-import { Claim, Dealer } from '@/lib/mockData';
 import { DateRange } from '@/lib/dateUtils';
 
 type DashboardTablesProps = {
@@ -12,8 +11,6 @@ type DashboardTablesProps = {
   dealerFilter: string; // This should be the UUID of the dealer
   dealerName?: string;  // This is the display name of the dealer
   searchQuery?: string;
-  claims: Claim[];
-  dealers: Dealer[];
 };
 
 const DashboardTables: React.FC<DashboardTablesProps> = ({
@@ -22,8 +19,6 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
   dealerFilter, // This is the dealer UUID
   dealerName = '',
   searchQuery = '',
-  claims,
-  dealers
 }) => {
   // Debug logging to verify props are correctly passed down
   useEffect(() => {
@@ -45,9 +40,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
         
         <TabsContent value="claims" className="mt-0">
           <ClaimsTable 
-            claims={claims} 
             dealerFilter={dealerFilter} // Passing UUID here
-            dealerName={dealerName}
             searchQuery={searchQuery}
           />
         </TabsContent>
