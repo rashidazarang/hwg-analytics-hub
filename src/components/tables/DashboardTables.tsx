@@ -3,8 +3,11 @@ import React, { useEffect } from 'react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import ClaimsTable from '@/components/tables/ClaimsTable';
-import { Claim, Dealer } from '@/lib/mockData';
 import { DateRange } from '@/lib/dateUtils';
+import { Claim } from '@/lib/types';
+
+// Using the dealer type from mockData to maintain compatibility
+import { Dealer } from '@/lib/mockData';
 
 type DashboardTablesProps = {
   activeTab: string;
@@ -12,8 +15,8 @@ type DashboardTablesProps = {
   dealerFilter: string; // This should be the UUID of the dealer
   dealerName?: string;  // This is the display name of the dealer
   searchQuery?: string;
-  claims: Claim[];
-  dealers: Dealer[];
+  claims?: any[]; // Changed to any[] to avoid type conflicts with mockData
+  dealers?: any[]; // Changed to any[] to avoid type conflicts with mockData
 };
 
 const DashboardTables: React.FC<DashboardTablesProps> = ({
@@ -45,7 +48,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
         
         <TabsContent value="claims" className="mt-0">
           <ClaimsTable 
-            claims={claims} 
+            dateRange={dateRange}
             dealerFilter={dealerFilter} // Passing UUID here
             dealerName={dealerName}
             searchQuery={searchQuery}

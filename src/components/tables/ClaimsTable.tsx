@@ -1,34 +1,14 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DateRange } from '@/lib/dateUtils';
-import { DateFieldType, PaginationState } from '@/lib/types';
+import { DateFieldType, PaginationState, Claim } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { PaginationControls } from '@/components/ui/pagination-controls';
-
-type Claim = {
-  id: string;
-  ClaimID?: string;
-  AgreementID?: string;
-  ReportedDate?: DateFieldType;
-  IncurredDate?: DateFieldType;
-  Deductible?: number;
-  Cause?: string;
-  Complaint?: string;
-  Closed?: DateFieldType;
-  agreementId?: string;
-  dateReported?: DateFieldType;
-  dateIncurred?: DateFieldType;
-  deductible?: number;
-  dealerName?: string;
-  amount?: number;
-  status?: string;
-};
 
 async function fetchClaimsCount(
   dateRange?: DateRange,
@@ -256,7 +236,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Fetch paginated claims
+  // Fetch paginated claims - removed keepPreviousData which is not supported in React Query v5+
   const { 
     data: claims = [],
     isFetching: isFetchingClaims,
@@ -265,7 +245,8 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     queryKey: claimsQueryKey,
     queryFn: () => fetchPaginatedClaims(page, pageSize, dateRange, dealerFilter, searchTerm),
     staleTime: 1000 * 60 * 5, // 5 minutes
-    keepPreviousData: true,
+    // For React Query v5, placeholderData can be used to show previous data while loading
+    placeholderData: claims
   });
 
   // Update pagination information when relevant values change

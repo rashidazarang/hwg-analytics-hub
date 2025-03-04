@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -11,32 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { TableRowSkeleton } from '@/components/ui/skeleton';
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { PaginationState } from '@/lib/types';
-
-type Agreement = {
-  id: string;
-  AgreementID: string;
-  HolderFirstName?: string | null;
-  HolderLastName?: string | null;
-  dealerName?: string;
-  DealerUUID?: string | null;
-  DealerID?: string | null;
-  EffectiveDate?: string | null;
-  ExpireDate?: string | null;
-  AgreementStatus?: string | null;
-  Total?: number | null;
-  DealerCost?: number | null;
-  ReserveAmount?: number | null;
-  status?: string;
-  startDate?: string;
-  endDate?: string;
-  value?: number;
-  dealerCost?: number;
-  reserveAmount?: number;
-  dealers?: {
-    Payee?: string | null;
-  } | null;
-};
+import { PaginationState, Agreement } from '@/lib/types';
 
 type Dealer = {
   DealerUUID: string;
@@ -288,7 +262,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     queryKey: agreementsQueryKey,
     queryFn: () => fetchPaginatedAgreements(page, pageSize, dateRange, dealerFilter, searchTerm),
     staleTime: 1000 * 60 * 5, // 5 minutes
-    keepPreviousData: true,
+    placeholderData: agreements
   });
 
   // Fetch dealers for mapping
