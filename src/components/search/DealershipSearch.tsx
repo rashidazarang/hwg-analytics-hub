@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, X, Store } from 'lucide-react';
+import { Search, X, Store, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -175,42 +176,48 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
 
   return <div ref={searchContainerRef} className="relative w-full">
       <form onSubmit={handleSearchSubmit} className="relative">
-        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-          <Search className="h-4 w-4 text-primary/70" />
-        </div>
-        
-        <Input 
-          type="text" 
-          placeholder={isLoadingDealerships ? "Loading dealerships..." : "Search dealerships..."} 
-          value={searchTerm} 
-          onChange={handleSearchChange} 
-          onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))} 
-          autoComplete="off" 
-          disabled={isLoadingDealerships} 
-          className="pl-9 pr-9 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm mx-0 my-0 bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
-        />
-        
-        {searchTerm && <button 
-          type="button" 
-          onClick={handleClearSearch} 
-          className="absolute right-0 top-0 h-full flex items-center justify-center w-10 cursor-pointer" 
-          aria-label="Clear search" 
-          title="Clear search"
-        >
-          <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/70 transition-colors duration-200">
-            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            {isLoadingDealerships ? (
+              <Loader2 className="h-4 w-4 text-primary/70 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4 text-primary/70" />
+            )}
           </div>
-        </button>}
-        
-        <Button type="submit" variant="ghost" size="sm" className="absolute right-8 inset-y-0 px-2 opacity-0" disabled={isLoadingDealerships}>
-          <Search className="h-4 w-4" />
-        </Button>
+          
+          <Input 
+            type="text" 
+            placeholder={isLoadingDealerships ? "Loading dealerships..." : "Search dealerships..."} 
+            value={searchTerm} 
+            onChange={handleSearchChange} 
+            onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))} 
+            autoComplete="off" 
+            disabled={isLoadingDealerships} 
+            className="pl-9 pr-9 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm mx-0 my-0 bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
+          />
+          
+          {searchTerm && <button 
+            type="button" 
+            onClick={handleClearSearch} 
+            className="absolute right-0 top-0 h-full flex items-center justify-center w-10 cursor-pointer" 
+            aria-label="Clear search" 
+            title="Clear search"
+          >
+            <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/70 transition-colors duration-200">
+              <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+            </div>
+          </button>}
+          
+          <Button type="submit" variant="ghost" size="sm" className="absolute right-8 inset-y-0 px-2 opacity-0" disabled={isLoadingDealerships}>
+            <Search className="h-4 w-4" />
+          </Button>
+        </div>
         
         {showSuggestions && (
           <div className="absolute mt-1 w-full rounded-md bg-white shadow-lg border border-border/20 z-10 max-h-60 overflow-auto animate-fade-in">
             {isLoadingDealerships ? (
               <div className="px-4 py-3 text-sm text-muted-foreground flex items-center justify-center">
-                <div className="mr-2 animate-spin h-4 w-4 border-2 border-primary/50 border-t-transparent rounded-full"></div>
+                <Loader2 className="mr-2 animate-spin h-4 w-4 text-primary/50" />
                 Loading dealerships...
               </div>
             ) : filteredDealerships.length > 0 ? (
