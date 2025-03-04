@@ -33,10 +33,10 @@ export const STATUS_LABELS: Record<string, string> = {
 
 // Define status colors
 export const STATUS_COLORS: Record<string, string> = {
-  'ACTIVE': '#10b981', // Blue 
-  'PENDING': '#f59e0b', // Green
-  'CANCELLED': '#ef4444', // Red
-  'OTHER': '#3b82f6', // Purple for "Other" category
+  'ACTIVE': '#00B179', // Green
+  'PENDING': '#0079EE', // Blue
+  'CANCELLED': '#FC912A', // Yellow
+  'OTHER': '#F6383F', // Red
 };
 
 // Define status grouping
