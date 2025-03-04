@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, X, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type DealershipSearchInputProps = {
@@ -26,7 +26,22 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
         {isLoading ? (
           <Loader2 className="h-4 w-4 text-primary/70 animate-spin" />
         ) : (
-          <Search className="h-4 w-4 text-primary/70" />
+          // Using provided SVG for search icon
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
         )}
       </div>
 
@@ -64,9 +79,21 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
             aria-label="Search" 
             title="Search"
           >
-            <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-primary/10 transition-colors duration-200">
-              <Search className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
-            </div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4 text-muted-foreground hover:text-primary"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </svg>
           </button>
         )}
       </div>
