@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
@@ -36,10 +35,8 @@ const fetchClaimsForCharts = async (dealerFilter?: string): Promise<Claim[]> => 
     return [];
   }
 
-  // Transform the string dates into Date objects to match the Claim type
   return (data || []).map(claim => ({
     ...claim,
-    // Convert string dates to Date objects
     ReportedDate: claim.ReportedDate ? new Date(claim.ReportedDate) : null,
     IncurredDate: claim.IncurredDate ? new Date(claim.IncurredDate) : null,
     Closed: claim.Closed ? new Date(claim.Closed) : null,
@@ -48,11 +45,11 @@ const fetchClaimsForCharts = async (dealerFilter?: string): Promise<Claim[]> => 
 
 const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(new Date().getFullYear(), 0, 1), // Jan 1st of current year
+    from: new Date(new Date().getFullYear(), 0, 1),
     to: new Date()
   });
-  const [dealershipUUID, setDealershipUUID] = useState<string>(''); // Holds the UUID for Supabase query
-  const [dealershipName, setDealershipName] = useState<string>('');  // Holds the display name for UI only
+  const [dealershipUUID, setDealershipUUID] = useState<string>('');
+  const [dealershipName, setDealershipName] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('agreements');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -68,8 +65,8 @@ const Index = () => {
 
   const handleDealershipSelect = (dealershipId: string, dealershipName: string) => {
     console.log(`🏢 Selected dealership in Index: ID='${dealershipId}', Name='${dealershipName}'`);
-    setDealershipUUID(dealershipId);     // This is the UUID, used for filtering
-    setDealershipName(dealershipName);   // This is just for display purposes
+    setDealershipUUID(dealershipId);
+    setDealershipName(dealershipName);
   };
 
   const subnavbarContent = (
@@ -105,7 +102,7 @@ const Index = () => {
   const { data: claims = [] } = useQuery({
     queryKey: ['claims-for-charts', dealershipUUID],
     queryFn: () => fetchClaimsForCharts(dealershipUUID),
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    staleTime: 1000 * 60 * 10,
   });
 
   useEffect(() => {

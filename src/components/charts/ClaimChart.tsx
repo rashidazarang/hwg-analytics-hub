@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -66,8 +67,9 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
     CLOSED: 0,
   };
 
-  const startDate = new Date(dateRange.start);
-  const endDate = new Date(dateRange.end);
+  // Fix: Use the proper DateRange property names (from and to)
+  const startDate = new Date(dateRange.from);
+  const endDate = new Date(dateRange.to);
 
   claims.forEach((claim) => {
     const reportedDate = claim.ReportedDate ? new Date(claim.ReportedDate) : null;
@@ -101,9 +103,19 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
 
   console.log('📊 Raw Claims Data:', claims);
 
+  // For debugging, attach to window object
+  if (typeof window !== 'undefined') {
+    (window as any).claimsData = claims;
+  }
+
   // Always build an array with OPEN, DENIED, CLOSED
   const data = getClaimsByStatus(claims, dateRange);
   console.log('📊 Data sent to chart:', JSON.stringify(data, null, 2));
+  
+  // For debugging, attach to window object
+  if (typeof window !== 'undefined') {
+    (window as any).claimsChartData = data;
+  }
 
   // 5) Check if all counts are zero => no data scenario
   const totalCount = data.reduce((sum, d) => sum + d.count, 0);
