@@ -1,12 +1,17 @@
+
 import React from 'react';
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
-import DataTable, { Column } from './DataTable';
-import { Badge } from '@/components/ui/badge';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { TableRowSkeleton } from '@/components/ui/skeleton';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+import { PaginationState } from '@/lib/types';
 
 type Agreement = {
   id: string;
@@ -28,6 +33,9 @@ type Agreement = {
   value?: number;
   dealerCost?: number;
   reserveAmount?: number;
+  dealers?: {
+    Payee?: string | null;
+  } | null;
 };
 
 type Dealer = {
@@ -41,44 +49,91 @@ const formatName = (name?: string | null): string => {
   return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-const SUPABASE_PAGE_SIZE = 500;
+// Fetch total count of agreements
+async function fetchAgreementsCount(dateRange?: DateRange, dealerFilter?: string, searchTerm?: string): Promise<number> {
+  try {
+    console.log("📊 Fetching count with parameters:");
+    console.log("📅 Date Range:", dateRange);
+    console.log("🔍 Dealer UUID filter:", dealerFilter);
+    console.log("🔍 Search term:", searchTerm);
 
-async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string): Promise<Agreement[]> {
-  console.log("🔍 Fetching agreements with parameters:");
-  console.log("���� Date Range:", dateRange);
-  console.log("🔍 Dealer UUID filter:", dealerFilter);
-
-  let allAgreements: Agreement[] = [];
-  let page = 1;
-  let hasMore = true;
-
-  while (hasMore) {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    const offset = (page - 1) * SUPABASE_PAGE_SIZE;
+    
+    let query = supabase
+      .from("agreements")
+      .select('id', { count: 'exact', head: true })
+      .gte("EffectiveDate", from)
+      .lte("EffectiveDate", to);
+    
+    // Apply dealer filter if specified
+    if (dealerFilter && dealerFilter.trim()) {
+      query = query.eq("DealerUUID", dealerFilter);
+    }
+    
+    // Apply search filter if specified
+    if (searchTerm && searchTerm.trim()) {
+      query = query.ilike("AgreementID", `%${searchTerm.trim()}%`);
+    }
+    
+    const { count, error } = await query;
+    
+    if (error) {
+      console.error("❌ Error fetching agreements count:", error);
+      toast.error("Failed to count agreements");
+      return 0;
+    }
+    
+    console.log(`✅ Total agreements count: ${count}`);
+    return count || 0;
+  } catch (error) {
+    console.error("❌ Exception fetching agreements count:", error);
+    return 0;
+  }
+}
 
-    console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
+// Fetch paginated agreements
+async function fetchPaginatedAgreements(
+  page: number,
+  pageSize: number,
+  dateRange?: DateRange,
+  dealerFilter?: string,
+  searchTerm?: string
+): Promise<Agreement[]> {
+  try {
+    console.log("🔍 Fetching agreements with parameters:");
+    console.log("📅 Date Range:", dateRange);
+    console.log("🔍 Dealer UUID filter:", dealerFilter);
+    console.log("📄 Page:", page, "Size:", pageSize);
+    console.log("🔍 Search term:", searchTerm);
+
+    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
+    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+    
+    // Calculate start and end indices for pagination
+    const startRow = (page - 1) * pageSize;
+    const endRow = startRow + pageSize - 1;
     
     // Start building the query
-let query = supabase
-  .from("agreements")
-  .select(`
-    id, 
-    AgreementID, 
-    HolderFirstName, 
-    HolderLastName, 
-    DealerUUID, 
-    DealerID, 
-    EffectiveDate, 
-    ExpireDate, 
-    AgreementStatus, 
-    Total, 
-    DealerCost, 
-    ReserveAmount, 
-    dealers(Payee)  -- 👈 Fetch dealer name
-  `)
-  .gte("EffectiveDate", from)
-  .lte("EffectiveDate", to);
+    let query = supabase
+      .from("agreements")
+      .select(`
+        id, 
+        AgreementID, 
+        HolderFirstName, 
+        HolderLastName, 
+        DealerUUID, 
+        DealerID, 
+        EffectiveDate, 
+        ExpireDate, 
+        AgreementStatus, 
+        Total, 
+        DealerCost, 
+        ReserveAmount, 
+        dealers(Payee)
+      `)
+      .gte("EffectiveDate", from)
+      .lte("EffectiveDate", to);
     
     // Add dealer filter if specified
     if (dealerFilter && dealerFilter.trim()) {
@@ -86,41 +141,35 @@ let query = supabase
       query = query.eq("DealerUUID", dealerFilter);
     }
     
+    // Apply search filter if specified
+    if (searchTerm && searchTerm.trim()) {
+      query = query.ilike("AgreementID", `%${searchTerm.trim()}%`);
+    }
+    
     // Execute the query with pagination
     const { data, error } = await query
       .order("EffectiveDate", { ascending: false })
-      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+      .range(startRow, endRow);
 
     if (error) {
       console.error("❌ Supabase Fetch Error:", error);
       toast.error("Failed to load agreements");
-      return allAgreements;
+      return [];
     }
 
-    if (!data || data.length === 0) {
-      console.log(`⚠️ No more agreements found for this query. Total fetched: ${allAgreements.length}`);
-      hasMore = false;
-      break;
-    }
-
-    console.log(`✅ Fetched ${data.length} agreements from page ${page}`);
-    if (data.length > 0) {
-      console.log(`📊 Sample agreement:`, data[0]);
+    console.log(`✅ Fetched ${data?.length || 0} agreements for page ${page}`);
+    if (data && data.length > 0) {
+      console.log(`📊 First agreement:`, data[0]);
     }
     
-    allAgreements = [...allAgreements, ...data];
-
-    if (data && data.length === SUPABASE_PAGE_SIZE) {
-      page++; // Move to the next batch
-    } else {
-      hasMore = false;
-    }
+    return data || [];
+  } catch (error) {
+    console.error("❌ Exception fetching agreements:", error);
+    return [];
   }
-
-  console.log(`✅ Total agreements fetched: ${allAgreements.length}`);
-  return allAgreements;
 }
 
+// Fetch all dealers
 async function fetchDealers(): Promise<Dealer[]> {
   try {
     const PAGE_SIZE = 1000;
@@ -136,7 +185,7 @@ async function fetchDealers(): Promise<Dealer[]> {
 
       if (error) {
         console.error("❌ Supabase Error fetching dealers:", error);
-        return allDealers; // Return what we have so far
+        return allDealers;
       }
 
       if (!data || data.length === 0) {
@@ -146,7 +195,6 @@ async function fetchDealers(): Promise<Dealer[]> {
 
       allDealers = [...allDealers, ...data];
 
-      // If we got fewer than PAGE_SIZE, we're at the last batch
       if (data.length < PAGE_SIZE) {
         hasMore = false;
       } else {
@@ -174,66 +222,76 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   className = '', 
   dateRange, 
   searchQuery = '',
-  dealerFilter = '',  // This is the dealer UUID
-  dealerName = ''     // This is the dealer display name
+  dealerFilter = '',
+  dealerName = ''
 }) => {
-  const queryClient = useQueryClient();
+  // State for pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
-  const initialFetchDone = useRef<boolean>(false);
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+    totalItems: 0,
+    startItem: 1,
+    endItem: 10
+  });
 
-  // Debug logging for dealerFilter changes
+  // Update search term when searchQuery changes
+  useEffect(() => {
+    if (searchQuery !== undefined) {
+      setSearchTerm(searchQuery);
+      // Reset to page 1 when search changes
+      setPage(1);
+    }
+  }, [searchQuery]);
+
+  // Reset to page 1 when dealer filter changes
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
-    
-    // Force reset to page 1 when dealer filter changes
     if (dealerFilter) {
       setPage(1);
     }
   }, [dealerFilter, dealerName]);
 
-  useEffect(() => {
-    if (searchQuery !== undefined) {
-      setSearchTerm(searchQuery);
-    }
-  }, [searchQuery]);
+  // Create query keys for React Query
+  const countQueryKey = useMemo(() => {
+    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
+    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+    return ["agreements-count", from, to, dealerFilter, searchTerm];
+  }, [dateRange, dealerFilter, searchTerm]);
 
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    // Include dealerFilter in the query key to ensure React Query refetches when it changes
-    return ["agreements-data", from, to, dealerFilter];
-  }, [dateRange, dealerFilter]);
-  
+    return ["agreements-paginated", from, to, dealerFilter, searchTerm, page, pageSize];
+  }, [dateRange, dealerFilter, searchTerm, page, pageSize]);
+
+  // Fetch total count for pagination
   const { 
-    data: allAgreements = [], 
-    isFetching: isFetchingAgreements,
-    error: agreementsError,
-    refetch: refetchAgreements
+    data: totalCount = 0,
+    isFetching: isFetchingCount
   } = useQuery({
-    queryKey: agreementsQueryKey,
-    queryFn: async () => {
-      console.log(`🔍 Executing agreements query with dealer UUID filter: "${dealerFilter}"`);
-      const agreements = await fetchAllAgreements(dateRange, dealerFilter);
-      console.log(`🟢 Fetched ${agreements.length} agreements with dealer filter: "${dealerFilter}"`);
-      return agreements;
-    },
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
-    gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
-    refetchOnWindowFocus: false,
+    queryKey: countQueryKey,
+    queryFn: () => fetchAgreementsCount(dateRange, dealerFilter, searchTerm),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  if (agreementsError) {
-    console.error("Failed to load agreements:", agreementsError);
-    return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
-  }
-  
-  const agreements = Array.isArray(allAgreements) ? allAgreements : [];
+  // Fetch paginated agreements
+  const { 
+    data: agreements = [],
+    isFetching: isFetchingAgreements,
+    error: agreementsError
+  } = useQuery({
+    queryKey: agreementsQueryKey,
+    queryFn: () => fetchPaginatedAgreements(page, pageSize, dateRange, dealerFilter, searchTerm),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    keepPreviousData: true,
+  });
 
+  // Fetch dealers for mapping
   const { 
     data: dealers = [],
     isFetching: isFetchingDealers 
@@ -241,10 +299,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     queryKey: ["dealers-data"],
     queryFn: fetchDealers,
     staleTime: 1000 * 60 * 60, // 1 hour
-    gcTime: 1000 * 60 * 60 * 2, // 2 hours
-    refetchOnWindowFocus: false,
   });
   
+  // Create dealer mapping for lookups
   const dealerMap = useMemo(() => {
     if (!dealers || dealers.length === 0) {
       console.warn("⚠️ No dealers found, returning empty map.");
@@ -263,204 +320,183 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   
     return map;
   }, [dealers]);
-  
-const filteredAgreements = useMemo(() => {
-  console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
-  let filtered = agreements;
-  
-  if (searchTerm.trim()) {
-    const term = searchTerm.toLowerCase().trim();
-    filtered = filtered.filter(agreement => {
-      const dealerName = agreement.dealers?.Payee?.toLowerCase() || ""; // 👈 Get dealer name
-      return (
-        (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
-        (dealerName && dealerName.includes(term)) // 👈 Now filters by dealership name
-      );
-    });
-  }
 
-  console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
-  return filtered;
-}, [agreements, searchTerm, dealerFilter]);
-  
+  // Update pagination information when relevant values change
   useEffect(() => {
-    if (filteredAgreements.length > 0) {
-      setTotalCount(filteredAgreements.length);
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const slicedAgreements = filteredAgreements.slice(startIndex, endIndex);
-      console.log(`📋 Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(filteredAgreements.length / pageSize)}`);
-      setDisplayAgreements(slicedAgreements);
-    } else {
-      console.log("⚠️ No agreements to display after filtering.");
-      setDisplayAgreements([]);
-      setTotalCount(0);
-    }
-  }, [filteredAgreements, page, pageSize]);
-
-  const handleSearch = (term: string) => {
-    console.log("🔍 Search term updated:", term);
-    setSearchTerm(term);
-    setPage(1);
-  };
-
-  const columns: Column<Agreement>[] = [
-    {
-      key: 'id',
-      title: 'Agreement ID',
-      sortable: false,
-      searchable: true,
-      render: (row) => row.AgreementID || '',
-    },
-    {
-      key: 'customerName',
-      title: 'Customer Name',
-      sortable: false,
-      searchable: true,
-      render: (row) => {
-        const firstName = formatName(row.HolderFirstName);
-        const lastName = formatName(row.HolderLastName);
-        return firstName || lastName ? `${firstName} ${lastName}`.trim() : 'N/A';
-      },
-    },
-{
-  key: 'dealership',
-  title: 'Dealership',
-  searchable: true,
-  render: (row) => {
-    return row.dealers?.Payee || "Unknown Dealership"; // ✅ Uses fetched dealer name directly
-  },
-},
-    {
-      key: 'DealerID',
-      title: 'Dealer ID',
-      searchable: true,
-      render: (row) => {
-        const dealerUUID = row.DealerUUID?.trim().toLowerCase();
-        const dealerID = row.DealerID?.trim().toLowerCase();
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const startItem = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+    const endItem = Math.min(page * pageSize, totalCount);
     
-        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
-        if (!dealer && dealerID) {
-          dealer = dealerMap[dealerID];
-        }
-    
-        return dealer ? dealer.PayeeID : 'No Dealer Assigned';
-      },
-    },
-    {
-      key: 'effectiveDate',
-      title: 'Effective Date',
-      sortable: false,
-      render: (row) => {
-        const date = row.EffectiveDate || row.startDate;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'expireDate',
-      title: 'Expire Date',
-      sortable: false,
-      render: (row) => {
-        const date = row.ExpireDate || row.endDate;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      sortable: false,
-      render: (row) => {
-        const status = row.AgreementStatus || row.status || 'UNKNOWN';
-        const variants = {
-          ACTIVE: 'bg-success/15 text-success border-success/20',
-          EXPIRED: 'bg-muted/30 text-muted-foreground border-muted/40',
-          CANCELLED: 'bg-destructive/15 text-destructive border-destructive/20',
-          PENDING: 'bg-warning/15 text-warning border-warning/20',
-          TERMINATED: 'bg-destructive/15 text-destructive border-destructive/20',
-          UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40',
-        };
-        
-        return (
-          <Badge color="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
-            {status}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: 'value',
-      title: 'Total Value',
-      sortable: false,
-      render: (row) => {
-        const value = row.Total || row.value || 0;
-        return `$${(value).toLocaleString()}`;
-      },
-    },
-    {
-      key: 'dealerCost',
-      title: 'Dealer Cost',
-      sortable: false,
-      render: (row) => {
-        const cost = row.DealerCost || row.dealerCost || 0;
-        return `$${(cost).toLocaleString()}`;
-      },
-    },
-    {
-      key: 'reserveAmount',
-      title: 'Reserve Amount',
-      sortable: false,
-      render: (row) => {
-        const reserve = row.ReserveAmount || row.reserveAmount || 0;
-        return `$${(reserve).toLocaleString()}`;
-      },
-    },
-  ];
+    setPagination({
+      currentPage: page,
+      totalPages,
+      pageSize,
+      totalItems: totalCount,
+      startItem,
+      endItem
+    });
+  }, [totalCount, page, pageSize]);
 
-  const isFetching = isFetchingAgreements || isFetchingDealers;
-
+  // Handle page change
   const handlePageChange = (newPage: number) => {
     console.log(`Changing to page ${newPage}`);
     setPage(newPage);
   };
 
+  // Handle page size change
   const handlePageSizeChange = useCallback((newPageSize: number) => {
-    if (newPageSize !== pageSize) {
-      setPageSize(newPageSize);
-      setPage(1);
-    }
-  }, [pageSize, setPage]);
+    console.log(`Changing page size to ${newPageSize}`);
+    setPageSize(newPageSize);
+    setPage(1); // Reset to first page when changing page size
+  }, []);
 
-  const currentStatus = isFetching
-    ? "Loading..."
-    : `Displaying ${displayAgreements.length} of ${totalCount} agreements${dealerName ? ` for ${dealerName}` : ''}`;
+  // Handle search input
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setPage(1); // Reset to first page when search changes
+  };
+
+  // Check for errors
+  if (agreementsError) {
+    return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
+  }
+
+  // Loading indicator
+  const isLoading = isFetchingAgreements || isFetchingCount;
 
   return (
-    <>
+    <div className={className}>
+      {/* Search input */}
+      <div className="flex items-center mb-4">
+        <Input
+          className="max-w-sm"
+          placeholder="Search by Agreement ID..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+        />
+      </div>
+
+      {/* Status indicator */}
       <div className="text-sm text-muted-foreground mb-2">
-        {currentStatus}
+        {isLoading ? "Loading..." : 
+          `Displaying ${pagination.startItem} to ${pagination.endItem} of ${pagination.totalItems} agreements${dealerName ? ` for ${dealerName}` : ''}`
+        }
       </div>
       
-      <DataTable
-        data={displayAgreements}
-        columns={columns}
-        rowKey={(row) => row.id || row.AgreementID || ''}
-        className={className}
-        searchConfig={{
-          enabled: true,
-          placeholder: "Search by Agreement ID only...",
-          onChange: handleSearch,
-          searchKeys: ["AgreementID"]
-        }}
-        paginationProps={{
-          currentPage: page,
-          totalItems: totalCount,
-          pageSize: pageSize,
-          onPageChange: handlePageChange,
-          onPageSizeChange: handlePageSizeChange,
-        }}
-        loading={isFetching}
+      {/* Table */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Agreement ID</TableHead>
+              <TableHead>Customer Name</TableHead>
+              <TableHead>Dealership</TableHead>
+              <TableHead>Dealer ID</TableHead>
+              <TableHead>Effective Date</TableHead>
+              <TableHead>Expire Date</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Total Value</TableHead>
+              <TableHead>Dealer Cost</TableHead>
+              <TableHead>Reserve Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: pageSize }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`}>
+                  {Array.from({ length: 10 }).map((_, cellIndex) => (
+                    <TableCell key={`cell-${i}-${cellIndex}`}>
+                      <div className="h-4 bg-muted rounded w-3/4"></div>
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : agreements.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="h-24 text-center">
+                  No agreements found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              // Render actual data
+              agreements.map((agreement) => (
+                <TableRow key={agreement.id || agreement.AgreementID}>
+                  <TableCell>{agreement.AgreementID || ''}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const firstName = formatName(agreement.HolderFirstName);
+                      const lastName = formatName(agreement.HolderLastName);
+                      return firstName || lastName ? `${firstName} ${lastName}`.trim() : 'N/A';
+                    })()}
+                  </TableCell>
+                  <TableCell>{agreement.dealers?.Payee || "Unknown Dealership"}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      const dealerUUID = agreement.DealerUUID?.trim().toLowerCase();
+                      const dealerID = agreement.DealerID?.trim().toLowerCase();
+                  
+                      let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
+                      if (!dealer && dealerID) {
+                        dealer = dealerMap[dealerID];
+                      }
+                  
+                      return dealer ? dealer.PayeeID : 'No Dealer Assigned';
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    {agreement.EffectiveDate ? format(new Date(agreement.EffectiveDate), 'MMM d, yyyy') : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {agreement.ExpireDate ? format(new Date(agreement.ExpireDate), 'MMM d, yyyy') : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const status = agreement.AgreementStatus || agreement.status || 'UNKNOWN';
+                      const variants = {
+                        ACTIVE: 'bg-success/15 text-success border-success/20',
+                        EXPIRED: 'bg-muted/30 text-muted-foreground border-muted/40',
+                        CANCELLED: 'bg-destructive/15 text-destructive border-destructive/20',
+                        PENDING: 'bg-warning/15 text-warning border-warning/20',
+                        TERMINATED: 'bg-destructive/15 text-destructive border-destructive/20',
+                        UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40',
+                      };
+                      
+                      return (
+                        <Badge variant="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
+                          {status}
+                        </Badge>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    ${(agreement.Total || agreement.value || 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    ${(agreement.DealerCost || agreement.dealerCost || 0).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    ${(agreement.ReserveAmount || agreement.reserveAmount || 0).toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination controls */}
+      <PaginationControls
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        pageSize={pagination.pageSize}
+        totalItems={pagination.totalItems}
+        startItem={pagination.startItem}
+        endItem={pagination.endItem}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
       />
-    </>
+    </div>
   );
 };
 
