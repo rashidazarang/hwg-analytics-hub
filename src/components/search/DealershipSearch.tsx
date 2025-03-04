@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, Store, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -193,11 +192,11 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
             onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))} 
             autoComplete="off" 
             disabled={isLoadingDealerships} 
-            className="pl-10 pr-9 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm mx-0 my-0 bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
+            className="pl-10 pr-20 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm mx-0 my-0 bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
           />
           
-          {searchTerm && (
-            <div className="absolute inset-y-0 right-0 flex items-center">
+          <div className="absolute inset-y-0 right-0 flex items-center">
+            {searchTerm && (
               <button 
                 type="button" 
                 onClick={handleClearSearch} 
@@ -209,8 +208,21 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
                   <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                 </div>
               </button>
-            </div>
-          )}
+            )}
+            
+            {!isLoadingDealerships && (
+              <button 
+                type="submit" 
+                className="flex items-center justify-center w-10 h-full cursor-pointer" 
+                aria-label="Search" 
+                title="Search"
+              >
+                <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-primary/10 transition-colors duration-200">
+                  <Search className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                </div>
+              </button>
+            )}
+          </div>
         </div>
         
         {showSuggestions && (
