@@ -84,9 +84,9 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
   // Updated color palette based on requirements
   const pieColors = {
     'ACTIVE': '#10b981', // Green
-    'PENDING': '#f59e0b', // Yellow
+    'PENDING': '#1EAEDB', // Blue
     'CANCELLED': '#ef4444', // Red
-    'OTHER': '#8E9196', // Grey
+    'OTHER': '#9b87f5', // Purple
   };
 
   return (
@@ -134,7 +134,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
           <span className="text-xs font-medium">ACTIVE</span>
         </div>
         <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#f59e0b' }}></span>
+          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#1EAEDB' }}></span>
           <span className="text-xs font-medium">PENDING</span>
         </div>
         <div className="flex items-center">
@@ -142,7 +142,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
           <span className="text-xs font-medium">CANCELLED</span>
         </div>
         <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#8E9196' }}></span>
+          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#9b87f5' }}></span>
           <span className="text-xs font-medium">OTHER</span>
         </div>
       </div>
