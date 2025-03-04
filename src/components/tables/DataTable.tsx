@@ -175,24 +175,6 @@ const DataTable = <T extends Record<string, any>>({
           
           <div className="flex items-center space-x-2">
             {customFilters}
-            
-            {paginationProps && (
-              <Select 
-                value={paginationProps.pageSize.toString()} 
-                onValueChange={(value) => paginationProps.onPageSizeChange(Number(value))}
-              >
-                <SelectTrigger className="w-[110px] h-9">
-                  <SelectValue placeholder="10 per page" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5 per page</SelectItem>
-                  <SelectItem value="10">10 per page</SelectItem>
-                  <SelectItem value="20">20 per page</SelectItem>
-                  <SelectItem value="50">50 per page</SelectItem>
-                  <SelectItem value="100">100 per page</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
           </div>
         </div>
       )}
