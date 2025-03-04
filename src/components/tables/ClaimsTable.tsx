@@ -8,7 +8,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 async function fetchClaims(dealerFilter?: string) {
-  // Modified query to match the actual database schema
   let query = supabase
     .from("claims")
     .select(`
@@ -22,13 +21,7 @@ async function fetchClaims(dealerFilter?: string) {
       Complaint,
       Cause,
       Correction,
-      agreements!inner(
-        DealerUUID, 
-        dealers!inner(
-          PayeeID, 
-          Payee
-        )
-      )
+      agreements(DealerUUID, dealers(PayeeID, Payee))
     `)
     .order("ReportedDate", { ascending: false });
 
@@ -64,10 +57,10 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
     if (searchQuery) {
       const term = searchQuery.toLowerCase();
       filtered = filtered.filter(claim => 
-        claim.ClaimID.toLowerCase().includes(term) || 
-        claim.AgreementID.toLowerCase().includes(term) ||
-        (claim.agreements?.dealers?.Payee && claim.agreements.dealers.Payee.toLowerCase().includes(term))
-      );
+  claim.ClaimID.toLowerCase().includes(term) || 
+  claim.AgreementID.toLowerCase().includes(term) ||
+  claim.agreements?.dealers?.[0]?.Payee?.toLowerCase().includes(term)
+);
     }
 
     return filtered;
@@ -96,18 +89,18 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
       searchable: true,
       render: (row) => row.AgreementID || '',
     },
-    {
-      key: 'dealership',
-      title: 'Dealership',
-      searchable: true,
-      render: (row) => row.agreements?.dealers?.Payee || "Unknown Dealership",
-    },
-    {
-      key: 'DealerID',
-      title: 'Dealer ID',
-      searchable: true,
-      render: (row) => row.agreements?.dealers?.PayeeID || 'No Dealer Assigned',
-    },
+   {
+  key: 'dealership',
+  title: 'Dealership',
+  searchable: true,
+  render: (row) => row.agreements?.dealers?.[0]?.Payee || "Unknown Dealership",
+},
+{
+  key: 'DealerID',
+  title: 'Dealer ID',
+  searchable: true,
+  render: (row) => row.agreements?.dealers?.[0]?.PayeeID || 'No Dealer Assigned',
+},
     {
       key: 'ReportedDate',
       title: 'Date Reported',
@@ -157,13 +150,13 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
     <DataTable
       data={filteredClaims}
       columns={columns}
-      rowKey={(row) => row.ClaimID}
+      rowKey={(row) => row.ClaimID || row.id}
       className={className}
-      searchConfig={{
-        enabled: true,
-        placeholder: "Search by Claim ID, Agreement ID, or Dealership...",
-        searchKeys: ["ClaimID", "AgreementID", "dealers.Payee"]
-      }}
+searchConfig={{
+  enabled: true,
+  placeholder: "Search by Claim ID, Agreement ID, or Dealership...",
+  searchKeys: ["ClaimID", "AgreementID", "agreements.dealers.0.Payee"]
+}}
     />
   );
 };
