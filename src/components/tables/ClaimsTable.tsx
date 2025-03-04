@@ -23,7 +23,7 @@ async function fetchClaims(dealerFilter?: string) {
       Correction,
       agreements(DealerUUID, dealers(PayeeID, Payee))
     `)
-    .order("ReportedDate", { ascending: false });
+    .order("ModifiedDate", { ascending: false });
 
   if (dealerFilter) {
     query = query.eq("agreements.DealerUUID", dealerFilter);
@@ -93,13 +93,13 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
   key: 'dealership',
   title: 'Dealership',
   searchable: true,
-  render: (row) => row.agreements?.dealers?.[0]?.Payee || "Unknown Dealership",
+ render: (row) => row.agreements?.dealers?.Payee || "Unknown Dealership",
 },
 {
   key: 'DealerID',
   title: 'Dealer ID',
   searchable: true,
-  render: (row) => row.agreements?.dealers?.[0]?.PayeeID || 'No Dealer Assigned',
+  render: (row) => row.agreements?.dealers?.PayeeID || 'No Dealer Assigned',
 },
     {
       key: 'ReportedDate',
