@@ -62,7 +62,7 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
       console.log('📊 Dealer filter:', dealerFilter);
       
       try {
-        // Get date range for filtering
+        // Get date range for filtering - ensure consistent format with other components
         const fromDate = dateRange.from?.toISOString() || "2020-01-01T00:00:00.000Z";
         const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
 
@@ -70,7 +70,7 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
         if (dealerFilter) {
           console.log(`📊 Filtering agreements by dealer UUID: ${dealerFilter}`);
           
-          // Direct query for agreements matching this dealer
+          // Direct query for agreements matching this dealer - ensure we're using the same date field as other components
           const { data: filteredAgreements, error } = await supabase
             .from('agreements')
             .select('AgreementStatus')
@@ -102,62 +102,38 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
           return processStatusData(statusCounts);
         }
         
-        // If no dealer filter, use client-side counting with a paginated approach to avoid timeouts
-        // First, get total count
-        const { count, error: countError } = await supabase
+        // If no dealer filter, use a more efficient approach to avoid timeouts
+        // First, get agreements count by status using a direct query
+        const { data: statusCounts, error: statusError } = await supabase
           .from('agreements')
-          .select('*', { count: 'exact', head: true })
+          .select('AgreementStatus, count(*)')
           .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate);
+          .lte('EffectiveDate', toDate)
+          .group('AgreementStatus');
           
-        if (countError) {
-          console.error('❌ Error getting agreement count:', countError);
-          toast.error('Failed to count agreements');
+        if (statusError) {
+          console.error('❌ Error getting agreement status counts:', statusError);
+          toast.error('Failed to count agreements by status');
           return [];
         }
         
-        console.log(`📊 Total agreements in date range: ${count || 0}`);
+        console.log('📊 Agreement status counts:', statusCounts);
         
-        if (!count || count === 0) {
+        if (!statusCounts || statusCounts.length === 0) {
           return [];
         }
         
-        // Fetch in chunks of 1000 to avoid timeouts
-        const chunkSize = 1000;
-        const chunks = Math.ceil((count || 0) / chunkSize);
-        const statusCounts: Record<string, number> = {};
+        // Convert to format needed for processing
+        const statusCountsMap: Record<string, number> = {};
+        statusCounts.forEach(item => {
+          const status = item.AgreementStatus || 'Unknown';
+          statusCountsMap[status] = parseInt(item.count as unknown as string, 10);
+        });
         
-        console.log(`📊 Fetching agreements in ${chunks} chunks of ${chunkSize}`);
-        
-        for (let i = 0; i < chunks; i++) {
-          const from = i * chunkSize;
-          const to = from + chunkSize - 1;
-          
-          console.log(`📊 Fetching chunk ${i+1}/${chunks} (rows ${from}-${to})`);
-          
-          const { data: agreements, error: fetchError } = await supabase
-            .from('agreements')
-            .select('AgreementStatus')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .range(from, to);
-            
-          if (fetchError) {
-            console.error(`❌ Error fetching agreements chunk ${i+1}:`, fetchError);
-            continue; // Continue with other chunks
-          }
-          
-          // Count by status
-          agreements?.forEach(agreement => {
-            const status = agreement.AgreementStatus || 'Unknown';
-            statusCounts[status] = (statusCounts[status] || 0) + 1;
-          });
-        }
-        
-        console.log('📊 Final status counts:', statusCounts);
+        console.log('📊 Processed status counts:', statusCountsMap);
         
         // Process the data with grouping
-        return processStatusData(statusCounts);
+        return processStatusData(statusCountsMap);
       } catch (error) {
         console.error('❌ Error processing agreement status data:', error);
         toast.error('Error processing agreement data');

@@ -24,7 +24,7 @@ const fetchDealerNameByUUID = async (uuid: string): Promise<string> => {
       .from('dealers')
       .select('Payee')
       .eq('DealerUUID', uuid)
-      .single();
+      .maybeSingle();
     
     if (error) {
       console.error('❌ Error fetching dealer name:', error);
@@ -70,9 +70,14 @@ const AgreementChart: React.FC<AgreementChartProps> = ({ dateRange, dealerFilter
   
   const isLoading = isStatusLoading || (dealerFilter && isNameLoading);
 
+  // Find the active agreements count
+  const activeData = statusData.find(item => item.name === 'ACTIVE');
+  const activeCount = activeData?.value || 0;
+
   useEffect(() => {
     console.log('👀 AgreementChart - statusData:', statusData);
-  }, [statusData]);
+    console.log('👀 AgreementChart - activeCount:', activeCount);
+  }, [statusData, activeCount]);
 
   return (
     <Card className="h-full card-hover-effect">

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useMemo, useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -49,20 +48,27 @@ async function fetchAgreements(
     const startRow = (page - 1) * pageSize;
     const endRow = startRow + pageSize - 1;
 
-    // First get the count with a separate query to avoid timeout issues
-    let countQuery = supabase
-      .from("agreements")
-      .select("id", { count: 'exact', head: true })
-      .gte("EffectiveDate", from)
-      .lte("EffectiveDate", to);
+    const buildBaseQuery = (queryBuilder: any) => {
+      let query = queryBuilder
+        .gte("EffectiveDate", from)
+        .lte("EffectiveDate", to);
       
-    if (dealerFilter && dealerFilter.trim()) {
-      countQuery = countQuery.eq("DealerUUID", dealerFilter);
-    }
-    
-    if (statusFilters && statusFilters.length > 0) {
-      countQuery = countQuery.in("AgreementStatus", statusFilters);
-    }
+      if (dealerFilter && dealerFilter.trim()) {
+        query = query.eq("DealerUUID", dealerFilter);
+      }
+      
+      if (statusFilters && statusFilters.length > 0) {
+        query = query.in("AgreementStatus", statusFilters);
+      }
+      
+      return query;
+    };
+
+    const countQuery = buildBaseQuery(
+      supabase
+        .from("agreements")
+        .select("id", { count: 'exact', head: true })
+    );
     
     const { count: totalCount, error: countError } = await countQuery;
     
@@ -72,43 +78,29 @@ async function fetchAgreements(
       return { data: [], count: 0 };
     }
     
-    // Now get the actual data
-    let query = supabase
-      .from("agreements")
-      .select(`
-        id, 
-        AgreementID, 
-        HolderFirstName, 
-        HolderLastName, 
-        DealerUUID, 
-        DealerID, 
-        EffectiveDate, 
-        ExpireDate, 
-        AgreementStatus, 
-        Total, 
-        DealerCost, 
-        ReserveAmount,
-        StatusChangeDate,
-        dealers(Payee)
-      `)
-      .gte("EffectiveDate", from)
-      .lte("EffectiveDate", to)
-      .order("EffectiveDate", { ascending: false });
+    const dataQuery = buildBaseQuery(
+      supabase
+        .from("agreements")
+        .select(`
+          id, 
+          AgreementID, 
+          HolderFirstName, 
+          HolderLastName, 
+          DealerUUID, 
+          DealerID, 
+          EffectiveDate, 
+          ExpireDate, 
+          AgreementStatus, 
+          Total, 
+          DealerCost, 
+          ReserveAmount,
+          StatusChangeDate,
+          dealers(Payee)
+        `)
+        .order("EffectiveDate", { ascending: false })
+    );
     
-    if (dealerFilter && dealerFilter.trim()) {
-      console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
-      query = query.eq("DealerUUID", dealerFilter);
-    }
-    
-    if (statusFilters && statusFilters.length > 0) {
-      console.log(`🎯 Filtering by status(es): ${statusFilters.join(', ')}`);
-      query = query.in("AgreementStatus", statusFilters);
-    }
-    
-    // Always paginate to avoid timeout issues
-    query = query.range(startRow, endRow);
-    
-    const { data, error } = await query;
+    const { data, error } = await dataQuery.range(startRow, endRow);
 
     if (error) {
       console.error("❌ Supabase Fetch Error:", error);
@@ -238,7 +230,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       console.error("Failed to load agreements:", agreementsError);
       toast.error("Failed to load agreements data");
       
-      // Schedule a retry after 5 seconds on error
       const timer = setTimeout(() => {
         console.log("🔄 Auto-retrying agreements fetch after error");
         refetchAgreements();
@@ -314,6 +305,18 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return filtered;
   }, [agreements, searchTerm, statusFilters]);
   
+  useEffect(() => {
+    if (agreements.length > 0) {
+      const statusCounts: Record<string, number> = {};
+      agreements.forEach(agreement => {
+        const status = agreement.AgreementStatus || 'Unknown';
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+      console.log('🔍 AgreementsTable - Status counts in current page:', statusCounts);
+      console.log('🔍 AgreementsTable - Total count from query:', totalCount);
+    }
+  }, [agreements, totalCount]);
+
   const isFetching = isFetchingAgreements || isFetchingDealers;
 
   const handleSearch = (term: string) => {
