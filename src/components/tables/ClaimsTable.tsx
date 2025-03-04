@@ -127,7 +127,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       <div className="text-sm text-muted-foreground mb-2">
         {isFetching 
           ? "Loading claims..."
-          : `Displaying ${filteredClaims.length} of ${totalCount} claims${dealerFilter ? " (filtered by dealership)" : ""}${dateRange ? " (filtered by date range)" : ""}`
+          : `Displaying ${filteredClaims.length} of ${totalCount} claims`
         }
       </div>
       
