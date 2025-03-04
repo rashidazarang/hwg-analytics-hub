@@ -131,7 +131,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   // Handlers
   const handleSearch = (term: string) => {
     setLocalSearchQuery(term);
-    setPage(1);
+    setPage(1); // Reset to page 1 when searching
   };
 
   const handlePageChange = (newPage: number) => {
@@ -140,20 +140,25 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
-    setPage(1);
+    setPage(1); // Reset to page 1 when changing page size
   };
 
   const handleStatusFilterChange = (values: string[]) => {
     setStatusFilters(values);
-    setPage(1);
+    setPage(1); // Reset to page 1 when filter changes
   };
+
+  // Calculate the actual total displayed count based on filters
+  const displayedCount = filteredClaims.length;
+  // Use server total when no client-side filters are applied, otherwise use filtered count
+  const effectiveTotalCount = (localSearchQuery || statusFilters.length > 0) ? displayedCount : totalCount;
 
   return (
     <div className={className}>
       <div className="text-sm text-muted-foreground mb-2">
         {isFetching 
           ? "Loading claims..."
-          : `Displaying ${filteredClaims.length} of ${totalCount} claims`
+          : `Displaying ${Math.min(displayedCount, effectiveTotalCount)} of ${effectiveTotalCount} claims`
         }
       </div>
       
@@ -165,13 +170,13 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         loading={isFetching}
         searchConfig={{
           enabled: true,
-          placeholder: "Search by ID",
+          placeholder: "Search by ID...",
           onChange: handleSearch,
           searchKeys: ["ClaimID", "AgreementID", "agreements.dealers.Payee"]
         }}
         paginationProps={{
           currentPage: page,
-          totalItems: totalCount,
+          totalItems: effectiveTotalCount, // Use filtered count for pagination
           pageSize: pageSize,
           onPageChange: handlePageChange,
           onPageSizeChange: handlePageSizeChange,

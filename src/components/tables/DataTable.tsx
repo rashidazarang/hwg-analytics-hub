@@ -58,10 +58,14 @@ const DataTable = <T extends Record<string, any>>({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
 
+  // Update filtered data when data changes or when search term changes
   useEffect(() => {
     setFilteredData(data);
-    applySearchFilter(searchTerm); // Ensure filtering logic runs even on data updates
-  }, [data, searchTerm]);
+    
+    if (searchTerm && !searchConfig.onChange) {
+      applySearchFilter(searchTerm);
+    }
+  }, [data, searchTerm, searchConfig.onChange]);
 
   const applySearchFilter = (term: string) => {
     if (!term || term.trim() === '') {
@@ -71,8 +75,8 @@ const DataTable = <T extends Record<string, any>>({
 
     const normalizedTerm = term.toLowerCase().trim();
     
+    // Skip client-side filtering if parent component handles search
     if (searchConfig.onChange) {
-      searchConfig.onChange(normalizedTerm);
       return;
     }
 
@@ -130,9 +134,18 @@ const DataTable = <T extends Record<string, any>>({
 
   const displayData = sortedData;
 
+  // Calculate total pages based on totalItems from paginationProps
   const totalPages = paginationProps 
-    ? Math.ceil(paginationProps.totalItems / paginationProps.pageSize)
+    ? Math.max(1, Math.ceil(paginationProps.totalItems / paginationProps.pageSize))
     : 1;
+
+  // Ensure current page is valid
+  useEffect(() => {
+    if (paginationProps && paginationProps.currentPage > totalPages && totalPages > 0) {
+      // If current page is greater than total pages, reset to page 1
+      paginationProps.onPageChange(1);
+    }
+  }, [paginationProps, totalPages]);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -259,7 +272,11 @@ const DataTable = <T extends Record<string, any>>({
               <span>Loading records...</span>
             ) : (
               <span>
-                Showing {Math.min(paginationProps.pageSize * (paginationProps.currentPage - 1) + 1, paginationProps.totalItems)} to {Math.min(paginationProps.pageSize * paginationProps.currentPage, paginationProps.totalItems)} of {paginationProps.totalItems} entries
+                {paginationProps.totalItems === 0 ? (
+                  "No entries to display"
+                ) : (
+                  `Showing ${Math.min(paginationProps.pageSize * (paginationProps.currentPage - 1) + 1, paginationProps.totalItems)} to ${Math.min(paginationProps.pageSize * paginationProps.currentPage, paginationProps.totalItems)} of ${paginationProps.totalItems} entries`
+                )}
               </span>
             )}
           </div>
@@ -269,7 +286,7 @@ const DataTable = <T extends Record<string, any>>({
               variant="outline"
               size="icon"
               onClick={() => paginationProps.onPageChange(1)}
-              disabled={paginationProps.currentPage === 1 || loading}
+              disabled={paginationProps.currentPage === 1 || loading || paginationProps.totalItems === 0}
               aria-label="First page"
               title="First page"
             >
@@ -279,7 +296,7 @@ const DataTable = <T extends Record<string, any>>({
               variant="outline"
               size="icon"
               onClick={() => paginationProps.onPageChange(paginationProps.currentPage - 1)}
-              disabled={paginationProps.currentPage === 1 || loading}
+              disabled={paginationProps.currentPage === 1 || loading || paginationProps.totalItems === 0}
               aria-label="Previous page"
               title="Previous page"
             >
@@ -287,14 +304,18 @@ const DataTable = <T extends Record<string, any>>({
             </Button>
             
             <div className="text-sm">
-              Page {paginationProps.currentPage} of {totalPages}
+              {paginationProps.totalItems === 0 ? (
+                "Page 0 of 0"
+              ) : (
+                `Page ${paginationProps.currentPage} of ${totalPages}`
+              )}
             </div>
             
             <Button
               variant="outline"
               size="icon"
               onClick={() => paginationProps.onPageChange(paginationProps.currentPage + 1)}
-              disabled={paginationProps.currentPage === totalPages || loading}
+              disabled={paginationProps.currentPage === totalPages || loading || paginationProps.totalItems === 0}
               aria-label="Next page"
               title="Next page"
             >
@@ -304,7 +325,7 @@ const DataTable = <T extends Record<string, any>>({
               variant="outline"
               size="icon"
               onClick={() => paginationProps.onPageChange(totalPages)}
-              disabled={paginationProps.currentPage === totalPages || loading}
+              disabled={paginationProps.currentPage === totalPages || loading || paginationProps.totalItems === 0}
               aria-label="Last page"
               title="Last page"
             >

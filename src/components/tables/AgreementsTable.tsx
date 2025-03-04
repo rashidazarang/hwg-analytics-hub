@@ -172,6 +172,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   useEffect(() => {
     if (searchQuery !== undefined) {
       setSearchTerm(searchQuery);
+      setPage(1); // Reset to page 1 when search query changes
     }
   }, [searchQuery]);
 
@@ -285,13 +286,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     if (newPageSize !== pageSize) {
       setPageSize(newPageSize);
-      setPage(1);
+      setPage(1); // Reset to page 1 when changing page size
     }
   }, [pageSize, setPage]);
 
   const handleStatusFilterChange = (values: string[]) => {
     setStatusFilters(values);
-    setPage(1);
+    setPage(1); // Reset to page 1 when status filter changes
   };
 
   const formatName = (name?: string | null): string => {
@@ -397,9 +398,14 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     },
   ];
 
+  // Calculate the actual total displayed count based on filters
+  const displayedCount = filteredAgreements.length;
+  // Use server total when no client-side filters are applied, otherwise use filtered count
+  const effectiveTotalCount = (searchTerm.trim() || statusFilters.length > 0) ? displayedCount : totalCount;
+
   const currentStatus = isFetching
     ? "Loading..."
-    : `Displaying ${filteredAgreements.length} of ${totalCount} agreements${dealerName ? ` for ${dealerName}` : ''}`;
+    : `Displaying ${Math.min(displayedCount, effectiveTotalCount)} of ${effectiveTotalCount} agreements${dealerName ? ` for ${dealerName}` : ''}`;
 
   return (
     <>
@@ -420,7 +426,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         }}
         paginationProps={{
           currentPage: page,
-          totalItems: totalCount,
+          totalItems: effectiveTotalCount, // Use filtered count for pagination
           pageSize: pageSize,
           onPageChange: handlePageChange,
           onPageSizeChange: handlePageSizeChange,
