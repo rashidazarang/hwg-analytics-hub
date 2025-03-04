@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search, SlidersHorizontal } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
+import { useMobile } from '@/hooks/use-mobile';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export type Column<T> = {
   key: string;
@@ -11,6 +15,7 @@ export type Column<T> = {
   render?: (row: T) => React.ReactNode;
   sortable?: boolean;
   searchable?: boolean;
+  responsive?: boolean; // New prop to determine if column should show on mobile
 };
 
 export type PaginationProps = {
@@ -37,6 +42,7 @@ type DataTableProps<T> = {
   onRowClick?: (row: T) => void;
   className?: string;
   loading?: boolean;
+  isLoading?: boolean;
   paginationProps?: PaginationProps;
 };
 
@@ -49,22 +55,26 @@ const DataTable = <T extends Record<string, any>>({
   onRowClick,
   className = '',
   loading = false,
+  isLoading = false,
   paginationProps,
 }: DataTableProps<T>) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const isMobile = useMobile();
+  const tableRef = useRef<HTMLDivElement>(null);
 
-useEffect(() => {
-  setFilteredData(data);
-  applySearchFilter(searchTerm); // Ensure filtering logic runs even on data updates
-}, [data, searchTerm]);
+  useEffect(() => {
+    setFilteredData(data);
+    applySearchFilter(searchTerm); // Ensure filtering logic runs even on data updates
+  }, [data, searchTerm]);
 
   const applySearchFilter = (term: string) => {
-if (!term || term.trim() === '') {
-  setFilteredData(data); // Reset filtered data when search is cleared
-  return; // Stop further execution
-}
+    if (!term || term.trim() === '') {
+      setFilteredData(data); // Reset filtered data when search is cleared
+      return; // Stop further execution
+    }
 
     const normalizedTerm = term.toLowerCase().trim();
     
@@ -154,24 +164,34 @@ if (!term || term.trim() === '') {
       : <ChevronDown className="ml-1 h-4 w-4 rotate-180 transform" />;
   };
 
+  // Filter columns based on responsive prop for mobile
+  const visibleColumns = isMobile 
+    ? columns.filter(col => col.responsive !== false)
+    : columns;
+
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`w-full ${className}`} ref={tableRef}>
       {searchConfig.enabled && (
-        <div className="flex justify-between items-center mb-4">
-          <div className="relative">
+        <div className={`flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4 ${isFilterExpanded ? 'pb-3 border-b' : ''}`}>
+          <div className="relative w-full md:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={searchConfig.placeholder || "Search..."}
               value={searchTerm}
               onChange={handleSearch}
-              className="pl-8 w-64"
+              className="pl-8 w-full md:w-64"
             />
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" className="h-9">
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-9 flex-shrink-0"
+              onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+            >
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              {isMobile ? 'Filter' : 'Advanced Filter'}
             </Button>
             
             {paginationProps && (
@@ -194,64 +214,66 @@ if (!term || term.trim() === '') {
         </div>
       )}
       
-      <div className="rounded-lg border overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {columns.map((column) => (
-                  <TableHead 
-                    key={column.key}
-                    className={column.sortable ? 'cursor-pointer' : ''}
-                    onClick={() => column.sortable && handleSort(column.key)}
-                  >
-                    <div className="flex items-center">
-                      {column.title}
-                      {column.sortable && getSortIcon(column.key)}
-                    </div>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading && displayData.length === 0 ? (
+      <Card className="overflow-hidden border shadow-sm">
+        <ScrollArea className="h-[calc(100vh-20rem)] md:h-auto">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center h-32">
-                    <div className="flex justify-center items-center h-full">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                      <span className="ml-2">Loading...</span>
-                    </div>
-                  </TableCell>
+                  {visibleColumns.map((column) => (
+                    <TableHead 
+                      key={column.key}
+                      className={column.sortable ? 'cursor-pointer' : ''}
+                      onClick={() => column.sortable && handleSort(column.key)}
+                    >
+                      <div className="flex items-center whitespace-nowrap">
+                        {column.title}
+                        {column.sortable && getSortIcon(column.key)}
+                      </div>
+                    </TableHead>
+                  ))}
                 </TableRow>
-              ) : displayData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center h-32 text-muted-foreground">
-                    No results found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                displayData.map((row) => (
-                  <TableRow 
-                    key={rowKey(row)} 
-                    className={onRowClick ? 'cursor-pointer hover:bg-accent/50' : ''}
-                    onClick={() => onRowClick && onRowClick(row)}
-                  >
-                    {columns.map((column) => (
-                      <TableCell key={`${rowKey(row)}-${column.key}`}>
-                        {column.render ? column.render(row) : row[column.key]}
-                      </TableCell>
-                    ))}
+              </TableHeader>
+              <TableBody>
+                {(loading || isLoading) && displayData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={visibleColumns.length} className="text-center h-32">
+                      <div className="flex justify-center items-center h-full">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                        <span className="ml-2">Loading...</span>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+                ) : displayData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={visibleColumns.length} className="text-center h-32 text-muted-foreground">
+                      No results found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  displayData.map((row) => (
+                    <TableRow 
+                      key={rowKey(row)} 
+                      className={onRowClick ? 'cursor-pointer hover:bg-accent/50' : ''}
+                      onClick={() => onRowClick && onRowClick(row)}
+                    >
+                      {visibleColumns.map((column) => (
+                        <TableCell key={`${rowKey(row)}-${column.key}`} className="whitespace-nowrap py-3">
+                          {column.render ? column.render(row) : row[column.key]}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </ScrollArea>
+      </Card>
       
       {paginationProps && totalPages > 1 && (
-        <div className="flex justify-between items-center mt-4">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mt-4">
+          <div className="text-xs md:text-sm text-muted-foreground order-2 md:order-1">
             {loading ? (
               <span>Loading records...</span>
             ) : (
@@ -261,12 +283,13 @@ if (!term || term.trim() === '') {
             )}
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-center md:justify-end space-x-2 order-1 md:order-2">
             <Button
               variant="outline"
               size="icon"
               onClick={() => paginationProps.onPageChange(1)}
               disabled={paginationProps.currentPage === 1 || loading}
+              className="h-8 w-8"
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
@@ -275,11 +298,12 @@ if (!term || term.trim() === '') {
               size="icon"
               onClick={() => paginationProps.onPageChange(paginationProps.currentPage - 1)}
               disabled={paginationProps.currentPage === 1 || loading}
+              className="h-8 w-8"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             
-            <div className="text-sm">
+            <div className="text-xs md:text-sm px-2">
               Page {paginationProps.currentPage} of {totalPages}
             </div>
             
@@ -288,6 +312,7 @@ if (!term || term.trim() === '') {
               size="icon"
               onClick={() => paginationProps.onPageChange(paginationProps.currentPage + 1)}
               disabled={paginationProps.currentPage === totalPages || loading}
+              className="h-8 w-8"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -296,6 +321,7 @@ if (!term || term.trim() === '') {
               size="icon"
               onClick={() => paginationProps.onPageChange(totalPages)}
               disabled={paginationProps.currentPage === totalPages || loading}
+              className="h-8 w-8"
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>
