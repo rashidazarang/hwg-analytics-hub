@@ -39,22 +39,23 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
   });
 
   try {
+    // First get all claims matching our criteria WITHOUT the dealer filter
+    // This query matches more closely the structure used in ClaimsTable
     let query = supabase
-      .from('claims')
+      .from("claims")
       .select(`
-        *,
-        agreements:AgreementID(
-          DealerUUID,
-          dealers:DealerUUID(
-            PayeeID,
-            Payee
-          )
-        )
+        id,
+        ClaimID, 
+        ReportedDate, 
+        Closed,
+        Cause,
+        Correction,
+        LastModified,
+        agreements(DealerUUID, dealers(Payee))
       `)
       .gte('ReportedDate', dateRange.from.toISOString())
       .lte('ReportedDate', dateRange.to.toISOString());
 
-    // Get the raw claims data
     const { data: claims, error } = await query;
 
     if (error) {
@@ -62,7 +63,7 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
       return [];
     }
 
-    console.log('[CLAIMCHART_RESULT] Fetched claims before dealer filtering:', claims?.length || 0);
+    console.log(`[CLAIMCHART_RESULT] Fetched ${claims?.length || 0} claims before dealer filtering`);
 
     // If dealership filter is provided, filter the claims client-side
     let filteredClaims = claims || [];
@@ -72,6 +73,41 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
         claim.agreements?.DealerUUID === dealershipFilter
       );
       console.log('[CLAIMCHART_FILTER] Claims after dealer filtering:', filteredClaims.length);
+    }
+
+    // Also include PENDING claims which might not have a ReportedDate
+    if (filteredClaims.length === 0 || dealershipFilter) {
+      const pendingQuery = supabase
+        .from("claims")
+        .select(`
+          id,
+          ClaimID, 
+          ReportedDate, 
+          Closed,
+          Cause,
+          Correction,
+          LastModified,
+          agreements(DealerUUID, dealers(Payee))
+        `)
+        .is('ReportedDate', null)
+        .is('Closed', null);
+      
+      const { data: pendingClaims, error: pendingError } = await pendingQuery;
+      
+      if (!pendingError && pendingClaims && pendingClaims.length > 0) {
+        console.log(`[CLAIMCHART_PENDING] Found ${pendingClaims.length} pending claims`);
+        
+        // Filter by dealership if needed
+        let filteredPendingClaims = pendingClaims;
+        if (dealershipFilter && dealershipFilter.trim() !== '') {
+          filteredPendingClaims = pendingClaims.filter(claim => 
+            claim.agreements?.DealerUUID === dealershipFilter
+          );
+        }
+        
+        // Add the pending claims to our result set
+        filteredClaims = [...filteredClaims, ...filteredPendingClaims];
+      }
     }
 
     // Log a sample of the data to verify status determination
