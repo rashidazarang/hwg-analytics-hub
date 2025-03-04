@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/mockData';
@@ -12,6 +13,7 @@ type DealersTableProps = {
   searchQuery?: string;
   dealerFilter?: string;
   dealerName?: string;
+  statusFilters?: string[];
 };
 
 const DealersTable: React.FC<DealersTableProps> = ({ 
@@ -19,7 +21,8 @@ const DealersTable: React.FC<DealersTableProps> = ({
   className = '', 
   searchQuery = '',
   dealerFilter = '',
-  dealerName = ''
+  dealerName = '',
+  statusFilters = []
 }) => {
   const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(mockDealers);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,9 +34,41 @@ const DealersTable: React.FC<DealersTableProps> = ({
         setIsLoading(true);
         setHasError(false);
         
-        const { data: supabaseDealers, error } = await supabase
-          .from('dealers')
-          .select('*');
+        let query = supabase.from('dealers').select('*');
+
+        // Apply status filters if provided
+        if (statusFilters && statusFilters.length > 0) {
+          console.log('🔍 DealersTable: Applying status filters:', statusFilters);
+          
+          // Create OR conditions for multiple statuses
+          const filterConditions = statusFilters.map(status => {
+            if (status === 'ACTIVE') {
+              return `status.eq.ACTIVE`;
+            } else if (status === 'INACTIVE') {
+              return `status.eq.INACTIVE`;
+            } else {
+              return `status.eq.${status}`;
+            }
+          });
+          
+          if (filterConditions.length === 1) {
+            // For a single status, apply directly
+            const condition = filterConditions[0];
+            const [field, operatorValue] = condition.split('.eq.');
+            query = query.eq(field, operatorValue);
+          } else if (filterConditions.length > 1) {
+            // For multiple statuses, use OR
+            query = query.or(filterConditions.join(','));
+          }
+        }
+        
+        // Apply dealer filter if provided
+        if (dealerFilter && dealerFilter.trim()) {
+          console.log(`🔍 DealersTable: Filtering by dealership ID: "${dealerFilter}"`);
+          query = query.eq('DealerUUID', dealerFilter);
+        }
+        
+        const { data: supabaseDealers, error } = await query;
 
         if (error) {
           console.warn('⚠️ Error fetching dealers from Supabase:', error.message);
@@ -42,34 +77,36 @@ const DealersTable: React.FC<DealersTableProps> = ({
             description: 'Using fallback data instead'
           });
           
-          applyFilters(dealerFilter, searchQuery, mockDealers);
+          applyClientSideFilters(dealerFilter, searchQuery, statusFilters, mockDealers);
         } else if (supabaseDealers && supabaseDealers.length > 0) {
           console.log(`✅ Successfully loaded ${supabaseDealers.length} dealers from Supabase`);
           toast.success(`Loaded ${supabaseDealers.length} dealers from database`);
-          applyFilters(dealerFilter, searchQuery, supabaseDealers);
+          applyClientSideFilters(dealerFilter, searchQuery, statusFilters, supabaseDealers);
         } else {
           console.log('📊 No dealers found in Supabase, using mock data');
-          applyFilters(dealerFilter, searchQuery, mockDealers);
+          applyClientSideFilters(dealerFilter, searchQuery, statusFilters, mockDealers);
         }
       } catch (error) {
         console.error('❌ Unexpected error loading dealers:', error);
         setHasError(true);
-        applyFilters(dealerFilter, searchQuery, mockDealers);
+        applyClientSideFilters(dealerFilter, searchQuery, statusFilters, mockDealers);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadDealers();
-  }, [mockDealers]);
-
-  useEffect(() => {
-    applyFilters(dealerFilter, searchQuery, filteredDealers.length ? filteredDealers : mockDealers);
-  }, [dealerFilter, searchQuery, mockDealers]);
+  }, [mockDealers, dealerFilter, searchQuery, statusFilters]);
   
-  const applyFilters = (dealerName: string, searchTerm: string, data: Dealer[]) => {
+  const applyClientSideFilters = (
+    dealerName: string, 
+    searchTerm: string, 
+    statusFilters: string[],
+    data: Dealer[]
+  ) => {
     let filtered = [...data];
     
+    // Apply dealer name filter
     if (dealerName && dealerName.trim()) {
       const normalizedDealerName = dealerName.toLowerCase().trim();
       filtered = filtered.filter(dealer => 
@@ -77,6 +114,7 @@ const DealersTable: React.FC<DealersTableProps> = ({
       );
     }
     
+    // Apply search term filter
     if (searchTerm && searchTerm.trim()) {
       const normalizedSearchTerm = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(dealer => {
@@ -91,6 +129,16 @@ const DealersTable: React.FC<DealersTableProps> = ({
         return name.includes(normalizedSearchTerm) || 
                id.includes(normalizedSearchTerm) || 
                location.includes(normalizedSearchTerm);
+      });
+    }
+    
+    // Apply status filters (for client-side filtering when needed)
+    if (statusFilters && statusFilters.length > 0) {
+      filtered = filtered.filter(dealer => {
+        // Get dealer status, default to active if not specified
+        const dealerStatus = dealer.status || 'ACTIVE';
+        // Check if any of the selected statuses match this dealer
+        return statusFilters.some(status => status === dealerStatus);
       });
     }
     
