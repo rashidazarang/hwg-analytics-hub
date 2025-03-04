@@ -17,60 +17,62 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
       const toDate = dateRange.to?.toISOString() || new Date().toISOString();
       
       try {
-        // Prepare base query options
-        const baseQueryOpts = {
-          count: 'exact',
-          head: true
-        } as const;
+        // Fetch pending contracts
+        const pendingContractsResult = await supabase
+          .from('agreements')
+          .select('*', { count: 'exact', head: true })
+          .eq('AgreementStatus', 'PENDING')
+          .gte('EffectiveDate', fromDate)
+          .lte('EffectiveDate', toDate)
+          .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true);
 
-        // Execute all queries in parallel with proper type handling
-        const [
-          pendingContractsResult,
-          newlyActiveContractsResult,
-          cancelledContractsResult,
-          openClaimsResult,
-          totalAgreementsResult,
-          activeDealersResult,
-          totalDealersResult,
-          claimsDataResult
-        ] = await Promise.all([
-          supabase
-            .from('agreements')
-            .select('*', baseQueryOpts)
-            .eq('AgreementStatus', 'PENDING')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+        // Fetch newly active contracts
+        const newlyActiveContractsResult = await supabase
+          .from('agreements')
+          .select('*', { count: 'exact', head: true })
+          .eq('AgreementStatus', 'ACTIVE')
+          .gte('EffectiveDate', fromDate)
+          .lte('EffectiveDate', toDate)
+          .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true);
 
-          supabase
-            .from('agreements')
-            .select('*', baseQueryOpts)
-            .eq('AgreementStatus', 'ACTIVE')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+        // Fetch cancelled contracts
+        const cancelledContractsResult = await supabase
+          .from('agreements')
+          .select('*', { count: 'exact', head: true })
+          .eq('AgreementStatus', 'CANCELLED')
+          .gte('StatusChangeDate', fromDate)
+          .lte('StatusChangeDate', toDate)
+          .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true);
 
-          supabase
-            .from('agreements')
-            .select('*', baseQueryOpts)
-            .eq('AgreementStatus', 'CANCELLED')
-            .gte('StatusChangeDate', fromDate)
-            .lte('StatusChangeDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+        // Fetch open claims
+        const openClaimsResult = await supabase
+          .from('claims')
+          .select('*', { count: 'exact', head: true })
+          .eq('ClaimStatus', 'OPEN')
+          .gte('ReportedDate', fromDate)
+          .lte('ReportedDate', toDate)
+          .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true);
 
-          supabase
-            .from('claims')
-            .select('*', baseQueryOpts)
-            .eq('ClaimStatus', 'OPEN')
-            .gte('ReportedDate', fromDate)
-            .lte('ReportedDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+        // Fetch total agreements
+        const totalAgreementsResult = await supabase
+          .from('agreements')
+          .select('*', { count: 'exact', head: true });
 
-          supabase.from('agreements').select('*', baseQueryOpts),
-          supabase.from('dealers').select('*', baseQueryOpts).eq('IsActive', true),
-          supabase.from('dealers').select('*', baseQueryOpts),
-          supabase.from('claims').select('Deductible')
-        ]);
+        // Fetch active dealers
+        const activeDealersResult = await supabase
+          .from('dealers')
+          .select('*', { count: 'exact', head: true })
+          .eq('IsActive', true);
+
+        // Fetch total dealers
+        const totalDealersResult = await supabase
+          .from('dealers')
+          .select('*', { count: 'exact', head: true });
+
+        // Fetch claims data
+        const claimsDataResult = await supabase
+          .from('claims')
+          .select('Deductible');
 
         // Extract counts and handle errors
         const pendingContracts = pendingContractsResult.count || 0;
