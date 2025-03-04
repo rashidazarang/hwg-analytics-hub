@@ -23,17 +23,17 @@ export async function fetchClaims(
   
   let query = supabase
     .from("claims")
-    .select(`
-      id,
-      ClaimID, 
-      AgreementID, 
-      ReportedDate, 
-      Closed,
-      Cause,
-      Correction,
-      LastModified,
-      agreements(DealerUUID, dealers(Payee))
-    `, { count: 'exact' })
+.select(`
+  id,
+  ClaimID, 
+  AgreementID, 
+  ReportedDate, 
+  Closed,
+  Cause,
+  Correction,
+  LastModified,
+  agreements!inner(DealerUUID, dealers(Payee))
+`, { count: 'exact' })
     .order("LastModified", { ascending: false });
 
   // Apply date range filter first
@@ -45,54 +45,34 @@ export async function fetchClaims(
   }
 
   // Then apply dealer filter
-  if (dealerFilter && dealerFilter.trim() !== '') {
-    console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
-    query = query.eq("agreements.DealerUUID", dealerFilter);
-  }
+if (dealerFilter && dealerFilter.trim() !== '') {
+  console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
+  query = query.eq("agreements.DealerUUID", dealerFilter.trim());
+}
 
-  // Apply status filters correctly
-  if (statusFilters && statusFilters.length > 0) {
-    console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
-    
-    // Start with an empty array for our OR conditions
-    const filterConditions = [];
-    
-    // Add the appropriate filter for each status
-    for (const status of statusFilters) {
-      if (status === 'OPEN') {
-        // Open claims: ReportedDate is NOT NULL AND Closed is NULL
-        filterConditions.push(`ReportedDate.is.not.null,Closed.is.null`);
-      } else if (status === 'CLOSED') {
-        // Closed claims: Closed is NOT NULL
-        filterConditions.push(`Closed.is.not.null`);
-      } else if (status === 'PENDING') {
-        // Pending claims: ReportedDate is NULL
-        filterConditions.push(`ReportedDate.is.null`);
-      }
+// Apply status filters correctly using OR conditions
+if (statusFilters && statusFilters.length > 0) {
+  console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
+
+  const conditions = statusFilters.map(status => {
+    if (status === 'OPEN') {
+      // OPEN: ReportedDate is NOT NULL AND Closed is NULL
+      return `(ReportedDate.not.is.null,Closed.is.null)`;
+    } else if (status === 'CLOSED') {
+      // CLOSED: Closed is NOT NULL
+      return `(Closed.not.is.null)`;
+    } else if (status === 'PENDING') {
+      // PENDING: ReportedDate is NULL
+      return `(ReportedDate.is.null)`;
     }
-    
-    // If we have filter conditions, apply them
-    if (filterConditions.length > 0) {
-      if (filterConditions.length === 1) {
-        // For a single condition, we can apply it directly
-        const condition = filterConditions[0];
-        const parts = condition.split(',');
-        
-        for (const part of parts) {
-          const [field, operatorValue] = part.split('.is.');
-          
-          if (operatorValue === 'null') {
-            query = query.is(field, null);
-          } else if (operatorValue === 'not.null') {
-            query = query.not(field, 'is', null);
-          }
-        }
-      } else {
-        // For multiple conditions, we need to use OR
-        query = query.or(filterConditions.join(','));
-      }
-    }
+    return null;
+  }).filter(Boolean);
+
+  if (conditions.length > 0) {
+    query = query.or(conditions.join(','));
   }
+}
+
 
   // Apply pagination last
   query = query.range(startRow, endRow);
