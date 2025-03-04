@@ -14,7 +14,16 @@ import { Claim } from '@/lib/types';
 const fetchClaimsForCharts = async (dealerFilter?: string): Promise<Claim[]> => {
   let query = supabase
     .from("claims")
-    .select(`*`);
+    .select(`
+      *,
+      agreements:AgreementID(
+        DealerUUID,
+        dealers:DealerUUID(
+          PayeeID,
+          Payee
+        )
+      )
+    `);
 
   if (dealerFilter) {
     query = query.eq("agreements.DealerUUID", dealerFilter);
@@ -31,14 +40,9 @@ const fetchClaimsForCharts = async (dealerFilter?: string): Promise<Claim[]> => 
   return (data || []).map(claim => ({
     ...claim,
     // Convert string dates to Date objects
-    ReportedDate: claim.ReportedDate ? new Date(claim.ReportedDate) : undefined,
-    IncurredDate: claim.IncurredDate ? new Date(claim.IncurredDate) : undefined,
-    Closed: claim.Closed ? new Date(claim.Closed) : undefined,
-    // Add necessary properties for the Claim interface
-    agreements: claim.agreements || {
-      DealerUUID: dealerFilter || undefined,
-      dealers: undefined
-    }
+    ReportedDate: claim.ReportedDate ? new Date(claim.ReportedDate) : null,
+    IncurredDate: claim.IncurredDate ? new Date(claim.IncurredDate) : null,
+    Closed: claim.Closed ? new Date(claim.Closed) : null,
   }));
 };
 
