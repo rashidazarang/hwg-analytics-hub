@@ -10,20 +10,16 @@ import { supabase } from '@/integrations/supabase/client';
 async function fetchClaims(dealerFilter?: string) {
   let query = supabase
     .from("claims")
- .select(`
-  id,
-  ClaimID, 
-  AgreementID, 
-  ReportedDate, 
-  IncurredDate, 
-  Closed,
-  Deductible,
-  Complaint,
-  Cause,
-  Correction,
-  LastModified,
-  agreements(DealerUUID, dealers(PayeeID, Payee))
-`)
+    .select(`
+      id,
+      ClaimID, 
+      AgreementID, 
+      ReportedDate, 
+      Closed,
+      Cause,
+      LastModified,
+      agreements(DealerUUID, dealers(Payee))
+    `)
     .order("LastModified", { ascending: false });
 
   if (dealerFilter) {
@@ -68,84 +64,73 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
   }, [claims, searchQuery]);
   
   // Define a claim status mapper function to handle null/undefined statuses
-  const getClaimStatus = (claim: any): string => {
-    // Determine status based on claim properties
-    if (claim.Closed) return 'CLOSED';
-    if (claim.ReportedDate && !claim.Closed) return 'OPEN';
-    return 'PENDING';
-  };
+ const getClaimStatus = (claim: any): string => {
+  if (claim.Closed) return 'CLOSED';
+  if (claim.Cause && claim.Closed === null) return 'DENIED';
+  if (claim.ReportedDate && !claim.Closed) return 'PENDING';
+  return 'OPEN';
+};
   
-  const columns: Column<any>[] = [
-    {
-      key: 'ClaimID',
-      title: 'Claim ID',
-      sortable: true,
-      searchable: true,
-      render: (row) => row.ClaimID || '',
+const columns: Column<any>[] = [
+  {
+    key: 'ClaimID',
+    title: 'Claim ID',
+    sortable: false,
+    searchable: true,
+    render: (row) => row.ClaimID || '',
+  },
+  {
+    key: 'AgreementID',
+    title: 'Agreement ID',
+    sortable: false,
+    searchable: true,
+    render: (row) => row.AgreementID || '',
+  },
+  {
+    key: 'dealership',
+    title: 'Dealership',
+    searchable: true,
+    render: (row) => row.agreements?.dealers?.Payee || "Unknown Dealership",
+  },
+  {
+    key: 'Status',
+    title: 'Status',
+    sortable: false,
+    render: (row) => {
+      const status = getClaimStatus(row);
+      const variants = {
+        OPEN: 'bg-warning/15 text-warning border-warning/20',
+        CLOSED: 'bg-success/15 text-success border-success/20',
+        PENDING: 'bg-info/15 text-info border-info/20',
+        DENIED: 'bg-destructive/15 text-destructive border-destructive/20',
+        UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
+      };
+      return (
+        <Badge variant="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border pointer-events-none`}>
+          {status}
+        </Badge>
+      );
     },
-    {
-      key: 'AgreementID',
-      title: 'Agreement ID',
-      sortable: true,
-      searchable: true,
-      render: (row) => row.AgreementID || '',
-    },
-   {
-  key: 'dealership',
-  title: 'Dealership',
-  searchable: true,
- render: (row) => row.agreements?.dealers?.Payee || "Unknown Dealership",
-},
-{
-  key: 'DealerID',
-  title: 'Dealer ID',
-  searchable: true,
-  render: (row) => row.agreements?.dealers?.PayeeID || 'No Dealer Assigned',
-},
-    {
-      key: 'ReportedDate',
-      title: 'Date Reported',
-      sortable: true,
-      render: (row) => row.ReportedDate ? format(new Date(row.ReportedDate), 'MMM d, yyyy') : 'N/A',
-    },
-    {
-      key: 'IncurredDate',
-      title: 'Date Incurred',
-      sortable: true,
-      render: (row) => row.IncurredDate ? format(new Date(row.IncurredDate), 'MMM d, yyyy') : 'N/A',
-    },
-    {
-      key: 'Closed',
-      title: 'Closed',
-      sortable: true,
-      render: (row) => row.Closed ? format(new Date(row.Closed), 'MMM d, yyyy') : 'N/A',
-    },
-    {
-      key: 'Deductible',
-      title: 'Deductible',
-      sortable: true,
-      render: (row) => `$${(row.Deductible || 0).toLocaleString()}`,
-    },
-    {
-      key: 'Status',
-      title: 'Status',
-      sortable: true,
-      render: (row) => {
-        const status = getClaimStatus(row);
-        const variants = {
-          OPEN: 'bg-warning/15 text-warning border-warning/20',
-          CLOSED: 'bg-success/15 text-success border-success/20',
-          PENDING: 'bg-info/15 text-info border-info/20',
-          UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
-        };
-        return (
-          <Badge variant="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
-            {status}
-          </Badge>
-        );
-      },
-    },
-  ];
+  },
+  {
+    key: 'ReportedDate',
+    title: 'Date Reported',
+    sortable: false,
+    render: (row) => row.ReportedDate ? format(new Date(row.ReportedDate), 'MMM d, yyyy') : 'N/A',
+  },
+  {
+    key: 'Closed',
+    title: 'Closed Date',
+    sortable: false,
+    render: (row) => row.Closed ? format(new Date(row.Closed), 'MMM d, yyyy') : 'N/A',
+  },
+  {
+    key: 'LastModified',
+    title: 'Last Modified',
+    sortable: false,
+    render: (row) => row.LastModified ? format(new Date(row.LastModified), 'MMM d, yyyy') : 'N/A',
+  }
+];
 
   return (
     <DataTable
