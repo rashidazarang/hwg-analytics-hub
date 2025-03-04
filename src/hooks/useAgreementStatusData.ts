@@ -103,34 +103,57 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
         }
         
         // If no dealer filter, use a more efficient approach to avoid timeouts
-        // First, get agreements count by status using a direct query
-        const { data: statusCounts, error: statusError } = await supabase
-          .from('agreements')
-          .select('AgreementStatus, count(*)')
-          .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate)
-          .group('AgreementStatus');
+        // First, use our RPC function to efficiently count by status
+        const { data: statusCounts, error: rpcError } = await supabase
+          .rpc('count_agreements_by_status', {
+            from_date: fromDate,
+            to_date: toDate
+          });
           
-        if (statusError) {
-          console.error('❌ Error getting agreement status counts:', statusError);
-          toast.error('Failed to count agreements by status');
-          return [];
+        if (rpcError) {
+          console.error('❌ Error executing RPC count_agreements_by_status:', rpcError);
+          
+          // Fallback: manually count statuses if RPC fails
+          console.log('📊 Falling back to manual status counting...');
+          
+          const { data: agreements, error: queryError } = await supabase
+            .from('agreements')
+            .select('AgreementStatus')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate);
+            
+          if (queryError) {
+            console.error('❌ Error fetching agreements fallback:', queryError);
+            toast.error('Failed to load agreement data');
+            return [];
+          }
+          
+          // Count agreements by status
+          const manualStatusCounts: Record<string, number> = {};
+          (agreements || []).forEach(agreement => {
+            const status = agreement.AgreementStatus || 'Unknown';
+            manualStatusCounts[status] = (manualStatusCounts[status] || 0) + 1;
+          });
+          
+          console.log('📊 Manual status counts:', manualStatusCounts);
+          
+          // Process the data with grouping
+          return processStatusData(manualStatusCounts);
         }
         
-        console.log('📊 Agreement status counts:', statusCounts);
+        console.log('📊 RPC returned status counts:', statusCounts);
         
         if (!statusCounts || statusCounts.length === 0) {
           return [];
         }
         
-        // Convert to format needed for processing
+        // Convert the RPC result to the format needed for processing
         const statusCountsMap: Record<string, number> = {};
-        statusCounts.forEach(item => {
-          const status = item.AgreementStatus || 'Unknown';
-          statusCountsMap[status] = parseInt(item.count as unknown as string, 10);
+        statusCounts.forEach((item: AgreementStatusCount) => {
+          statusCountsMap[item.status] = item.count;
         });
         
-        console.log('📊 Processed status counts:', statusCountsMap);
+        console.log('📊 Processed status counts from RPC:', statusCountsMap);
         
         // Process the data with grouping
         return processStatusData(statusCountsMap);
