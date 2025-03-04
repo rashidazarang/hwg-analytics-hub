@@ -1,14 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { AgreementChartData } from '@/hooks/useAgreementStatusData';
+import { AgreementChartData, STATUS_COLORS } from '@/hooks/useAgreementStatusData';
 
 type AgreementPieChartProps = {
   data: AgreementChartData[];
   isLoading: boolean;
 };
-
-const COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#6366f1'];
 
 export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLoading }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -36,6 +34,37 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
     setActiveIndex(null);
   };
 
+  // Custom tooltip to display detailed status information
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const item = payload[0].payload as AgreementChartData;
+      
+      if (item.isGrouped && item.groupedStatuses) {
+        // Display individual statuses for "Other" category
+        return (
+          <div className="bg-white p-3 rounded-md shadow-md border border-gray-100">
+            <p className="text-sm font-medium mb-1">Other Status Types:</p>
+            {item.groupedStatuses.map((status, idx) => (
+              <p key={idx} className="text-xs">
+                {status.status.toUpperCase()}: {status.count.toLocaleString()} Agreements
+              </p>
+            ))}
+          </div>
+        );
+      }
+      
+      // Regular tooltip for non-grouped statuses
+      return (
+        <div className="bg-white p-2 rounded-md shadow-md border border-gray-100">
+          <p className="text-sm font-medium">
+            {item.name}: {item.value.toLocaleString()} Agreements
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[240px]">
@@ -51,6 +80,14 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
       </div>
     );
   }
+
+  // Define predefined colors for each category
+  const pieColors = {
+    'ACTIVE': '#3b82f6', // Blue
+    'PENDING': '#10b981', // Green
+    'CANCELLED': '#ef4444', // Red
+    'OTHER': '#6366f1', // Purple
+  };
 
   return (
     <div className="flex flex-col h-[240px]">
@@ -73,7 +110,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
             {animatedData.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
-                fill={COLORS[index % COLORS.length]} 
+                fill={entry.color || pieColors[entry.name as keyof typeof pieColors] || '#8884d8'} 
                 stroke={activeIndex === index ? '#fff' : 'transparent'}
                 strokeWidth={activeIndex === index ? 2 : 0}
                 className="transition-all duration-200"
@@ -86,18 +123,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
               />
             ))}
           </Pie>
-          <Tooltip
-            formatter={(value: number, name: string) => [
-              `${value.toLocaleString()} Agreements`, 
-              name.toUpperCase()
-            ]}
-            contentStyle={{
-              borderRadius: '6px',
-              border: '1px solid rgba(0,0,0,0.1)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              fontSize: '14px',
-            }}
-          />
+          <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
       
@@ -116,8 +142,8 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
           <span className="text-xs font-medium">CANCELLED</span>
         </div>
         <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#f59e0b' }}></span>
-          <span className="text-xs font-medium">EXPIRED</span>
+          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#6366f1' }}></span>
+          <span className="text-xs font-medium">OTHER</span>
         </div>
       </div>
     </div>

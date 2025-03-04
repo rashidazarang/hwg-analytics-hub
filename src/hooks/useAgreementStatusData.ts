@@ -14,6 +14,9 @@ export type AgreementChartData = {
   name: string;
   value: number;
   rawStatus: string;
+  color?: string; // Added color property for explicit color control
+  isGrouped?: boolean; // Flag to indicate if this is a grouped category
+  groupedStatuses?: {status: string, count: number}[]; // For "Other" category to store individual statuses
 };
 
 // Define the status labels mapping - now in UPPERCASE
@@ -26,6 +29,26 @@ export const STATUS_LABELS: Record<string, string> = {
   'VOID': 'VOID',
   'CLAIMABLE': 'CLAIMABLE',
   'Unknown': 'UNKNOWN'
+};
+
+// Define status colors
+export const STATUS_COLORS: Record<string, string> = {
+  'ACTIVE': '#3b82f6', // Blue 
+  'PENDING': '#10b981', // Green
+  'CANCELLED': '#ef4444', // Red
+  'OTHER': '#6366f1', // Purple for "Other" category
+};
+
+// Define status grouping
+export const STATUS_GROUPS: Record<string, string> = {
+  'ACTIVE': 'ACTIVE',
+  'PENDING': 'PENDING',
+  'CANCELLED': 'CANCELLED',
+  'EXPIRED': 'OTHER',
+  'TERMINATED': 'OTHER',
+  'VOID': 'OTHER',
+  'CLAIMABLE': 'OTHER',
+  'Unknown': 'OTHER'
 };
 
 export function useAgreementStatusData(dateRange: DateRange, dealerFilter: string = '') {
@@ -70,20 +93,8 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
             statusCounts[status] = (statusCounts[status] || 0) + 1;
           });
           
-          // Convert to chart data format
-          const chartData = Object.entries(statusCounts).map(([status, count]) => ({
-            name: STATUS_LABELS[status] || status,
-            value: count,
-            rawStatus: status
-          }));
-          
-          // Sort data by count (descending)
-          chartData.sort((a, b) => b.value - a.value);
-          
-          console.log('📊 Filtered agreement status distribution:', chartData);
-          console.log(`📊 Total filtered agreements counted: ${chartData.reduce((sum, item) => sum + item.value, 0)}`);
-          
-          return chartData;
+          // Process the data with grouping
+          return processStatusData(statusCounts);
         }
         
         // If no dealer filter, use the RPC function to get all agreements status distribution
@@ -120,37 +131,21 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
             statusCounts[status] = (statusCounts[status] || 0) + 1;
           });
 
-          // Convert to chart data format
-          const chartData = Object.entries(statusCounts).map(([status, count]) => ({
-            name: STATUS_LABELS[status] || status,
-            value: count,
-            rawStatus: status
-          }));
-
-          // Sort data by count (descending)
-          chartData.sort((a, b) => b.value - a.value);
-          
-          console.log('📊 Client-side counted agreement status distribution:', chartData);
-          console.log(`📊 Total agreements counted client-side: ${chartData.reduce((sum, item) => sum + item.value, 0)}`);
-          
-          return chartData;
+          // Process the data with grouping
+          return processStatusData(statusCounts);
         }
         
         // Safely type-check and convert the data from RPC
         const typedData = data as AgreementStatusCount[];
         
-        // Convert RPC result to chart data format
-        const chartData = typedData.map(item => ({
-          name: STATUS_LABELS[item.status || 'Unknown'] || item.status || 'Unknown',
-          value: Number(item.count),
-          rawStatus: item.status || 'Unknown'
-        }));
-
-        // Sort data by count (descending)
-        chartData.sort((a, b) => b.value - a.value);
+        // Convert RPC result to an object with status counts
+        const statusCounts: Record<string, number> = {};
+        typedData.forEach(item => {
+          statusCounts[item.status || 'Unknown'] = Number(item.count);
+        });
         
-        console.log(`📊 Total agreements counted: ${chartData.reduce((sum, item) => sum + item.value, 0)}`);
-        return chartData;
+        // Process the data with grouping
+        return processStatusData(statusCounts);
       } catch (error) {
         console.error('❌ Error processing agreement status data:', error);
         return [];
@@ -159,4 +154,69 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnWindowFocus: false,
   });
+}
+
+// Helper function to process status data with grouping
+function processStatusData(statusCounts: Record<string, number>): AgreementChartData[] {
+  // Group data by status group
+  const groupedData: Record<string, {
+    count: number,
+    statuses: {status: string, count: number}[]
+  }> = {};
+  
+  // First, group the data
+  Object.entries(statusCounts).forEach(([status, count]) => {
+    const group = STATUS_GROUPS[status] || 'OTHER';
+    
+    if (!groupedData[group]) {
+      groupedData[group] = {
+        count: 0,
+        statuses: []
+      };
+    }
+    
+    groupedData[group].count += count;
+    groupedData[group].statuses.push({
+      status,
+      count
+    });
+  });
+  
+  // Convert to chart data format
+  const chartData: AgreementChartData[] = Object.entries(groupedData).map(([group, data]) => {
+    const isOtherGroup = group === 'OTHER';
+    
+    return {
+      name: isOtherGroup ? 'OTHER' : group,
+      value: data.count,
+      rawStatus: group,
+      color: STATUS_COLORS[group],
+      isGrouped: isOtherGroup,
+      groupedStatuses: isOtherGroup ? data.statuses : undefined
+    };
+  });
+
+  // Sort data by count (descending) but ensure ACTIVE, PENDING, CANCELLED are first
+  const priorityOrder: Record<string, number> = {
+    'ACTIVE': 1,
+    'PENDING': 2,
+    'CANCELLED': 3,
+    'OTHER': 4
+  };
+  
+  chartData.sort((a, b) => {
+    const orderA = priorityOrder[a.name] || 99;
+    const orderB = priorityOrder[b.name] || 99;
+    
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    
+    return b.value - a.value;
+  });
+  
+  console.log('📊 Processed agreement status distribution:', chartData);
+  console.log(`📊 Total agreements counted: ${chartData.reduce((sum, item) => sum + item.value, 0)}`);
+  
+  return chartData;
 }
