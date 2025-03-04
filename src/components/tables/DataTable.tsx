@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -58,7 +57,6 @@ const DataTable = <T extends Record<string, any>>({
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [filteredData, setFilteredData] = useState<T[]>(data);
 
-  // Update filtered data when data changes or when search term changes
   useEffect(() => {
     setFilteredData(data);
     
@@ -69,13 +67,12 @@ const DataTable = <T extends Record<string, any>>({
 
   const applySearchFilter = (term: string) => {
     if (!term || term.trim() === '') {
-      setFilteredData(data); // Reset filtered data when search is cleared
-      return; // Stop further execution
+      setFilteredData(data);
+      return;
     }
 
     const normalizedTerm = term.toLowerCase().trim();
     
-    // Skip client-side filtering if parent component handles search
     if (searchConfig.onChange) {
       return;
     }
@@ -134,15 +131,12 @@ const DataTable = <T extends Record<string, any>>({
 
   const displayData = sortedData;
 
-  // Calculate total pages based on totalItems from paginationProps
   const totalPages = paginationProps 
     ? Math.max(1, Math.ceil(paginationProps.totalItems / paginationProps.pageSize))
     : 1;
 
-  // Ensure current page is valid
   useEffect(() => {
     if (paginationProps && paginationProps.currentPage > totalPages && totalPages > 0) {
-      // If current page is greater than total pages, reset to page 1
       paginationProps.onPageChange(1);
     }
   }, [paginationProps, totalPages]);
@@ -166,13 +160,13 @@ const DataTable = <T extends Record<string, any>>({
   };
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className={className}>
       {searchConfig.enabled && (
         <div className="flex justify-between items-center mb-4">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={searchConfig.placeholder || "Search by ID..."}
+              placeholder={searchConfig.placeholder || "Search..."}
               value={searchTerm}
               onChange={handleSearch}
               className="pl-8 w-64"
@@ -180,13 +174,6 @@ const DataTable = <T extends Record<string, any>>({
           </div>
           
           <div className="flex items-center space-x-2">
-            {!customFilters && (
-              <Button variant="outline" size="sm" className="h-9">
-                <Filter className="mr-2 h-4 w-4" />
-                Filter
-              </Button>
-            )}
-            
             {customFilters}
             
             {paginationProps && (
