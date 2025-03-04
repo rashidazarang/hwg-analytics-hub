@@ -44,35 +44,30 @@ export async function fetchClaims(
       .lte("LastModified", dateRange.to.toISOString());
   }
 
+  // Then apply dealer filter
+if (dealerFilter && dealerFilter.trim() !== '') {
+  console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
+  query = query.eq("agreements.DealerUUID", dealerFilter.trim());
+}
 // Apply status filters correctly using OR conditions
 if (statusFilters && statusFilters.length > 0) {
   console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
 
-  if (statusFilters.length === 1) {
-    // For a single status, apply filters directly.
-    const status = statusFilters[0];
+  const orFilter = statusFilters.map(status => {
     if (status === 'OPEN') {
-      query = query.not('ReportedDate', 'is', null).is('Closed', null);
+      // OPEN: ReportedDate is NOT NULL AND Closed IS NULL
+      return `(ReportedDate.not.is.null,Closed.is.null)`;
     } else if (status === 'CLOSED') {
-      query = query.not('Closed', 'is', null);
+      // CLOSED: Closed is NOT NULL
+      return `(Closed.not.is.null)`;
     } else if (status === 'PENDING') {
-      query = query.is('ReportedDate', null);
+      // PENDING: ReportedDate is NULL
+      return `(ReportedDate.is.null)`;
     }
-  } else {
-    // For multiple statuses, build an OR filter string.
-    const conditions = statusFilters.map(status => {
-      if (status === 'OPEN') {
-        // Use the and() function for OPEN so that both conditions are met.
-        return `and(ReportedDate.is.not.null,Closed.is.null)`;
-      } else if (status === 'CLOSED') {
-        return `Closed.is.not.null`;
-      } else if (status === 'PENDING') {
-        return `ReportedDate.is.null`;
-      }
-      return null;
-    }).filter(Boolean) as string[];
+    return null;
+  }).filter(Boolean).join(',');
 
-    const orFilter = conditions.join(',');
+  if (orFilter) {
     query = query.or(orFilter);
   }
 }
