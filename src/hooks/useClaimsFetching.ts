@@ -21,37 +21,37 @@ export async function fetchClaims(
   
   let query = supabase
     .from("claims")
-.select(`
-  id,
-  ClaimID, 
-  AgreementID, 
-  ReportedDate, 
-  Closed,
-  Cause,
-  Correction,
-  LastModified,
-  agreements!inner(DealerUUID, dealers(Payee))
-`, { count: 'exact' })
+    .select(`
+      id,
+      ClaimID, 
+      AgreementID, 
+      ReportedDate, 
+      Closed,
+      Cause,
+      Correction,
+      LastModified,
+      agreements!inner(DealerUUID, dealers(Payee))
+    `, { count: 'exact' })
     .order("LastModified", { ascending: false });
 
-  // Apply date range filter first
+  // Apply date range filter first - STANDARDIZED TO USE ReportedDate for consistency with chart
   if (dateRange) {
     console.log(`🔍 ClaimsTable: Filtering by date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
     query = query
-      .gte("LastModified", dateRange.from.toISOString())
-      .lte("LastModified", dateRange.to.toISOString());
+      .gte("ReportedDate", dateRange.from.toISOString())
+      .lte("ReportedDate", dateRange.to.toISOString());
   }
 
   // Then apply dealer filter
-if (dealerFilter && dealerFilter.trim() !== '') {
-  console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
-  query = query.eq("agreements.DealerUUID", dealerFilter.trim());
-}
+  if (dealerFilter && dealerFilter.trim() !== '') {
+    console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
+    query = query.eq("agreements.DealerUUID", dealerFilter.trim());
+  }
 
   // Apply pagination last
   if (!dealerFilter || dealerFilter.trim() === '') {
-  query = query.range(startRow, endRow);
-}
+    query = query.range(startRow, endRow);
+  }
 
   const { data, error, count } = await query;
 

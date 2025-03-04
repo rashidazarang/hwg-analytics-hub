@@ -5,10 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { getClaimStatus, isClaimDenied } from '@/utils/claimUtils';
+
 type ClaimChartProps = {
   dateRange: DateRange;
   dealershipFilter?: string;
 };
+
 const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) => {
   console.log('[CLAIMCHART_FETCH] Fetching claims with filters:', {
     dateRange,
@@ -16,8 +18,11 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
     fromDate: dateRange.from.toISOString(),
     toDate: dateRange.to.toISOString()
   });
+  
   try {
-    let query = supabase.from("claims").select(`
+    let query = supabase
+      .from("claims")
+      .select(`
         id,
         ClaimID, 
         ReportedDate, 
@@ -26,62 +31,31 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
         Correction,
         LastModified,
         agreements(DealerUUID, dealers(Payee))
-      `).gte('ReportedDate', dateRange.from.toISOString()).lte('ReportedDate', dateRange.to.toISOString());
-    const {
-      data: claims,
-      error
-    } = await query;
+      `)
+      .gte('ReportedDate', dateRange.from.toISOString())
+      .lte('ReportedDate', dateRange.to.toISOString());
+    
+    if (dealershipFilter && dealershipFilter.trim() !== '') {
+      console.log('[CLAIMCHART_FILTER] Filtering by dealership UUID:', dealershipFilter);
+      query = query.eq('agreements.DealerUUID', dealershipFilter);
+    }
+
+    const { data: claims, error } = await query;
+
     if (error) {
       console.error('[CLAIMCHART_ERROR] Error fetching claims:', error);
       return [];
     }
-    console.log(`[CLAIMCHART_RESULT] Fetched ${claims?.length || 0} claims before dealer filtering`);
-    let filteredClaims = claims || [];
-    if (dealershipFilter && dealershipFilter.trim() !== '') {
-      console.log('[CLAIMCHART_FILTER] Filtering by dealership UUID:', dealershipFilter);
-      filteredClaims = filteredClaims.filter(claim => claim.agreements?.DealerUUID === dealershipFilter);
-      console.log('[CLAIMCHART_FILTER] Claims after dealer filtering:', filteredClaims.length);
-    }
-    if (filteredClaims.length === 0 || dealershipFilter) {
-      const pendingQuery = supabase.from("claims").select(`
-          id,
-          ClaimID, 
-          ReportedDate, 
-          Closed,
-          Cause,
-          Correction,
-          LastModified,
-          agreements(DealerUUID, dealers(Payee))
-        `).is('ReportedDate', null).is('Closed', null);
-      const {
-        data: pendingClaims,
-        error: pendingError
-      } = await pendingQuery;
-      if (!pendingError && pendingClaims && pendingClaims.length > 0) {
-        console.log(`[CLAIMCHART_PENDING] Found ${pendingClaims.length} pending claims`);
-        let filteredPendingClaims = pendingClaims;
-        if (dealershipFilter && dealershipFilter.trim() !== '') {
-          filteredPendingClaims = pendingClaims.filter(claim => claim.agreements?.DealerUUID === dealershipFilter);
-        }
-        filteredClaims = [...filteredClaims, ...filteredPendingClaims];
-      }
-    }
-    if (filteredClaims.length > 0) {
-      const sampleClaim = filteredClaims[0];
-      console.log('[CLAIMCHART_SAMPLE] Sample claim status:', {
-        claim: sampleClaim.ClaimID,
-        hasClosed: !!sampleClaim.Closed,
-        hasReportedDate: !!sampleClaim.ReportedDate,
-        correction: sampleClaim.Correction,
-        status: getClaimStatus(sampleClaim)
-      });
-    }
-    return filteredClaims;
+
+    console.log(`[CLAIMCHART_RESULT] Fetched ${claims?.length || 0} claims`);
+    
+    return claims || [];
   } catch (error) {
     console.error('[CLAIMCHART_ERROR] Error in fetchClaimsData:', error);
     return [];
   }
 };
+
 const ClaimChart: React.FC<ClaimChartProps> = ({
   dateRange,
   dealershipFilter
@@ -97,6 +71,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
     queryFn: () => fetchClaimsData(dateRange, dealershipFilter),
     staleTime: 1000 * 60 * 10
   });
+
   const processedData = React.useMemo(() => {
     console.log('[CLAIMCHART_PROCESS] Processing claims data:', claims.length);
     const statusCounts = {
@@ -104,18 +79,22 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
       PENDING: 0,
       CLOSED: 0
     };
+
     claims.forEach(claim => {
       const status = getClaimStatus(claim);
       statusCounts[status as keyof typeof statusCounts]++;
     });
+
     const chartData = Object.entries(statusCounts).map(([status, count]) => ({
       status,
       count,
       percentage: claims.length > 0 ? Math.round(count / claims.length * 100) : 0
     }));
+
     console.log('[CLAIMCHART_PROCESSED] Processed claim counts:', chartData);
     return chartData;
   }, [claims]);
+
   useEffect(() => {
     if (processedData.length > 0) {
       setAnimatedData(processedData);
@@ -123,18 +102,23 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
       setAnimatedData([]);
     }
   }, [processedData]);
+
   console.log('[CLAIMCHART_RENDER] Rendering chart with data:', processedData);
+
   const onBarEnter = (_: any, index: number) => {
     setActiveIndex(index);
   };
+
   const onBarLeave = () => {
     setActiveIndex(null);
   };
+
   const COLORS = {
     OPEN: '#10b981',
     PENDING: '#f59e0b',
     CLOSED: '#ef4444'
   };
+
   const CustomTooltip = ({
     active,
     payload
@@ -149,9 +133,11 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
     }
     return null;
   };
+
   const renderLegendText = (value: string) => {
     return <span className="text-xs font-medium">{value.toUpperCase()}</span>;
   };
+
   const CustomizedLegend = (props: any) => {
     const {
       payload
@@ -165,6 +151,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
           </div>)}
       </div>;
   };
+
   if (isError) {
     return <Card className="h-full card-hover-effect">
         <CardHeader className="pb-2">
@@ -177,6 +164,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
         </CardContent>
       </Card>;
   }
+
   return <Card className="h-full card-hover-effect">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-medium">
@@ -213,7 +201,6 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
               </BarChart>
             </ResponsiveContainer>
             
-            {/* Static legend that matches the AgreementChart */}
             <div className="flex justify-center items-center gap-4 mt-2 mb-1">
               <div className="flex items-center">
                 <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{
@@ -238,4 +225,5 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
       </CardContent>
     </Card>;
 };
+
 export default ClaimChart;

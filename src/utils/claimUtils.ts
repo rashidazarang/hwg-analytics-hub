@@ -13,11 +13,16 @@ export function isClaimDenied(correction: string | null | undefined): boolean {
 
 /**
  * Determines the status of a claim based on its Closed and ReportedDate fields
+ * STANDARDIZED to ensure consistent status determination across all components
  */
 export function getClaimStatus(claim: any): string {
-  if (claim.Closed && claim.ReportedDate) return 'CLOSED';
-  if (claim.Closed && !claim.ReportedDate) return 'PENDING';
+  // First check for completed claims
+  if (claim.Closed) return 'CLOSED';
+  
+  // Then check for claims in progress
   if (claim.ReportedDate && !claim.Closed) return 'OPEN';
+  
+  // Default to pending for anything else
   return 'PENDING';
 }
 

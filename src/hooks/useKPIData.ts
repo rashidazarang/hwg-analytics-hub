@@ -30,8 +30,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         const [
           pendingContractsResult,
           activeContractsResult,
-          cancelledContractsResult,
-          claimsQuery
+          cancelledContractsResult
         ] = await Promise.all([
           // Pending contracts - using EffectiveDate for consistency
           supabase
@@ -58,23 +57,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             .eq('AgreementStatus', 'CANCELLED')
             .gte('EffectiveDate', fromDate)
             .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
-
-          // Get all claims for status determination
-          supabase
-            .from('claims')
-            .select(`
-              id,
-              ClaimID,
-              Closed,
-              Correction,
-              ReportedDate,
-              agreements:AgreementID(
-                DealerUUID
-              )
-            `)
-            .gte('ReportedDate', fromDate)
-            .lte('ReportedDate', toDate)
+            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true)
         ]);
 
         const pendingContractsCount = pendingContractsResult.count || 0;
@@ -86,6 +69,22 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           active: activeContractsCount,
           cancelled: cancelledContractsCount
         });
+
+        // STANDARDIZED: Get claims data using the same approach as in ClaimsTable and ClaimChart
+        const claimsQuery = await supabase
+          .from('claims')
+          .select(`
+            id,
+            ClaimID,
+            Closed,
+            Correction,
+            ReportedDate,
+            agreements:AgreementID(
+              DealerUUID
+            )
+          `)
+          .gte('ReportedDate', fromDate)
+          .lte('ReportedDate', toDate);
 
         // Process claims based on dealer filter
         let filteredClaims = claimsQuery.data || [];
@@ -138,7 +137,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           openClaims: openClaimsCount,
           activeAgreements: activeContractsCount,
           totalAgreements: totalAgreementsCount || 0,
-          totalClaims: (await supabase.from('claims').select('*', { count: 'exact' })).count || 0,
+          totalClaims: filteredClaims.length, // Using our filtered claims count for consistency
           activeDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           totalDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           averageClaimAmount,
