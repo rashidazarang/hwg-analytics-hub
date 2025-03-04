@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { Menu, X } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 import { toast } from 'sonner';
 import AccountMenu from './AccountMenu';
 
@@ -51,7 +51,11 @@ const AuthNav = () => {
   };
 
   if (loading) {
-    return <Button variant="ghost" size="icon" className="h-8 w-8" disabled><span className="sr-only">Loading</span></Button>;
+    return (
+      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-70" disabled>
+        <span className="sr-only">Loading</span>
+      </Button>
+    );
   }
 
   return user ? (
@@ -61,9 +65,9 @@ const AuthNav = () => {
         size="icon"
         onClick={toggleMenu}
         aria-label="Account menu"
-        className="h-8 w-8 rounded-full bg-muted/50 hover:bg-muted"
+        className="h-8 w-8 rounded-full bg-muted/50 hover:bg-muted transition-all duration-200"
       >
-        {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        <User className="h-4 w-4" />
       </Button>
       
       <AccountMenu 
@@ -75,7 +79,12 @@ const AuthNav = () => {
       />
     </div>
   ) : (
-    <Button variant="default" size="sm" className="h-8 text-xs" onClick={() => navigate('/auth')}>
+    <Button 
+      variant="default" 
+      size="sm" 
+      className="h-8 text-xs font-medium shadow-sm" 
+      onClick={() => navigate('/auth')}
+    >
       Sign In
     </Button>
   );

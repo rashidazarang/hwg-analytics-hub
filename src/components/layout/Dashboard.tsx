@@ -19,13 +19,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur-sm shadow-sm">
+      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
         <div className="dashboard-container py-3">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Analytics Dashboard</h1>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <DateRangeFilter onChange={onDateRangeChange} />
-              <div className="sm:ml-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <h1 className="text-xl font-semibold tracking-tight pl-1 sm:pl-0">Analytics Dashboard</h1>
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+              <div className="w-full sm:w-auto">
+                <DateRangeFilter onChange={onDateRangeChange} />
+              </div>
+              <div className="sm:ml-1 self-end sm:self-auto">
                 <AuthNav />
               </div>
             </div>
@@ -34,7 +36,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         {/* Subnavbar - if provided */}
         {subnavbar && (
-          <div className="border-t border-border/40 bg-muted/50">
+          <div className="border-t border-border/30 bg-muted/30">
             <div className="dashboard-container py-2">
               {subnavbar}
             </div>

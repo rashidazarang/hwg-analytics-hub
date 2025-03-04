@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -151,21 +150,31 @@
     @apply text-destructive flex items-center space-x-1;
   }
   
-  /* New navbar-specific styles */
   .navbar-item {
-    @apply flex items-center px-2 py-1 rounded-md transition-colors duration-200;
+    @apply flex items-center px-3 py-1.5 rounded-md transition-colors duration-200;
   }
   
   .tab-active {
-    @apply bg-primary text-primary-foreground font-medium;
+    @apply bg-primary text-primary-foreground font-medium shadow-sm;
   }
   
   .compact-search {
     @apply bg-muted/30 border border-border/20 rounded-md;
   }
+  
+  .dashboard-header {
+    @apply bg-background/95 backdrop-blur-sm border-b border-border/50;
+  }
+  
+  .tab-navbar {
+    @apply p-0.5 h-10 rounded-md overflow-hidden;
+  }
+  
+  .search-field {
+    @apply bg-muted/20 border-border/30 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20;
+  }
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -184,7 +193,6 @@
   background: hsl(var(--muted-foreground));
 }
 
-/* Smooth transitions */
 .page-transition {
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
@@ -193,16 +201,14 @@
   transition: all 0.5s ease;
 }
 
-/* Date picker refinements */
 .date-range-selector {
-  transition: border-color 0.15s ease;
+  @apply transition-all duration-150 ease-in-out ring-0 focus-within:ring-1 focus-within:ring-primary/30;
 }
 
 .date-range-selector:focus-within {
-  border-color: hsl(var(--primary));
+  @apply border-primary/50;
 }
 
-/* Add animations for mobile menu */
 @keyframes slideInRight {
   from {
     transform: translateX(100%);

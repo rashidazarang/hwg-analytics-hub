@@ -210,8 +210,8 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   return (
     <div ref={searchContainerRef} className="relative w-full">
       <form onSubmit={handleSearchSubmit} className="relative">
-        <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
-          <Search className="h-4 w-4 text-muted-foreground" />
+        <div className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none">
+          <Search className="h-4 w-4 text-muted-foreground/70" />
         </div>
         
         <Input
@@ -220,7 +220,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
           value={searchTerm}
           onChange={handleSearchChange}
           onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))}
-          className="pl-8 pr-10 w-full h-9 text-sm bg-muted/30 border-border/30 focus-visible:border-primary/30"
+          className="pl-9 pr-9 w-full h-9 text-sm bg-muted/30 border-border/30 search-field rounded-md"
           autoComplete="off"
           disabled={isLoadingDealerships}
         />
@@ -229,12 +229,12 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
           <button
             type="button"
             onClick={handleClearSearch}
-            className="absolute right-0 top-0 h-full flex items-center justify-center w-10 cursor-pointer"
+            className="absolute right-0 top-0 h-full flex items-center justify-center w-9 cursor-pointer"
             aria-label="Clear search"
             title="Clear search"
           >
-            <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted transition-colors duration-200">
-              <X className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+            <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/50 transition-colors duration-200">
+              <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
             </div>
           </button>
         )}
@@ -261,8 +261,8 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
                   <div
                     key={dealership.id}
                     className={cn(
-                      "px-4 py-2 text-sm hover:bg-accent cursor-pointer",
-                      selectedDealershipId === dealership.id && "bg-accent"
+                      "px-4 py-2 text-sm hover:bg-accent cursor-pointer transition-colors duration-150",
+                      selectedDealershipId === dealership.id ? "bg-accent/70" : ""
                     )}
                     onClick={() => handleDealershipClick(dealership)}
                   >
