@@ -262,7 +262,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 iconSize={10}
                 iconType="circle"
                 formatter={(value) => (
-                  <span className="text-xs font-medium">{value}</span>
+                  <span className="text-xs font-medium">{value.toUpperCase()}</span>
                 )}
               />
               <Bar 
