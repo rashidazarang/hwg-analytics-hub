@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -22,15 +23,17 @@ export async function fetchClaims(
   
   let query = supabase
     .from("claims")
-    .select(
-      "id,ClaimID,AgreementID,ReportedDate,Closed,Cause,Correction,LastModified," +
-      "(CASE WHEN ReportedDate IS NOT NULL AND Closed IS NULL THEN 'OPEN' " +
-      "WHEN Closed IS NOT NULL THEN 'CLOSED' " +
-      "WHEN ReportedDate IS NULL THEN 'PENDING' " +
-      "ELSE 'UNKNOWN' END) as status," +
-      "agreements!inner(DealerUUID,dealers(Payee))", 
-      { count: 'exact' }
-    )
+.select(`
+  id,
+  ClaimID, 
+  AgreementID, 
+  ReportedDate, 
+  Closed,
+  Cause,
+  Correction,
+  LastModified,
+  agreements!inner(DealerUUID, dealers(Payee))
+`, { count: 'exact' })
     .order("LastModified", { ascending: false });
 
   // Apply date range filter first
@@ -41,27 +44,38 @@ export async function fetchClaims(
       .lte("LastModified", dateRange.to.toISOString());
   }
 
-  // Then apply dealer filter
-  if (dealerFilter && dealerFilter.trim() !== '') {
-    console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
-    query = query.eq("agreements.DealerUUID", dealerFilter.trim());
-  }
+// Apply status filters correctly using OR conditions
+if (statusFilters && statusFilters.length > 0) {
+  console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
 
-  // Apply status filters using the computed "status" column
-  if (statusFilters && statusFilters.length > 0) {
-    if (statusFilters.length === 1) {
-      query = query.eq('status', statusFilters[0]);
-    } else {
-      let filterExpression = '';
-      for (let i = 0; i < statusFilters.length; i++) {
-        if (i > 0) {
-          filterExpression += ',';
-        }
-        filterExpression += `status.eq.${statusFilters[i]}`;
-      }
-      query = query.or(filterExpression);
+  if (statusFilters.length === 1) {
+    // For a single status, apply filters directly.
+    const status = statusFilters[0];
+    if (status === 'OPEN') {
+      query = query.not('ReportedDate', 'is', null).is('Closed', null);
+    } else if (status === 'CLOSED') {
+      query = query.not('Closed', 'is', null);
+    } else if (status === 'PENDING') {
+      query = query.is('ReportedDate', null);
     }
+  } else {
+    // For multiple statuses, build an OR filter string.
+    const conditions = statusFilters.map(status => {
+      if (status === 'OPEN') {
+        // Use the and() function for OPEN so that both conditions are met.
+        return `and(ReportedDate.is.not.null,Closed.is.null)`;
+      } else if (status === 'CLOSED') {
+        return `Closed.is.not.null`;
+      } else if (status === 'PENDING') {
+        return `ReportedDate.is.null`;
+      }
+      return null;
+    }).filter(Boolean) as string[];
+
+    const orFilter = conditions.join(',');
+    query = query.or(orFilter);
   }
+}
 
   // Apply pagination last
   query = query.range(startRow, endRow);
