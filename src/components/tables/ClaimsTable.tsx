@@ -38,7 +38,6 @@ async function fetchClaims(
     `, { count: 'exact' })
     .order("LastModified", { ascending: false });
 
-  // Apply date range filter if provided - now using LastModified instead of ReportedDate
   if (dateRange) {
     console.log(`🔍 ClaimsTable: Filtering by date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
     query = query
@@ -46,13 +45,11 @@ async function fetchClaims(
       .lte("LastModified", dateRange.to.toISOString());
   }
 
-  // Apply dealer filter if provided
   if (dealerFilter && dealerFilter.trim() !== '') {
     console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
     query = query.eq("agreements.DealerUUID", dealerFilter);
   }
 
-  // Apply pagination using range
   query = query.range(startRow, endRow);
 
   const { data, error, count } = await query;
@@ -68,20 +65,16 @@ async function fetchClaims(
   return { data: data || [], count: count || 0 };
 }
 
-// Function to check if a claim is denied based on Correction field
 function isClaimDenied(correction: string | null | undefined): boolean {
   if (!correction) return false;
   return /denied|not covered|rejected/i.test(correction);
 }
 
-// Updated status mapper function with PENDING status
 const getClaimStatus = (claim: any): string => {
-  if (claim.Closed) return 'CLOSED';
-  if (claim.Correction && /denied|not covered|rejected/i.test(claim.Correction)) {
-    return 'DENIED';
-  }
-  if (!claim.ReportedDate && !claim.Closed) return 'PENDING'; // No ReportedDate & No Closed = PENDING
-  return 'OPEN'; // Default to OPEN if it has a ReportedDate but is not yet Closed
+  if (claim.Closed && claim.ReportedDate) return 'CLOSED';
+  if (claim.Closed && !claim.ReportedDate) return 'PENDING';
+  if (claim.ReportedDate && !claim.Closed) return 'OPEN';
+  return 'PENDING';
 };
 
 const ClaimsTable: React.FC<{ 
@@ -99,7 +92,6 @@ const ClaimsTable: React.FC<{
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
     setLocalSearchQuery(searchQuery);
@@ -112,13 +104,12 @@ const ClaimsTable: React.FC<{
   } = useQuery({
     queryKey: ['claims', page, pageSize, dealerFilter, dateRange?.from, dateRange?.to],
     queryFn: () => fetchClaims(page, pageSize, dealerFilter, dateRange),
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    staleTime: 1000 * 60 * 10,
   });
   
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
   
-  // Filter claims based on searchQuery
   const filteredClaims = useMemo(() => {
     console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', localSearchQuery);
     
@@ -164,7 +155,6 @@ const ClaimsTable: React.FC<{
         const variants = {
           OPEN: 'bg-warning/15 text-warning border-warning/20',
           CLOSED: 'bg-success/15 text-success border-success/20',
-          DENIED: 'bg-destructive/15 text-destructive border-destructive/20',
           PENDING: 'bg-muted/15 text-muted-foreground border-muted/20',
           UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
         };
@@ -200,7 +190,7 @@ const ClaimsTable: React.FC<{
 
   const handleSearch = (term: string) => {
     setLocalSearchQuery(term);
-    setPage(1); // Reset to first page on search
+    setPage(1);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -209,7 +199,7 @@ const ClaimsTable: React.FC<{
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
-    setPage(1); // Reset to first page when page size changes
+    setPage(1);
   };
 
   return (

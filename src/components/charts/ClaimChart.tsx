@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,20 +13,18 @@ type ClaimChartProps = {
   dealershipFilter?: string;
 };
 
+// Updated status mapper function with the new status logic - matching ClaimsTable.tsx exactly
+function getClaimStatus(claim: any): string {
+  if (claim.Closed && claim.ReportedDate) return 'CLOSED';
+  if (claim.Closed && !claim.ReportedDate) return 'PENDING';
+  if (claim.ReportedDate && !claim.Closed) return 'OPEN';
+  return 'PENDING'; // Default to PENDING for any other cases
+}
+
 // Function to check if a claim is denied based on Correction field - matching ClaimsTable.tsx
 function isClaimDenied(correction: string | null | undefined): boolean {
   if (!correction) return false;
   return /denied|not covered|rejected/i.test(correction);
-}
-
-// Updated status mapper function with PENDING status - matching ClaimsTable.tsx exactly
-function getClaimStatus(claim: any): string {
-  if (claim.Closed) return 'CLOSED';
-  if (claim.Correction && /denied|not covered|rejected/i.test(claim.Correction)) {
-    return 'DENIED';
-  }
-  if (!claim.ReportedDate && !claim.Closed) return 'PENDING'; // No ReportedDate & No Closed = PENDING
-  return 'OPEN'; // Default to OPEN if it has a ReportedDate but is not yet Closed
 }
 
 const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) => {
@@ -141,9 +138,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     
     const statusCounts = {
       OPEN: 0,
-      DENIED: 0,
-      CLOSED: 0,
-      PENDING: 0 // Added PENDING status
+      PENDING: 0,
+      CLOSED: 0
     };
 
     claims.forEach(claim => {
@@ -232,7 +228,6 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 {processedData.map((entry, index) => {
                   const colors = {
                     OPEN: '#3b82f6',    // Blue
-                    DENIED: '#ef4444',  // Red
                     CLOSED: '#10b981',  // Green
                     PENDING: '#9ca3af'  // Gray
                   };

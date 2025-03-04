@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -17,12 +16,10 @@ function isClaimDenied(correction: string | null | undefined): boolean {
 
 // Updated function to determine claim status - matching ClaimsTable.tsx exactly
 function getClaimStatus(claim: any): string {
-  if (claim.Closed) return 'CLOSED';
-  if (claim.Correction && /denied|not covered|rejected/i.test(claim.Correction)) {
-    return 'DENIED';
-  }
-  if (!claim.ReportedDate && !claim.Closed) return 'PENDING'; // No ReportedDate & No Closed = PENDING
-  return 'OPEN'; // Default to OPEN if it has a ReportedDate but is not yet Closed
+  if (claim.Closed && claim.ReportedDate) return 'CLOSED';
+  if (claim.Closed && !claim.ReportedDate) return 'PENDING';
+  if (claim.ReportedDate && !claim.Closed) return 'OPEN';
+  return 'PENDING'; // Default to PENDING for any other cases
 }
 
 export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
