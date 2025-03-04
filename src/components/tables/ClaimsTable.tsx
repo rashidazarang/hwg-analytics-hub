@@ -7,8 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-async function fetchClaims(dealerFilter?: string) {
-  console.log('🔍 ClaimsTable: Fetching claims with dealerFilter:', dealerFilter);
+async function fetchClaims(dateRange: DateRange, dealerFilter?: string) {
+  console.log('🔍 ClaimsTable: Fetching claims with filters:', {
+    dealerFilter,
+    from: dateRange.from.toISOString(),
+    to: dateRange.to.toISOString()
+  });
 
   const PAGE_SIZE = 1000;
   let allData: any[] = [];
@@ -16,8 +20,8 @@ async function fetchClaims(dealerFilter?: string) {
   let hasMore = true;
 
   while (hasMore) {
-    const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+    const fromOffset = page * PAGE_SIZE;
+    const toOffset = fromOffset + PAGE_SIZE - 1;
 
     let query = supabase
       .from("claims")
@@ -32,8 +36,10 @@ async function fetchClaims(dealerFilter?: string) {
         LastModified,
         agreements(DealerUUID, dealers(Payee))
       `)
+      .gte('ReportedDate', dateRange.from.toISOString()) // Respect date range
+      .lte('ReportedDate', dateRange.to.toISOString())
       .order("LastModified", { ascending: false })
-      .range(from, to);
+      .range(fromOffset, toOffset);
 
     if (dealerFilter && dealerFilter.trim() !== '') {
       console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
@@ -61,7 +67,6 @@ async function fetchClaims(dealerFilter?: string) {
   console.log(`✅ ClaimsTable: Fetched a total of ${allData.length} claims`);
   return allData;
 }
-
 // Function to check if a claim is denied based on Correction field
 function isClaimDenied(correction: string | null | undefined): boolean {
   if (!correction) return false;
