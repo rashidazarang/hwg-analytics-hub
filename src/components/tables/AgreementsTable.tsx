@@ -391,9 +391,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
 
   return (
     <>
-      <div className="text-sm text-muted-foreground mb-2">
-        {currentStatus}
-      </div>
       
       <DataTable
         data={filteredAgreements}
