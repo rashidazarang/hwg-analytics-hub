@@ -35,39 +35,51 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
     toDate: dateRange.to.toISOString()
   });
 
-  let query = supabase
-    .from('claims')
-    .select(`
-      *,
-      agreements:AgreementID(
-        DealerUUID,
-        dealers:DealerUUID(
-          PayeeID,
-          Payee
+  try {
+    let query = supabase
+      .from('claims')
+      .select(`
+        *,
+        agreements:AgreementID(
+          DealerUUID,
+          dealers:DealerUUID(
+            PayeeID,
+            Payee
+          )
         )
-      )
-    `)
-    .gte('ReportedDate', dateRange.from.toISOString())
-    .lte('ReportedDate', dateRange.to.toISOString());
+      `)
+      .gte('ReportedDate', dateRange.from.toISOString())
+      .lte('ReportedDate', dateRange.to.toISOString());
 
-  if (dealershipFilter && dealershipFilter.trim()) {
-    console.log('[CLAIMCHART_FETCH] Applying dealership filter:', dealershipFilter);
-    query = query.eq('agreements.DealerUUID', dealershipFilter);
-  }
+    // Get the raw claims data
+    const { data: claims, error } = await query;
 
-  const { data: claims, error } = await query;
+    if (error) {
+      console.error('[CLAIMCHART_ERROR] Error fetching claims:', error);
+      return [];
+    }
 
-  if (error) {
-    console.error('[CLAIMCHART_ERROR] Error fetching claims:', error);
+    console.log('[CLAIMCHART_RESULT] Fetched claims before dealer filtering:', claims?.length || 0);
+
+    // If dealership filter is provided, filter the claims client-side
+    let filteredClaims = claims || [];
+    if (dealershipFilter && dealershipFilter.trim() !== '') {
+      console.log('[CLAIMCHART_FILTER] Filtering by dealership UUID:', dealershipFilter);
+      filteredClaims = filteredClaims.filter(claim => 
+        claim.agreements?.DealerUUID === dealershipFilter
+      );
+      console.log('[CLAIMCHART_FILTER] Claims after dealer filtering:', filteredClaims.length);
+    }
+
+    return filteredClaims;
+  } catch (error) {
+    console.error('[CLAIMCHART_ERROR] Error in fetchClaimsData:', error);
     return [];
   }
-
-  console.log('[CLAIMCHART_RESULT] Fetched claims:', claims?.length || 0);
-  return claims || [];
 };
 
 const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) => {
-  const { data: claims = [], isFetching } = useQuery({
+  const { data: claims = [], isFetching, isError } = useQuery({
     queryKey: ['claims-chart', dateRange.from, dateRange.to, dealershipFilter],
     queryFn: () => fetchClaimsData(dateRange, dealershipFilter),
     staleTime: 1000 * 60 * 10,
@@ -97,6 +109,21 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
   }, [claims]);
 
   console.log('[CLAIMCHART_RENDER] Rendering chart with data:', processedData);
+
+  if (isError) {
+    return (
+      <Card className="h-full card-hover-effect">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium">Claims Status Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[240px] text-destructive">
+            Error loading claims data. Please try again.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="h-full card-hover-effect">
