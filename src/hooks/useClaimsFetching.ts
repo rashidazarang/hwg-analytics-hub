@@ -53,8 +53,7 @@ if (dealerFilter && dealerFilter.trim() !== '') {
 if (statusFilters && statusFilters.length > 0) {
   console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
 
-  // Build conditions – each condition is wrapped in parentheses.
-  const conditions = statusFilters.map(status => {
+  const orFilter = statusFilters.map(status => {
     if (status === 'OPEN') {
       // OPEN: ReportedDate is NOT NULL AND Closed IS NULL
       return `(ReportedDate.not.is.null,Closed.is.null)`;
@@ -66,11 +65,9 @@ if (statusFilters && statusFilters.length > 0) {
       return `(ReportedDate.is.null)`;
     }
     return null;
-  }).filter(Boolean) as string[];
+  }).filter(Boolean).join(',');
 
-  if (conditions.length > 0) {
-    // Combine conditions with commas to represent an OR between them.
-    const orFilter = conditions.join(',');
+  if (orFilter) {
     query = query.or(orFilter);
   }
 }
