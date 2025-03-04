@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
-import { getClaimStatus, isClaimDenied } from '@/utils/claimUtils';
+import { getClaimStatus } from '@/utils/claimUtils';
 
 type ClaimChartProps = {
   dateRange: DateRange;
@@ -78,14 +79,16 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
     const statusCounts = {
       OPEN: 0,
       PENDING: 0,
-      CLOSED: 0,
-      DENIED: 0
+      CLOSED: 0
     };
 
     claims.forEach(claim => {
       const status = getClaimStatus(claim);
-      statusCounts[status as keyof typeof statusCounts] = 
-        (statusCounts[status as keyof typeof statusCounts] || 0) + 1;
+      // If status is "DENIED", we'll ignore it per requirements
+      if (status !== "DENIED" && statusCounts.hasOwnProperty(status)) {
+        statusCounts[status as keyof typeof statusCounts] = 
+          (statusCounts[status as keyof typeof statusCounts] || 0) + 1;
+      }
     });
 
     const chartData = Object.entries(statusCounts).map(([status, count]) => ({
@@ -119,8 +122,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
   const COLORS = {
     OPEN: '#10b981',
     PENDING: '#f59e0b',
-    CLOSED: '#ef4444',
-    DENIED: '#64748b'
+    CLOSED: '#ef4444'
   };
 
   const CustomTooltip = ({
@@ -223,12 +225,6 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
               backgroundColor: '#ef4444'
             }}></span>
                 <span className="text-xs font-medium">CLOSED</span>
-              </div>
-              <div className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{
-              backgroundColor: '#64748b'
-            }}></span>
-                <span className="text-xs font-medium">DENIED</span>
               </div>
             </div>
           </div>}

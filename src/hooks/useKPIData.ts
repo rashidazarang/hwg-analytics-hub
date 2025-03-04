@@ -117,16 +117,11 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           getClaimStatus(claim) === 'CLOSED'
         ).length;
         
-        const deniedClaimsCount = filteredClaims.filter(claim => 
-          getClaimStatus(claim) === 'DENIED'
-        ).length;
-        
         console.log('[KPI_DATA] Claims breakdown:', {
           total: filteredClaims.length,
           open: openClaimsCount,
           pending: pendingClaimsCount,
-          closed: closedClaimsCount,
-          denied: deniedClaimsCount
+          closed: closedClaimsCount
         });
 
         // Calculate claim amounts from Deductible (if available)
