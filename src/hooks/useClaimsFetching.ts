@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -21,26 +20,18 @@ export async function fetchClaims(
   const startRow = (page - 1) * pageSize;
   const endRow = startRow + pageSize - 1;
   
-let query = supabase
-  .from("claims")
-  .select(`
-  id,
-  ClaimID, 
-  AgreementID, 
-  ReportedDate, 
-  Closed,
-  Cause,
-  Correction,
-  LastModified,
-  CASE
-    WHEN ReportedDate IS NOT NULL AND Closed IS NULL THEN 'OPEN'
-    WHEN Closed IS NOT NULL THEN 'CLOSED'
-    WHEN ReportedDate IS NULL THEN 'PENDING'
-    ELSE 'UNKNOWN'
-  END as status,
-  agreements!inner(DealerUUID, dealers(Payee))
-`, { count: 'exact' })
-  .order("LastModified", { ascending: false });
+  let query = supabase
+    .from("claims")
+    .select(
+      "id,ClaimID,AgreementID,ReportedDate,Closed,Cause,Correction,LastModified," +
+      "(CASE WHEN ReportedDate IS NOT NULL AND Closed IS NULL THEN 'OPEN' " +
+      "WHEN Closed IS NOT NULL THEN 'CLOSED' " +
+      "WHEN ReportedDate IS NULL THEN 'PENDING' " +
+      "ELSE 'UNKNOWN' END) as status," +
+      "agreements!inner(DealerUUID,dealers(Payee))", 
+      { count: 'exact' }
+    )
+    .order("LastModified", { ascending: false });
 
   // Apply date range filter first
   if (dateRange) {
@@ -50,21 +41,27 @@ let query = supabase
       .lte("LastModified", dateRange.to.toISOString());
   }
 
-// Apply status filters using the computed "status" column
-if (statusFilters && statusFilters.length > 0) {
-  if (statusFilters.length === 1) {
-    query = query.eq('status', statusFilters[0]);
-  } else {
-    let filterExpression = '';
-    for (let i = 0; i < statusFilters.length; i++) {
-      if (i > 0) {
-        filterExpression += ',';
-      }
-      filterExpression += `status.eq.${statusFilters[i]}`;
-    }
-    query = query.or(filterExpression);
+  // Then apply dealer filter
+  if (dealerFilter && dealerFilter.trim() !== '') {
+    console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
+    query = query.eq("agreements.DealerUUID", dealerFilter.trim());
   }
-}
+
+  // Apply status filters using the computed "status" column
+  if (statusFilters && statusFilters.length > 0) {
+    if (statusFilters.length === 1) {
+      query = query.eq('status', statusFilters[0]);
+    } else {
+      let filterExpression = '';
+      for (let i = 0; i < statusFilters.length; i++) {
+        if (i > 0) {
+          filterExpression += ',';
+        }
+        filterExpression += `status.eq.${statusFilters[i]}`;
+      }
+      query = query.or(filterExpression);
+    }
+  }
 
   // Apply pagination last
   query = query.range(startRow, endRow);
