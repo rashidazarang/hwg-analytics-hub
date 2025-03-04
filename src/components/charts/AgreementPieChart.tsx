@@ -83,10 +83,10 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
 
   // Define predefined colors for each category
   const pieColors = {
-    'ACTIVE': '#3b82f6', // Blue
-    'PENDING': '#10b981', // Green
+    'ACTIVE': '#10b981', // Green
+    'PENDING': '#ef4444', // Yellow
     'CANCELLED': '#ef4444', // Red
-    'OTHER': '#6366f1', // Purple
+    'OTHER': '#3b82f6', // Blue
   };
 
   return (
@@ -130,11 +130,11 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
       {/* Static legend that matches the ClaimChart */}
       <div className="flex justify-center items-center gap-4 mt-2 mb-1">
         <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#3b82f6' }}></span>
+          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }}></span>
           <span className="text-xs font-medium">ACTIVE</span>
         </div>
         <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }}></span>
+          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#ef4444' }}></span>
           <span className="text-xs font-medium">PENDING</span>
         </div>
         <div className="flex items-center">
@@ -142,10 +142,10 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
           <span className="text-xs font-medium">CANCELLED</span>
         </div>
         <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#6366f1' }}></span>
+          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#3b82f6' }}></span>
           <span className="text-xs font-medium">OTHER</span>
         </div>
       </div>
-    </div>
+    </div> 
   );
 };
