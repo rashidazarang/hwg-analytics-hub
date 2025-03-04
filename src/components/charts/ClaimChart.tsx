@@ -178,6 +178,28 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     return null;
   };
 
+  const renderLegendText = (value: string) => {
+    return <span className="text-xs font-medium">{value.toUpperCase()}</span>;
+  };
+
+  const CustomizedLegend = (props: any) => {
+    const { payload } = props;
+    
+    return (
+      <div className="flex justify-center items-center gap-4 mt-2">
+        {payload.map((entry: any, index: number) => (
+          <div key={`legend-${index}`} className="flex items-center">
+            <span 
+              className="inline-block w-2 h-2 rounded-full mr-1.5" 
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-xs font-medium">{entry.value.toUpperCase()}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (isError) {
     return (
       <Card className="h-full card-hover-effect">
@@ -244,14 +266,14 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
               />
               <Legend 
+                content={<CustomizedLegend />}
                 layout="horizontal" 
                 verticalAlign="bottom" 
                 align="center"
+                height={36}
                 iconSize={10}
                 iconType="circle"
-                formatter={(value) => (
-                  <span className="text-xs font-medium">{value.toUpperCase()}</span>
-                )}
+                formatter={renderLegendText}
               />
               <Bar 
                 dataKey="count" 
