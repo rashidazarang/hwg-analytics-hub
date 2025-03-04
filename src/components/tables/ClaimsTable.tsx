@@ -7,66 +7,40 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-async function fetchClaims(dateRange: DateRange, dealerFilter?: string) {
-  console.log('🔍 ClaimsTable: Fetching claims with filters:', {
-    dealerFilter,
-    from: dateRange.from.toISOString(),
-    to: dateRange.to.toISOString()
-  });
+async function fetchClaims(dealerFilter?: string) {
+  console.log('🔍 ClaimsTable: Fetching claims with dealerFilter:', dealerFilter);
+  
+  let query = supabase
+    .from("claims")
+    .select(`
+      id,
+      ClaimID, 
+      AgreementID, 
+      ReportedDate, 
+      Closed,
+      Cause,
+      Correction,
+      LastModified,
+      agreements(DealerUUID, dealers(Payee))
+    `)
+    .order("LastModified", { ascending: false });
 
-  const PAGE_SIZE = 1000;
-  let allData: any[] = [];
-  let page = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const fromOffset = page * PAGE_SIZE;
-    const toOffset = fromOffset + PAGE_SIZE - 1;
-
-    let query = supabase
-      .from("claims")
-      .select(`
-        id,
-        ClaimID, 
-        AgreementID, 
-        ReportedDate, 
-        Closed,
-        Cause,
-        Correction,
-        LastModified,
-        agreements(DealerUUID, dealers(Payee))
-      `)
-      .gte('ReportedDate', dateRange.from.toISOString()) // Respect date range
-      .lte('ReportedDate', dateRange.to.toISOString())
-      .order("LastModified", { ascending: false })
-      .range(fromOffset, toOffset);
-
-    if (dealerFilter && dealerFilter.trim() !== '') {
-      console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
-      query = query.eq("agreements.DealerUUID", dealerFilter);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error("❌ Error fetching claims:", error);
-      return allData;
-    }
-
-    if (!data || data.length === 0) {
-      hasMore = false;
-    } else {
-      allData = [...allData, ...data];
-      if (data.length < PAGE_SIZE) {
-        hasMore = false;
-      } else {
-        page++;
-      }
-    }
+  if (dealerFilter && dealerFilter.trim() !== '') {
+    console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
+    query = query.eq("agreements.DealerUUID", dealerFilter);
   }
 
-  console.log(`✅ ClaimsTable: Fetched a total of ${allData.length} claims`);
-  return allData;
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("❌ Error fetching claims:", error);
+    return [];
+  }
+
+  console.log(`✅ ClaimsTable: Fetched ${data?.length || 0} claims`);
+  return data || [];
 }
+
 // Function to check if a claim is denied based on Correction field
 function isClaimDenied(correction: string | null | undefined): boolean {
   if (!correction) return false;
