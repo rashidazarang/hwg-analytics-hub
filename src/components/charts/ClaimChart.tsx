@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   BarChart, Bar, Cell, XAxis, YAxis,
@@ -8,25 +8,12 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
+import { getClaimStatus, isClaimDenied } from '@/utils/claimUtils';
 
 type ClaimChartProps = {
   dateRange: DateRange;
   dealershipFilter?: string;
 };
-
-// Updated status mapper function with the new status logic - matching ClaimsTable.tsx exactly
-function getClaimStatus(claim: any): string {
-  if (claim.Closed && claim.ReportedDate) return 'CLOSED';
-  if (claim.Closed && !claim.ReportedDate) return 'PENDING';
-  if (claim.ReportedDate && !claim.Closed) return 'OPEN';
-  return 'PENDING'; // Default to PENDING for any other cases
-}
-
-// Function to check if a claim is denied based on Correction field - matching ClaimsTable.tsx
-function isClaimDenied(correction: string | null | undefined): boolean {
-  if (!correction) return false;
-  return /denied|not covered|rejected/i.test(correction);
-}
 
 const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) => {
   console.log('[CLAIMCHART_FETCH] Fetching claims with filters:', {
@@ -128,6 +115,9 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
 };
 
 const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) => {
+  const [animatedData, setAnimatedData] = useState<any[]>([]);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  
   const { data: claims = [], isFetching, isError } = useQuery({
     queryKey: ['claims-chart', dateRange.from, dateRange.to, dealershipFilter],
     queryFn: () => fetchClaimsData(dateRange, dealershipFilter),
@@ -150,14 +140,40 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
 
     const chartData = Object.entries(statusCounts).map(([status, count]) => ({
       status,
-      count
+      count,
+      // Calculate percentages for tooltips
+      percentage: claims.length > 0 ? Math.round((count / claims.length) * 100) : 0
     }));
 
     console.log('[CLAIMCHART_PROCESSED] Processed claim counts:', chartData);
     return chartData;
   }, [claims]);
 
+  // Update animated data when processed data changes
+  useEffect(() => {
+    if (processedData.length > 0) {
+      setAnimatedData(processedData);
+    } else {
+      setAnimatedData([]);
+    }
+  }, [processedData]);
+
   console.log('[CLAIMCHART_RENDER] Rendering chart with data:', processedData);
+
+  const onBarEnter = (_: any, index: number) => {
+    setActiveIndex(index);
+  };
+
+  const onBarLeave = () => {
+    setActiveIndex(null);
+  };
+
+  // Define the colors to match AgreementPieChart
+  const COLORS = {
+    OPEN: '#10b981',   // Green 
+    PENDING: '#f59e0b', // Yellow/Amber
+    CLOSED: '#ef4444'   // Red
+  };
 
   if (isError) {
     return (
@@ -191,7 +207,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
           <div className="flex items-center justify-center h-[240px]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
-        ) : processedData.every(d => d.count === 0) ? (
+        ) : animatedData.length === 0 || animatedData.every(d => d.count === 0) ? (
           <div className="flex items-center justify-center h-[240px] text-muted-foreground">
             No claims data available for the selected filters.
           </div>
@@ -199,46 +215,69 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
           <ResponsiveContainer width="100%" height={240}>
             <BarChart
               layout="vertical"
-              data={processedData}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              data={animatedData}
+              margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
+              barSize={28}
+              barGap={4}
+              animationDuration={750}
+              animationEasing="ease-in-out"
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
               <YAxis
                 dataKey="status"
                 type="category"
                 axisLine={false}
                 tickLine={false}
-                width={90}
+                hide={true} // Hide the Y-axis labels
               />
               <XAxis
                 type="number"
                 axisLine={false}
                 tickLine={false}
+                tick={false} // Hide X-axis tick labels
                 domain={[0, 'auto']}
               />
               <Tooltip
+                formatter={(value: number, name: string, props: { payload: { percentage: number } }) => {
+                  return [`${value} Claims (${props.payload.percentage}%)`, ''];
+                }}
                 contentStyle={{
                   borderRadius: '6px',
                   border: '1px solid rgba(0,0,0,0.1)',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                   fontSize: '14px',
                 }}
-                formatter={(value: number) => [`${value} Claims`, 'Count']}
               />
-              <Bar dataKey="count" barSize={20} radius={[4, 4, 4, 4]}>
-                {processedData.map((entry, index) => {
-                  const colors = {
-                    OPEN: '#3b82f6',    // Blue
-                    CLOSED: '#10b981',  // Green
-                    PENDING: '#9ca3af'  // Gray
-                  };
-                  return (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={colors[entry.status as keyof typeof colors] || '#cccccc'} 
-                    />
-                  );
-                })}
+              <Legend 
+                layout="horizontal" 
+                verticalAlign="bottom" 
+                align="center"
+                iconSize={10}
+                iconType="circle"
+                formatter={(value) => (
+                  <span className="text-xs font-medium">{value}</span>
+                )}
+              />
+              <Bar 
+                dataKey="count" 
+                radius={[4, 4, 4, 4]}
+                onMouseEnter={onBarEnter}
+                onMouseLeave={onBarLeave}
+              >
+                {animatedData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={COLORS[entry.status as keyof typeof COLORS]} 
+                    stroke={activeIndex === index ? 'rgba(255,255,255,0.3)' : 'transparent'}
+                    strokeWidth={activeIndex === index ? 2 : 0}
+                    className="transition-all duration-200"
+                    style={{
+                      filter: activeIndex === index ? 'drop-shadow(0 0 4px rgba(0,0,0,0.2))' : 'none',
+                      opacity: activeIndex === null || activeIndex === index ? 1 : 0.7,
+                      transition: 'opacity 0.3s, filter 0.3s',
+                    }}
+                  />
+                ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
