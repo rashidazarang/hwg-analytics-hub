@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 async function fetchClaims(dealerFilter?: string) {
+  console.log('🔍 ClaimsTable: Fetching claims with dealerFilter:', dealerFilter);
+  
   let query = supabase
     .from("claims")
     .select(`
@@ -23,7 +25,8 @@ async function fetchClaims(dealerFilter?: string) {
     `)
     .order("LastModified", { ascending: false });
 
-  if (dealerFilter) {
+  if (dealerFilter && dealerFilter.trim() !== '') {
+    console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
     query = query.eq("agreements.DealerUUID", dealerFilter);
   }
 
@@ -34,16 +37,17 @@ async function fetchClaims(dealerFilter?: string) {
     return [];
   }
 
-  return data;
+  console.log(`✅ ClaimsTable: Fetched ${data?.length || 0} claims`);
+  return data || [];
 }
 
-// Updated function to check if a claim is denied based on Correction field
+// Function to check if a claim is denied based on Correction field
 function isClaimDenied(correction: string | null | undefined): boolean {
   if (!correction) return false;
   return /denied|not covered|rejected/i.test(correction);
 }
 
-// Updated status mapper function based on the new logic
+// Updated status mapper function based on the business logic
 const getClaimStatus = (claim: any): string => {
   if (claim.Closed) return 'CLOSED';
   if (isClaimDenied(claim.Correction)) return 'DENIED';
@@ -63,15 +67,16 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
   
   // Filter claims based on dealerFilter and searchQuery
   const filteredClaims = useMemo(() => {
+    console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', searchQuery);
     let filtered = claims;
 
     if (searchQuery) {
       const term = searchQuery.toLowerCase();
       filtered = filtered.filter(claim => 
-  claim.ClaimID?.toLowerCase().includes(term) || 
-  claim.AgreementID?.toLowerCase().includes(term) ||
-  claim.agreements?.dealers?.Payee?.toLowerCase().includes(term)
-);
+        claim.ClaimID?.toLowerCase().includes(term) || 
+        claim.AgreementID?.toLowerCase().includes(term) ||
+        claim.agreements?.dealers?.Payee?.toLowerCase().includes(term)
+      );
     }
 
     return filtered;

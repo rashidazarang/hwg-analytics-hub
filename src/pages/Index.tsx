@@ -107,7 +107,8 @@ const Index = () => {
 
   useEffect(() => {
     console.log(`📊 Index: Current dealership state - UUID: '${dealershipUUID}', Name: '${dealershipName}'`);
-  }, [dealershipUUID, dealershipName]);
+    console.log(`📅 Index: Current dateRange: ${dateRange.from} to ${dateRange.to}`);
+  }, [dealershipUUID, dealershipName, dateRange]);
 
   return (
     <div className="min-h-screen bg-background">

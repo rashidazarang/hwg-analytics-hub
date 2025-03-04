@@ -15,6 +15,9 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
   dateRange, 
   dealershipFilter
 }) => {
+  console.log('📊 DashboardCharts: Rendering with dateRange:', dateRange);
+  console.log('📊 DashboardCharts: Rendering with dealershipFilter:', dealershipFilter);
+  
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
       <AgreementChart dateRange={dateRange} dealerFilter={dealershipFilter} />

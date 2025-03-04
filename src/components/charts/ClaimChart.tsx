@@ -22,6 +22,7 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
     .from('claims')
     .select(`
       id,
+      ClaimID,
       ReportedDate,
       Closed,
       Correction,
@@ -30,7 +31,8 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
     `)
     .order('LastModified', { ascending: false });
 
-  if (dealershipFilter) {
+  if (dealershipFilter && dealershipFilter.trim() !== '') {
+    console.log(`🔍 Filtering by dealership UUID: "${dealershipFilter}"`);
     query = query.eq('agreements.DealerUUID', dealershipFilter);
   }
 
@@ -40,8 +42,12 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
     return [];
   }
 
-  console.log('✅ Raw fetched claims:', JSON.stringify(data, null, 2));
-  return data;
+  console.log(`✅ Raw fetched claims: ${data?.length || 0} records`);
+  if (data && data.length > 0) {
+    console.log('📋 Sample claim:', JSON.stringify(data[0], null, 2));
+  }
+  
+  return data || [];
 };
 
 // Function to check if a claim is denied based on Correction field
@@ -70,11 +76,14 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
   // Use the proper DateRange property names (from and to)
   const startDate = new Date(dateRange.from);
   const endDate = new Date(dateRange.to);
+  
+  console.log(`📅 Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
   claims.forEach((claim) => {
     const reportedDate = claim.ReportedDate ? new Date(claim.ReportedDate) : null;
+    
     if (reportedDate && reportedDate >= startDate && reportedDate <= endDate) {
-      // Apply the updated status logic consistently
+      // Apply the consistent status logic
       if (claim.Closed) {
         statusCounts.CLOSED += 1;
       } else if (isClaimDenied(claim.Correction)) {
@@ -95,14 +104,16 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
 };
 
 const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) => {
-  // Use React Query to fetch claims data
+  // Use React Query to fetch claims data with the correct dependencies
   const { data: claims = [], isFetching } = useQuery({
-    queryKey: ['claims-data', dateRange, dealershipFilter],
+    queryKey: ['claims-data', dateRange.from, dateRange.to, dealershipFilter],
     queryFn: () => fetchClaimsData(dateRange, dealershipFilter),
     staleTime: 1000 * 60 * 10,
   });
 
-  console.log('📊 Raw Claims Data:', claims);
+  console.log('📊 ClaimChart: Raw Claims Data count:', claims.length);
+  console.log('📊 ClaimChart: Using dealershipFilter:', dealershipFilter);
+  console.log('📊 ClaimChart: Using dateRange:', dateRange);
 
   // For debugging, attach to window object
   if (typeof window !== 'undefined') {
@@ -128,7 +139,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
           Claims Status Distribution
           {dealershipFilter && (
             <span className="text-sm font-normal text-muted-foreground ml-2">
-              (Filtered by: {dealershipFilter || 'Loading...'})
+              (Filtered by dealership)
             </span>
           )}
         </CardTitle>
