@@ -15,11 +15,14 @@ function isClaimDenied(correction: string | null | undefined): boolean {
   return /denied|not covered|rejected/i.test(correction);
 }
 
-// Updated function to determine claim status - matching ClaimsTable.tsx
+// Updated function to determine claim status - matching ClaimsTable.tsx exactly
 function getClaimStatus(claim: any): string {
   if (claim.Closed) return 'CLOSED';
-  if (isClaimDenied(claim.Correction)) return 'DENIED';
-  return 'OPEN';
+  if (claim.Correction && /denied|not covered|rejected/i.test(claim.Correction)) {
+    return 'DENIED';
+  }
+  if (!claim.ReportedDate && !claim.Closed) return 'PENDING'; // No ReportedDate & No Closed = PENDING
+  return 'OPEN'; // Default to OPEN if it has a ReportedDate but is not yet Closed
 }
 
 export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
@@ -105,7 +108,8 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           total: filteredClaims.length,
           open: openClaimsCount,
           denied: filteredClaims.filter(claim => getClaimStatus(claim) === 'DENIED').length,
-          closed: filteredClaims.filter(claim => getClaimStatus(claim) === 'CLOSED').length
+          closed: filteredClaims.filter(claim => getClaimStatus(claim) === 'CLOSED').length,
+          pending: filteredClaims.filter(claim => getClaimStatus(claim) === 'PENDING').length
         });
 
         // Claims data for amounts

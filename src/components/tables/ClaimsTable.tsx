@@ -47,11 +47,14 @@ function isClaimDenied(correction: string | null | undefined): boolean {
   return /denied|not covered|rejected/i.test(correction);
 }
 
-// Updated status mapper function based on the business logic
+// Updated status mapper function with PENDING status
 const getClaimStatus = (claim: any): string => {
   if (claim.Closed) return 'CLOSED';
-  if (isClaimDenied(claim.Correction)) return 'DENIED';
-  return 'OPEN';
+  if (claim.Correction && /denied|not covered|rejected/i.test(claim.Correction)) {
+    return 'DENIED';
+  }
+  if (!claim.ReportedDate && !claim.Closed) return 'PENDING'; // No ReportedDate & No Closed = PENDING
+  return 'OPEN'; // Default to OPEN if it has a ReportedDate but is not yet Closed
 };
 
 const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQuery?: string; }> = ({
@@ -113,6 +116,7 @@ const columns: Column<any>[] = [
         OPEN: 'bg-warning/15 text-warning border-warning/20',
         CLOSED: 'bg-success/15 text-success border-success/20',
         DENIED: 'bg-destructive/15 text-destructive border-destructive/20',
+        PENDING: 'bg-muted/15 text-muted-foreground border-muted/20',
         UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
       };
       return (

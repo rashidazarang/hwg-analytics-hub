@@ -20,11 +20,14 @@ function isClaimDenied(correction: string | null | undefined): boolean {
   return /denied|not covered|rejected/i.test(correction);
 }
 
-// Updated status mapper function to match ClaimsTable.tsx logic exactly
+// Updated status mapper function with PENDING status - matching ClaimsTable.tsx exactly
 function getClaimStatus(claim: any): string {
   if (claim.Closed) return 'CLOSED';
-  if (isClaimDenied(claim.Correction)) return 'DENIED';
-  return 'OPEN';
+  if (claim.Correction && /denied|not covered|rejected/i.test(claim.Correction)) {
+    return 'DENIED';
+  }
+  if (!claim.ReportedDate && !claim.Closed) return 'PENDING'; // No ReportedDate & No Closed = PENDING
+  return 'OPEN'; // Default to OPEN if it has a ReportedDate but is not yet Closed
 }
 
 const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) => {
@@ -77,6 +80,7 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
       console.log('[CLAIMCHART_SAMPLE] Sample claim status:', {
         claim: sampleClaim.ClaimID,
         hasClosed: !!sampleClaim.Closed,
+        hasReportedDate: !!sampleClaim.ReportedDate,
         correction: sampleClaim.Correction,
         status: getClaimStatus(sampleClaim)
       });
@@ -102,7 +106,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     const statusCounts = {
       OPEN: 0,
       DENIED: 0,
-      CLOSED: 0
+      CLOSED: 0,
+      PENDING: 0 // Added PENDING status
     };
 
     claims.forEach(claim => {
@@ -193,6 +198,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                     OPEN: '#3b82f6',    // Blue
                     DENIED: '#ef4444',  // Red
                     CLOSED: '#10b981',  // Green
+                    PENDING: '#9ca3af'  // Gray
                   };
                   return (
                     <Cell 
