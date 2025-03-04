@@ -294,17 +294,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       render: (row) => row.AgreementID || '',
     },
     {
-      key: 'customerName',
-      title: 'Customer Name',
-      sortable: false,
-      searchable: true,
-      render: (row) => {
-        const firstName = formatName(row.HolderFirstName);
-        const lastName = formatName(row.HolderLastName);
-        return firstName || lastName ? `${firstName} ${lastName}`.trim() : 'N/A';
-      },
-    },
-    {
       key: 'dealership',
       title: 'Dealership',
       searchable: true,
@@ -313,25 +302,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       },
     },
     {
-      key: 'DealerID',
-      title: 'Dealer ID',
-      searchable: true,
-      render: (row) => row.DealerID || 'No Dealer Assigned',
-    },
-    {
       key: 'effectiveDate',
       title: 'Effective Date',
       sortable: false,
       render: (row) => {
         return row.EffectiveDate ? format(new Date(row.EffectiveDate), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'expireDate',
-      title: 'Expire Date',
-      sortable: false,
-      render: (row) => {
-        return row.ExpireDate ? format(new Date(row.ExpireDate), 'MMM d, yyyy') : 'N/A';
       },
     },
     {
