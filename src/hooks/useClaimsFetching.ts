@@ -50,33 +50,47 @@ export async function fetchClaims(
     query = query.eq("agreements.DealerUUID", dealerFilter);
   }
 
-  // Apply status filters, but transform them into status-specific conditions
+  // Apply status filters correctly
   if (statusFilters && statusFilters.length > 0) {
-    console.log('🔍 ClaimsTable: Applying status filters:', statusFilters);
+    console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
     
-    // We need to transform abstract status filters into actual DB conditions
-    const statusConditions = [];
+    // Start with an empty array for our OR conditions
+    const filterConditions = [];
     
-    if (statusFilters.includes('OPEN')) {
-      // Define what OPEN means: ReportedDate is NOT NULL AND Closed is NULL
-      statusConditions.push("ReportedDate.not.is.null,and,Closed.is.null");
+    // Add the appropriate filter for each status
+    for (const status of statusFilters) {
+      if (status === 'OPEN') {
+        // Open claims: ReportedDate is NOT NULL AND Closed is NULL
+        filterConditions.push(`ReportedDate.is.not.null,Closed.is.null`);
+      } else if (status === 'CLOSED') {
+        // Closed claims: Closed is NOT NULL
+        filterConditions.push(`Closed.is.not.null`);
+      } else if (status === 'PENDING') {
+        // Pending claims: ReportedDate is NULL
+        filterConditions.push(`ReportedDate.is.null`);
+      }
     }
     
-    if (statusFilters.includes('CLOSED')) {
-      // Define what CLOSED means: Closed is NOT NULL
-      statusConditions.push("Closed.not.is.null");
-    }
-    
-    if (statusFilters.includes('PENDING')) {
-      // Define what PENDING means: ReportedDate is NULL
-      statusConditions.push("ReportedDate.is.null");
-    }
-    
-    if (statusConditions.length > 0) {
-      // Join all status conditions with OR
-      const filterExpression = statusConditions.join(',or,');
-      console.log('🔍 ClaimsTable: Using filter expression:', filterExpression);
-      query = query.or(filterExpression);
+    // If we have filter conditions, apply them
+    if (filterConditions.length > 0) {
+      if (filterConditions.length === 1) {
+        // For a single condition, we can apply it directly
+        const condition = filterConditions[0];
+        const parts = condition.split(',');
+        
+        for (const part of parts) {
+          const [field, operatorValue] = part.split('.is.');
+          
+          if (operatorValue === 'null') {
+            query = query.is(field, null);
+          } else if (operatorValue === 'not.null') {
+            query = query.not(field, 'is', null);
+          }
+        }
+      } else {
+        // For multiple conditions, we need to use OR
+        query = query.or(filterConditions.join(','));
+      }
     }
   }
 
