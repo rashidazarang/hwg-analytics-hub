@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -163,8 +164,9 @@ const DataTable = <T extends Record<string, any>>({
     <div className={className}>
       {searchConfig.enabled && (
         <div className="mb-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-end items-center">
             <div className="flex items-center space-x-4">
+              {customFilters}
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -174,7 +176,6 @@ const DataTable = <T extends Record<string, any>>({
                   className="pl-8 w-64"
                 />
               </div>
-              {customFilters}
             </div>
           </div>
         </div>
