@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
@@ -7,6 +6,27 @@ import DashboardCharts from '@/components/charts/DashboardCharts';
 import DashboardTables from '@/components/tables/DashboardTables';
 import DealershipSearch from '@/components/search/DealershipSearch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+const fetchClaimsForCharts = async (dealerFilter?: string) => {
+  let query = supabase
+    .from("claims")
+    .select(`*`);
+
+  if (dealerFilter) {
+    query = query.eq("agreements.DealerUUID", dealerFilter);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("❌ Error fetching claims for charts:", error);
+    return [];
+  }
+
+  return data || [];
+};
 
 const Index = () => {
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -64,6 +84,12 @@ const Index = () => {
     </div>
   );
 
+  const { data: claims = [] } = useQuery({
+    queryKey: ['claims-for-charts', dealershipUUID],
+    queryFn: () => fetchClaimsForCharts(dealershipUUID),
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+  });
+
   useEffect(() => {
     console.log(`📊 Index: Current dealership state - UUID: '${dealershipUUID}', Name: '${dealershipName}'`);
   }, [dealershipUUID, dealershipName]);
@@ -78,13 +104,14 @@ const Index = () => {
         >
           <DashboardCharts 
             dateRange={dateRange}
-            dealershipFilter={dealershipUUID} // Passing UUID for filtering
+            dealershipFilter={dealershipUUID}
+            claims={claims}
           />
           <DashboardTables
             activeTab={activeTab}
             dateRange={dateRange}
-            dealerFilter={dealershipUUID}  // Passing UUID for filtering
-            dealerName={dealershipName}    // Passing name for display
+            dealerFilter={dealershipUUID}
+            dealerName={dealershipName}
             searchQuery={searchTerm}
           />
         </Dashboard>
