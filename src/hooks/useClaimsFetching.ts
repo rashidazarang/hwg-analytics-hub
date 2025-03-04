@@ -50,43 +50,46 @@ export async function fetchClaims(
     query = query.eq("agreements.DealerUUID", dealerFilter);
   }
 
-  // Apply status filters properly on the server-side
+  // Apply status filters correctly
   if (statusFilters && statusFilters.length > 0) {
     console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
     
-    // Create an array to store filter conditions
-    const statusConditions = [];
+    // Start with an empty array for our OR conditions
+    const filterConditions = [];
     
-    // Add conditions based on status values
+    // Add the appropriate filter for each status
     for (const status of statusFilters) {
       if (status === 'OPEN') {
-        // Open claims have ReportedDate but no Closed date
-        statusConditions.push('(ReportedDate.is.not.null,Closed.is.null)');
+        // Open claims: ReportedDate is NOT NULL AND Closed is NULL
+        filterConditions.push(`ReportedDate.is.not.null,Closed.is.null`);
       } else if (status === 'CLOSED') {
-        // Closed claims have a Closed date
-        statusConditions.push('(Closed.is.not.null)');
+        // Closed claims: Closed is NOT NULL
+        filterConditions.push(`Closed.is.not.null`);
       } else if (status === 'PENDING') {
-        // Pending claims have no ReportedDate
-        statusConditions.push('(ReportedDate.is.null)');
+        // Pending claims: ReportedDate is NULL
+        filterConditions.push(`ReportedDate.is.null`);
       }
     }
     
-    // Apply the conditions if we have any
-    if (statusConditions.length > 0) {
-      // Use or() for multiple status conditions
-      if (statusConditions.length === 1) {
-        // Simple case with one condition
-        const [condition] = statusConditions[0].slice(1, -1).split(',');
-        const [field, operator] = condition.split('.is.');
+    // If we have filter conditions, apply them
+    if (filterConditions.length > 0) {
+      if (filterConditions.length === 1) {
+        // For a single condition, we can apply it directly
+        const condition = filterConditions[0];
+        const parts = condition.split(',');
         
-        if (operator === 'null') {
-          query = query.is(field, null);
-        } else if (operator === 'not.null') {
-          query = query.not(field, 'is', null);
+        for (const part of parts) {
+          const [field, operatorValue] = part.split('.is.');
+          
+          if (operatorValue === 'null') {
+            query = query.is(field, null);
+          } else if (operatorValue === 'not.null') {
+            query = query.not(field, 'is', null);
+          }
         }
       } else {
-        // Multiple conditions - use OR filter
-        query = query.or(statusConditions.join(','));
+        // For multiple conditions, we need to use OR
+        query = query.or(filterConditions.join(','));
       }
     }
   }

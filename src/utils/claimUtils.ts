@@ -23,10 +23,14 @@ export function getClaimStatus(claim: any): string {
 
 /**
  * Status variant mapping for styling claim status badges
+ * Updated to match the required color scheme:
+ * - Open: Green
+ * - Pending: Yellow
+ * - Closed: Red
  */
 export const statusVariants = {
-  OPEN: 'bg-warning/15 text-warning border-warning/20',
-  CLOSED: 'bg-success/15 text-success border-success/20',
-  PENDING: 'bg-muted/15 text-muted-foreground border-muted/20',
+  OPEN: 'bg-success/15 text-success border-success/20',
+  PENDING: 'bg-warning/15 text-warning border-warning/20',
+  CLOSED: 'bg-destructive/15 text-destructive border-destructive/20',
   UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
 };
