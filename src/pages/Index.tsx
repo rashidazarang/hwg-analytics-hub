@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
@@ -8,8 +9,9 @@ import DealershipSearch from '@/components/search/DealershipSearch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Claim } from '@/lib/types';
 
-const fetchClaimsForCharts = async (dealerFilter?: string) => {
+const fetchClaimsForCharts = async (dealerFilter?: string): Promise<Claim[]> => {
   let query = supabase
     .from("claims")
     .select(`*`);
@@ -25,7 +27,19 @@ const fetchClaimsForCharts = async (dealerFilter?: string) => {
     return [];
   }
 
-  return data || [];
+  // Transform the string dates into Date objects to match the Claim type
+  return (data || []).map(claim => ({
+    ...claim,
+    // Convert string dates to Date objects
+    ReportedDate: claim.ReportedDate ? new Date(claim.ReportedDate) : undefined,
+    IncurredDate: claim.IncurredDate ? new Date(claim.IncurredDate) : undefined,
+    Closed: claim.Closed ? new Date(claim.Closed) : undefined,
+    // Add necessary properties for the Claim interface
+    agreements: claim.agreements || {
+      DealerUUID: dealerFilter || undefined,
+      dealers: undefined
+    }
+  }));
 };
 
 const Index = () => {
