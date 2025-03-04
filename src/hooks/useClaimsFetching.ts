@@ -21,9 +21,9 @@ export async function fetchClaims(
   const startRow = (page - 1) * pageSize;
   const endRow = startRow + pageSize - 1;
   
-  let query = supabase
-    .from("claims")
-.select(`
+let query = supabase
+  .from("claims")
+  .select(`
   id,
   ClaimID, 
   AgreementID, 
@@ -32,9 +32,15 @@ export async function fetchClaims(
   Cause,
   Correction,
   LastModified,
+  CASE
+    WHEN ReportedDate IS NOT NULL AND Closed IS NULL THEN 'OPEN'
+    WHEN Closed IS NOT NULL THEN 'CLOSED'
+    WHEN ReportedDate IS NULL THEN 'PENDING'
+    ELSE 'UNKNOWN'
+  END as status,
   agreements!inner(DealerUUID, dealers(Payee))
 `, { count: 'exact' })
-    .order("LastModified", { ascending: false });
+  .order("LastModified", { ascending: false });
 
   // Apply date range filter first
   if (dateRange) {
@@ -44,36 +50,19 @@ export async function fetchClaims(
       .lte("LastModified", dateRange.to.toISOString());
   }
 
-// Apply status filters correctly using OR conditions
+// Apply status filters using the computed "status" column
 if (statusFilters && statusFilters.length > 0) {
-  console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
-
   if (statusFilters.length === 1) {
-    // For a single status, apply filters directly.
-    const status = statusFilters[0];
-    if (status === 'OPEN') {
-      query = query.not('ReportedDate', 'is', null).is('Closed', null);
-    } else if (status === 'CLOSED') {
-      query = query.not('Closed', 'is', null);
-    } else if (status === 'PENDING') {
-      query = query.is('ReportedDate', null);
-    }
+    query = query.eq('status', statusFilters[0]);
   } else {
-    // For multiple statuses, build an OR filter string.
-    const conditions = statusFilters.map(status => {
-      if (status === 'OPEN') {
-        // Use the and() function for OPEN so that both conditions are met.
-        return `and(ReportedDate.is.not.null,Closed.is.null)`;
-      } else if (status === 'CLOSED') {
-        return `Closed.is.not.null`;
-      } else if (status === 'PENDING') {
-        return `ReportedDate.is.null`;
+    let filterExpression = '';
+    for (let i = 0; i < statusFilters.length; i++) {
+      if (i > 0) {
+        filterExpression += ',';
       }
-      return null;
-    }).filter(Boolean) as string[];
-
-    const orFilter = conditions.join(',');
-    query = query.or(orFilter);
+      filterExpression += `status.eq.${statusFilters[i]}`;
+    }
+    query = query.or(filterExpression);
   }
 }
 
