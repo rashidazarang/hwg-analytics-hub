@@ -50,38 +50,33 @@ export async function fetchClaims(
     query = query.eq("agreements.DealerUUID", dealerFilter);
   }
 
-  // Apply status filters correctly
+  // Apply status filters, but transform them into status-specific conditions
   if (statusFilters && statusFilters.length > 0) {
-    console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
+    console.log('🔍 ClaimsTable: Applying status filters:', statusFilters);
     
-    if (statusFilters.length === 1) {
-      // For a single status filter, we can apply it directly
-      const status = statusFilters[0];
-      if (status === 'OPEN') {
-        query = query.not('ReportedDate', 'is', null).is('Closed', null);
-      } else if (status === 'CLOSED') {
-        query = query.not('Closed', 'is', null);
-      } else if (status === 'PENDING') {
-        query = query.is('ReportedDate', null);
-      }
-    } else {
-      // For multiple status filters, we need to use filter expressions with OR
-      const filterExpressions: string[] = [];
-      
-      for (const status of statusFilters) {
-        if (status === 'OPEN') {
-          filterExpressions.push('ReportedDate.not.is.null,and,Closed.is.null');
-        } else if (status === 'CLOSED') {
-          filterExpressions.push('Closed.not.is.null');
-        } else if (status === 'PENDING') {
-          filterExpressions.push('ReportedDate.is.null');
-        }
-      }
-      
-      if (filterExpressions.length > 0) {
-        // Join all filter expressions with OR
-        query = query.or(filterExpressions.join(',or,'));
-      }
+    // We need to transform abstract status filters into actual DB conditions
+    const statusConditions = [];
+    
+    if (statusFilters.includes('OPEN')) {
+      // Define what OPEN means: ReportedDate is NOT NULL AND Closed is NULL
+      statusConditions.push("ReportedDate.not.is.null,and,Closed.is.null");
+    }
+    
+    if (statusFilters.includes('CLOSED')) {
+      // Define what CLOSED means: Closed is NOT NULL
+      statusConditions.push("Closed.not.is.null");
+    }
+    
+    if (statusFilters.includes('PENDING')) {
+      // Define what PENDING means: ReportedDate is NULL
+      statusConditions.push("ReportedDate.is.null");
+    }
+    
+    if (statusConditions.length > 0) {
+      // Join all status conditions with OR
+      const filterExpression = statusConditions.join(',or,');
+      console.log('🔍 ClaimsTable: Using filter expression:', filterExpression);
+      query = query.or(filterExpression);
     }
   }
 
