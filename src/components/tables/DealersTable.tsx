@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/types';
@@ -45,9 +44,9 @@ const DealersTable: React.FC<DealersTableProps> = ({
             // For a single status filter
             query = query.eq('status', statusFilters[0]);
           } else if (statusFilters.length > 1) {
-            // For multiple statuses, use the `in` operator without type complexity
-            const statusArray = [...statusFilters]; // Create a simple array copy
-            query = query.in('status', statusArray);
+            // Fixed: Use a simple string array to avoid TypeScript recursion issues
+            const statusValues: string[] = statusFilters.map(s => s);
+            query = query.in('status', statusValues);
           }
         }
         
