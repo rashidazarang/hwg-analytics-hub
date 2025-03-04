@@ -22,20 +22,23 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
     `)
     .order("LastModified", { ascending: false });
 
-  if (dealershipFilter) {
+    if (dealershipFilter) {
     query = query.eq("agreements.DealerUUID", dealershipFilter);
   }
 
-  const { data, error } = await query;
+const { data, error } = await query;
   
-  if (error) {
-    console.error("❌ Error fetching claims:", error);
-    return [];
-  }
+if (error) {
+  console.error("❌ Error fetching claims:", error);
+  return [];
+}
 
-  console.log('✅ Fetched claims:', data);
-  return data;
+console.log('✅ Raw fetched claims:', JSON.stringify(data, null, 2)); // ✅ Place it here
+return data;
+
 };
+
+
 
 // 🔢 Process claims into the required format
 const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
@@ -44,10 +47,11 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
     return [];
   }
 
-  const statusCounts = {
+    const statusCounts = {
     OPEN: 0,
     PENDING: 0,
     DENIED: 0,
+    CLOSED: 0, // Added CLOSED to prevent undefined counts
   };
 
   const startDate = new Date(dateRange.start);
@@ -55,23 +59,26 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
 
   claims.forEach(claim => {
     const reportedDate = claim.ReportedDate ? new Date(claim.ReportedDate) : null;
-    if (reportedDate && reportedDate >= startDate && reportedDate <= endDate) {
-      if (claim.Cause && !claim.Closed) {
-        statusCounts.DENIED += 1;
-      } else if (claim.ReportedDate && !claim.Closed && !claim.Cause) {
-        statusCounts.PENDING += 1;
-      } else {
-        statusCounts.OPEN += 1;
-      }
+        if (reportedDate && reportedDate >= startDate && reportedDate <= endDate) {
+if (claim.Closed) {
+  statusCounts.CLOSED += 1;
+} else if (claim.Cause && !claim.Closed) {
+  statusCounts.DENIED += 1;
+} else if (claim.ReportedDate && !claim.Closed) {
+  statusCounts.PENDING += 1;
+} else {
+  statusCounts.OPEN += 1;
+}
     }
   });
 
-  console.log('📊 Processed claims data:', statusCounts);
+  console.log('📊 Processed claims data:', JSON.stringify(statusCounts, null, 2));
 
-  return [
+    return [
     { status: 'OPEN', count: statusCounts.OPEN },
     { status: 'PENDING', count: statusCounts.PENDING },
     { status: 'DENIED', count: statusCounts.DENIED },
+    { status: 'CLOSED', count: statusCounts.CLOSED },
   ];
 };
 
@@ -84,9 +91,12 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
   });
 
   console.log('📊 Raw Claims Data:', claims);
-  const data = getClaimsByStatus(claims, dateRange);
-  console.log('📊 Processed Claims Data:', data);
 
+const data = claims.length > 0 ? getClaimsByStatus(claims, dateRange) : [];
+console.log('📊 Data sent to chart:', JSON.stringify(data, null, 2)); // ✅ Place it here
+
+
+  
   return (
     <Card className="h-full card-hover-effect">
       <CardHeader className="pb-2">
@@ -134,32 +144,37 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 domain={[0, 'auto']}
               />
 
-              <Tooltip
-                contentStyle={{
-                  borderRadius: '6px',
-                  border: '1px solid rgba(0,0,0,0.1)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  fontSize: '14px',
-                }}
-                formatter={(value) => [value, 'Claims']}
-              />
+            <Legend
+  layout="horizontal"
+  verticalAlign="top"
+  align="center"
+  iconSize={10}
+  iconType="circle"
+formatter={(value) => (
+  <span className="text-xs font-medium">{value ? value.charAt(0) + value.slice(1).toLowerCase() : ''}</span>
+)}
+/>
 
-              <Legend
-                layout="horizontal"
-                verticalAlign="top"
-                align="center"
-                iconSize={10}
-                iconType="circle"
-                formatter={(value) => (
-                  <span className="text-xs font-medium">{value.toUpperCase()}</span>
-                )}
-              />
+<Tooltip
+  contentStyle={{
+    borderRadius: '6px',
+    border: '1px solid rgba(0,0,0,0.1)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    fontSize: '14px',
+  }}
+formatter={(value, name) => [`${value || 0} Claims`, name ? name.charAt(0) + name.slice(1).toLowerCase() : 'Unknown']}
+/>
 
               <Bar dataKey="count" name="Claims" barSize={20} radius={[4, 4, 4, 4]}>
                 {data.map((entry, index) => {
-                  let fillColor = "#3b82f6"; // Default for OPEN
-                  if (entry.status === 'PENDING') fillColor = "#f59e0b";
-                  else if (entry.status === 'DENIED') fillColor = "#ef4444";
+                const statusColors: Record<string, string> = {
+  OPEN: "#3b82f6",    // Blue
+  PENDING: "#f59e0b", // Orange
+  DENIED: "#ef4444",  // Red
+  CLOSED: "#10b981",  // Green
+  UNKNOWN: "#cccccc", // Light Gray (Fallback)
+};
+let fillColor = statusColors[entry.status] || "#cccccc";
                   return <Cell key={`cell-${index}`} fill={fillColor} />;
                 })}
               </Bar>
