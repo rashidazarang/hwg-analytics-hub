@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -16,11 +16,14 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
 
   let query = supabase
     .from("claims")
-    .select("id, ReportedDate, Closed, Cause, agreements(DealerUUID, dealers(Payee))");
+    .select(`
+      id, ReportedDate, Closed, Cause, LastModified,
+      agreements!inner(DealerUUID, dealers!inner(Payee))
+    `)
+    .order("LastModified", { ascending: false });
 
-  // Apply dealership filter
   if (dealershipFilter) {
-    query = query.eq("agreements.dealers.DealerUUID", dealershipFilter);
+    query = query.eq("agreements.DealerUUID", dealershipFilter);
   }
 
   const { data, error } = await query;
@@ -47,18 +50,18 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
     DENIED: 0,
   };
 
-  claims.forEach(claim => {
-    const reportedDate = new Date(claim.ReportedDate);
-    const startDate = new Date(dateRange.start);
-    const endDate = new Date(dateRange.end);
+  const startDate = new Date(dateRange.start);
+  const endDate = new Date(dateRange.end);
 
-    if (reportedDate >= startDate && reportedDate <= endDate) {
-      if (!claim.Closed && !claim.Cause) {
-        statusCounts.OPEN += 1;
+  claims.forEach(claim => {
+    const reportedDate = claim.ReportedDate ? new Date(claim.ReportedDate) : null;
+    if (reportedDate && reportedDate >= startDate && reportedDate <= endDate) {
+      if (claim.Cause && !claim.Closed) {
+        statusCounts.DENIED += 1;
       } else if (claim.ReportedDate && !claim.Closed && !claim.Cause) {
         statusCounts.PENDING += 1;
-      } else if (claim.Cause && !claim.Closed) {
-        statusCounts.DENIED += 1;
+      } else {
+        statusCounts.OPEN += 1;
       }
     }
   });
@@ -77,10 +80,12 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
   const { data: claims = [], isFetching } = useQuery({
     queryKey: ['claims-data', dateRange, dealershipFilter],
     queryFn: () => fetchClaimsData(dateRange, dealershipFilter),
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    staleTime: 1000 * 60 * 10,
   });
 
+  console.log('📊 Raw Claims Data:', claims);
   const data = getClaimsByStatus(claims, dateRange);
+  console.log('📊 Processed Claims Data:', data);
 
   return (
     <Card className="h-full card-hover-effect">
@@ -112,8 +117,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               
-              {/* Y-Axis: Claim Statuses */}
-              <YAxis 
+              <YAxis
                 dataKey="status"
                 type="category"
                 axisLine={false}
@@ -122,8 +126,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 tick={{ fontSize: 12, fill: '#666' }}
               />
 
-              {/* X-Axis: Claim Counts */}
-              <XAxis 
+              <XAxis
                 type="number"
                 axisLine={false}
                 tickLine={false}
@@ -141,7 +144,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 formatter={(value) => [value, 'Claims']}
               />
 
-              <Legend 
+              <Legend
                 layout="horizontal"
                 verticalAlign="top"
                 align="center"
@@ -152,10 +155,14 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 )}
               />
 
-              {/* Horizontal Bars for Each Claim Status */}
-              <Bar dataKey="count" fill="#3b82f6" name="OPEN" barSize={20} radius={[4, 4, 4, 4]} />
-              <Bar dataKey="count" fill="#f59e0b" name="PENDING" barSize={20} radius={[4, 4, 4, 4]} />
-              <Bar dataKey="count" fill="#ef4444" name="DENIED" barSize={20} radius={[4, 4, 4, 4]} />
+              <Bar dataKey="count" name="Claims" barSize={20} radius={[4, 4, 4, 4]}>
+                {data.map((entry, index) => {
+                  let fillColor = "#3b82f6"; // Default for OPEN
+                  if (entry.status === 'PENDING') fillColor = "#f59e0b";
+                  else if (entry.status === 'DENIED') fillColor = "#ef4444";
+                  return <Cell key={`cell-${index}`} fill={fillColor} />;
+                })}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
