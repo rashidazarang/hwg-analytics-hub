@@ -121,13 +121,6 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
 
   return (
     <div className={className}>
-      <div className="text-sm text-muted-foreground mb-2">
-        {isFetching 
-          ? "Loading claims..."
-          : `Displaying ${Math.min(displayedCount, effectiveTotalCount)} of ${effectiveTotalCount} claims`
-        }
-      </div>
-      
       <DataTable
         data={filteredClaims}
         columns={columns}
