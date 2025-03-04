@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -160,11 +159,27 @@ const DataTable = <T extends Record<string, any>>({
       : <ChevronDown className="ml-1 h-4 w-4 rotate-180 transform" />;
   };
 
+  const displayedCount = displayData.length;
+  const totalItemsCount = paginationProps?.totalItems || displayedCount;
+  
   return (
     <div className={className}>
       {searchConfig.enabled && (
         <div className="mb-4">
-          <div className="flex justify-end items-center">
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-muted-foreground animate-fade-in">
+              {loading ? (
+                <span className="flex items-center">
+                  <div className="mr-2 h-3 w-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
+                  Loading records...
+                </span>
+              ) : (
+                <span>
+                  Displaying <span className="font-medium text-foreground">{displayedCount}</span> of <span className="font-medium text-foreground">{totalItemsCount}</span> records
+                </span>
+              )}
+            </div>
+            
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
