@@ -9,28 +9,6 @@ import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
 
-type Agreement = {
-  id: string;
-  AgreementID: string;
-  HolderFirstName?: string | null;
-  HolderLastName?: string | null;
-  dealerName?: string;
-  DealerUUID?: string | null;
-  DealerID?: string | null;
-  EffectiveDate?: string | null;
-  ExpireDate?: string | null;
-  AgreementStatus?: string | null;
-  Total?: number | null;
-  DealerCost?: number | null;
-  ReserveAmount?: number | null;
-  status?: string;
-  startDate?: string;
-  endDate?: string;
-  value?: number;
-  dealerCost?: number;
-  reserveAmount?: number;
-};
-
 type Dealer = {
   DealerUUID: string;
   PayeeID: string;
@@ -110,8 +88,8 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
       console.log(`📊 Sample agreement:`, data[0]);
     }
     
-    // Cast the data to the Agreement type
-    const typedData = data as Agreement[];
+    // Ensure we properly cast the data to Agreement type
+    const typedData = data as unknown as Agreement[];
     allAgreements = [...allAgreements, ...typedData];
 
     if (data && data.length === SUPABASE_PAGE_SIZE) {
@@ -268,24 +246,27 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return map;
   }, [dealers]);
   
-const filteredAgreements = useMemo(() => {
-  console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
-  let filtered = agreements;
-  
-  if (searchTerm.trim()) {
-    const term = searchTerm.toLowerCase().trim();
-    filtered = filtered.filter(agreement => {
-      const dealerName = agreement.dealers?.Payee?.toLowerCase() || ""; 
-      return (
-        (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
-        (dealerName && dealerName.includes(term))
-      );
-    });
-  }
+  const filteredAgreements = useMemo(() => {
+    console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
+    let filtered = agreements;
+    
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(agreement => {
+        // Safely access dealers.Payee with optional chaining
+        const payee = agreement.dealers?.Payee || "";
+        const dealerName = typeof payee === 'string' ? payee.toLowerCase() : "";
+        
+        return (
+          (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
+          (dealerName && dealerName.includes(term))
+        );
+      });
+    }
 
-  console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
-  return filtered;
-}, [agreements, searchTerm, dealerFilter]);
+    console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
+    return filtered;
+  }, [agreements, searchTerm, dealerFilter]);
   
   useEffect(() => {
     if (filteredAgreements.length > 0) {
@@ -332,6 +313,7 @@ const filteredAgreements = useMemo(() => {
       title: 'Dealership',
       searchable: true,
       render: (row) => {
+        // Safely access the dealers.Payee with optional chaining
         return row.dealers?.Payee || "Unknown Dealership";
       },
     },

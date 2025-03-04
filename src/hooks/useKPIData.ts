@@ -23,7 +23,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           toDate,
         };
         
-        // 1. Pending Contracts Query
+        // Prepare all queries first to avoid deep nesting
         let pendingContractsQuery = supabase
           .from('agreements')
           .select('count', { count: 'exact' })
@@ -31,7 +31,6 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           .gte('EffectiveDate', fromDate)
           .lte('EffectiveDate', toDate);
           
-        // 2. Newly Active Contracts Query  
         let newlyActiveContractsQuery = supabase
           .from('agreements')
           .select('count', { count: 'exact' })
@@ -39,7 +38,6 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           .gte('EffectiveDate', fromDate)
           .lte('EffectiveDate', toDate);
           
-        // 3. Cancelled Contracts Query
         let cancelledContractsQuery = supabase
           .from('agreements')
           .select('count', { count: 'exact' })
@@ -47,7 +45,6 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           .gte('StatusChangeDate', fromDate)
           .lte('StatusChangeDate', toDate);
           
-        // 4. Open Claims Query
         let openClaimsQuery = supabase
           .from('claims')
           .select('count', { count: 'exact' })
@@ -63,25 +60,19 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           openClaimsQuery = openClaimsQuery.eq('DealerUUID', dealerFilter);
         }
         
-        // Execute all queries in parallel
-        const [
-          pendingContractsResult,
-          newlyActiveContractsResult,
-          cancelledContractsResult,
-          openClaimsResult,
-          totalAgreementsResult,
-          activeDealersResult,
-          totalDealersResult,
-        ] = await Promise.all([
-          pendingContractsQuery,
-          newlyActiveContractsQuery,
-          cancelledContractsQuery,
-          openClaimsQuery,
-          // Keep existing queries for backward compatibility
-          supabase.from('agreements').select('count', { count: 'exact' }),
-          supabase.from('dealers').select('count', { count: 'exact' }).eq('IsActive', true),
-          supabase.from('dealers').select('count', { count: 'exact' }),
-        ]);
+        // Execute baseline queries for compatibility
+        const totalAgreementsQuery = supabase.from('agreements').select('count', { count: 'exact' });
+        const activeDealersQuery = supabase.from('dealers').select('count', { count: 'exact' }).eq('IsActive', true);
+        const totalDealersQuery = supabase.from('dealers').select('count', { count: 'exact' });
+        
+        // Execute all queries in parallel, but handle them individually to avoid type recursion
+        const pendingContractsResult = await pendingContractsQuery;
+        const newlyActiveContractsResult = await newlyActiveContractsQuery;
+        const cancelledContractsResult = await cancelledContractsQuery;
+        const openClaimsResult = await openClaimsQuery;
+        const totalAgreementsResult = await totalAgreementsQuery;
+        const activeDealersResult = await activeDealersQuery;
+        const totalDealersResult = await totalDealersQuery;
         
         // For claim amounts, make a separate query since we need the data, not just a count
         const claimsDataResult = await supabase.from('claims').select('Deductible');
