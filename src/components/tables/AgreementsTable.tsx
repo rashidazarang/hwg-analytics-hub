@@ -79,7 +79,9 @@ async function fetchAgreements(
     query = query.in("AgreementStatus", statusFilters);
   }
   
+if (!dealerFilter || dealerFilter.trim() === '') {
   query = query.range(startRow, endRow);
+}
   
   const { data, error, count } = await query;
 
