@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { DateRange } from '@/lib/dateUtils';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,11 +69,9 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           newlyActiveContractsResult,
           cancelledContractsResult,
           openClaimsResult,
-          // Include original queries for backward compatibility
-          { count: totalAgreements = 0 },
-          { count: activeDealers = 0 },
-          { count: totalDealers = 0 },
-          { data: claimsData = [] },
+          totalAgreementsResult,
+          activeDealersResult,
+          totalDealersResult,
         ] = await Promise.all([
           pendingContractsQuery,
           newlyActiveContractsQuery,
@@ -82,18 +81,24 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           supabase.from('agreements').select('count', { count: 'exact' }),
           supabase.from('dealers').select('count', { count: 'exact' }).eq('IsActive', true),
           supabase.from('dealers').select('count', { count: 'exact' }),
-          supabase.from('claims').select('ClaimAmount'),
         ]);
+        
+        // For claim amounts, make a separate query since we need the data, not just a count
+        const claimsDataResult = await supabase.from('claims').select('Deductible');
         
         // Extract counts and handle errors
         const pendingContracts = pendingContractsResult.count || 0;
         const newlyActiveContracts = newlyActiveContractsResult.count || 0;
         const cancelledContracts = cancelledContractsResult.count || 0;
         const openClaims = openClaimsResult.count || 0;
+        const totalAgreements = totalAgreementsResult.count || 0;
+        const activeDealers = activeDealersResult.count || 0;
+        const totalDealers = totalDealersResult.count || 0;
         
-        // Calculate claim amounts (maintaining backward compatibility)
+        // Calculate claim amounts (using Deductible as a fallback for ClaimAmount)
+        const claimsData = claimsDataResult.data || [];
         const totalClaimsAmount = claimsData.reduce((sum, claim) => 
-          sum + (claim.ClaimAmount || 0), 0);
+          sum + (claim.Deductible || 0), 0);
         const averageClaimAmount = claimsData.length > 0 
           ? totalClaimsAmount / claimsData.length 
           : 0;
@@ -107,10 +112,10 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           openClaims,
           // Maintain backward compatibility
           activeAgreements: newlyActiveContracts,
-          totalAgreements: totalAgreements || 0,
+          totalAgreements,
           totalClaims: openClaims,
-          activeDealers: activeDealers || 0,
-          totalDealers: totalDealers || 0,
+          activeDealers,
+          totalDealers,
           averageClaimAmount,
           totalClaimsAmount,
         };

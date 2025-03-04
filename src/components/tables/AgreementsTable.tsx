@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
+import { Agreement } from '@/lib/types';
 
 type Agreement = {
   id: string;
@@ -59,26 +60,27 @@ async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string):
 
     console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
     
-    // Start building the query
-let query = supabase
-  .from("agreements")
-  .select(`
-    id, 
-    AgreementID, 
-    HolderFirstName, 
-    HolderLastName, 
-    DealerUUID, 
-    DealerID, 
-    EffectiveDate, 
-    ExpireDate, 
-    AgreementStatus, 
-    Total, 
-    DealerCost, 
-    ReserveAmount, 
-    dealers(Payee)  -- 👈 Fetch dealer name
-  `)
-  .gte("EffectiveDate", from)
-  .lte("EffectiveDate", to);
+    // Start building the query - fix the comment and properly join with dealers
+    let query = supabase
+      .from("agreements")
+      .select(`
+        id, 
+        AgreementID, 
+        HolderFirstName, 
+        HolderLastName, 
+        DealerUUID, 
+        DealerID, 
+        EffectiveDate, 
+        ExpireDate, 
+        AgreementStatus, 
+        Total, 
+        DealerCost, 
+        ReserveAmount,
+        StatusChangeDate,
+        dealers(Payee)
+      `)
+      .gte("EffectiveDate", from)
+      .lte("EffectiveDate", to);
     
     // Add dealer filter if specified
     if (dealerFilter && dealerFilter.trim()) {
@@ -108,7 +110,9 @@ let query = supabase
       console.log(`📊 Sample agreement:`, data[0]);
     }
     
-    allAgreements = [...allAgreements, ...data];
+    // Cast the data to the Agreement type
+    const typedData = data as Agreement[];
+    allAgreements = [...allAgreements, ...typedData];
 
     if (data && data.length === SUPABASE_PAGE_SIZE) {
       page++; // Move to the next batch
@@ -271,10 +275,10 @@ const filteredAgreements = useMemo(() => {
   if (searchTerm.trim()) {
     const term = searchTerm.toLowerCase().trim();
     filtered = filtered.filter(agreement => {
-      const dealerName = agreement.dealers?.Payee?.toLowerCase() || ""; // 👈 Get dealer name
+      const dealerName = agreement.dealers?.Payee?.toLowerCase() || ""; 
       return (
         (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
-        (dealerName && dealerName.includes(term)) // 👈 Now filters by dealership name
+        (dealerName && dealerName.includes(term))
       );
     });
   }
@@ -323,14 +327,14 @@ const filteredAgreements = useMemo(() => {
         return firstName || lastName ? `${firstName} ${lastName}`.trim() : 'N/A';
       },
     },
-{
-  key: 'dealership',
-  title: 'Dealership',
-  searchable: true,
-  render: (row) => {
-    return row.dealers?.Payee || "Unknown Dealership"; // ✅ Uses fetched dealer name directly
-  },
-},
+    {
+      key: 'dealership',
+      title: 'Dealership',
+      searchable: true,
+      render: (row) => {
+        return row.dealers?.Payee || "Unknown Dealership";
+      },
+    },
     {
       key: 'DealerID',
       title: 'Dealer ID',
