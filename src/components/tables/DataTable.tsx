@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -163,7 +162,6 @@ const DataTable = <T extends Record<string, any>>({
   const displayedCount = displayData.length;
   const totalItemsCount = paginationProps?.totalItems || displayedCount;
   
-  // Calculate the current page range for display
   const pageStart = paginationProps 
     ? Math.min((paginationProps.currentPage - 1) * paginationProps.pageSize + 1, totalItemsCount)
     : 1;
