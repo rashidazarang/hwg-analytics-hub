@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -24,8 +23,6 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
   });
 
   try {
-    // First get all claims matching our criteria WITHOUT the dealer filter
-    // This query matches more closely the structure used in ClaimsTable
     let query = supabase
       .from("claims")
       .select(`
@@ -50,7 +47,6 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
 
     console.log(`[CLAIMCHART_RESULT] Fetched ${claims?.length || 0} claims before dealer filtering`);
 
-    // If dealership filter is provided, filter the claims client-side
     let filteredClaims = claims || [];
     if (dealershipFilter && dealershipFilter.trim() !== '') {
       console.log('[CLAIMCHART_FILTER] Filtering by dealership UUID:', dealershipFilter);
@@ -60,7 +56,6 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
       console.log('[CLAIMCHART_FILTER] Claims after dealer filtering:', filteredClaims.length);
     }
 
-    // Also include PENDING claims which might not have a ReportedDate
     if (filteredClaims.length === 0 || dealershipFilter) {
       const pendingQuery = supabase
         .from("claims")
@@ -82,7 +77,6 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
       if (!pendingError && pendingClaims && pendingClaims.length > 0) {
         console.log(`[CLAIMCHART_PENDING] Found ${pendingClaims.length} pending claims`);
         
-        // Filter by dealership if needed
         let filteredPendingClaims = pendingClaims;
         if (dealershipFilter && dealershipFilter.trim() !== '') {
           filteredPendingClaims = pendingClaims.filter(claim => 
@@ -90,12 +84,10 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
           );
         }
         
-        // Add the pending claims to our result set
         filteredClaims = [...filteredClaims, ...filteredPendingClaims];
       }
     }
 
-    // Log a sample of the data to verify status determination
     if (filteredClaims.length > 0) {
       const sampleClaim = filteredClaims[0];
       console.log('[CLAIMCHART_SAMPLE] Sample claim status:', {
@@ -141,7 +133,6 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     const chartData = Object.entries(statusCounts).map(([status, count]) => ({
       status,
       count,
-      // Calculate percentages for tooltips
       percentage: claims.length > 0 ? Math.round((count / claims.length) * 100) : 0
     }));
 
@@ -149,7 +140,6 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     return chartData;
   }, [claims]);
 
-  // Update animated data when processed data changes with smooth animation
   useEffect(() => {
     if (processedData.length > 0) {
       setAnimatedData(processedData);
@@ -168,21 +158,19 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     setActiveIndex(null);
   };
 
-  // Define the colors to match AgreementPieChart
   const COLORS = {
-    OPEN: '#10b981',   // Green 
-    PENDING: '#f59e0b', // Yellow/Amber
-    CLOSED: '#ef4444'   // Red
+    OPEN: '#10b981',
+    PENDING: '#f59e0b',
+    CLOSED: '#ef4444'
   };
 
-  // Custom tooltip component to match the PieChart tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
         <div className="bg-white p-2 rounded-md shadow-md border border-gray-100">
           <p className="text-sm font-medium">
-            {data.status}: {data.count.toLocaleString()} Claims
+            {data.status.toUpperCase()}: {data.count.toLocaleString()} Claims
           </p>
         </div>
       );
@@ -232,9 +220,9 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
               layout="vertical"
               data={animatedData}
               margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
-              barSize={20} // Slimmer bars
-              barGap={8} // Reduced spacing
-              barCategoryGap={12} // Add gap between bar categories
+              barSize={20}
+              barGap={8}
+              barCategoryGap={12}
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
               <YAxis
@@ -242,13 +230,13 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 type="category"
                 axisLine={false}
                 tickLine={false}
-                hide={true} // Hide the Y-axis labels
+                hide={true}
               />
               <XAxis
                 type="number"
                 axisLine={false}
                 tickLine={false}
-                tick={false} // Hide X-axis tick labels
+                tick={false}
                 domain={[0, 'auto']}
               />
               <Tooltip
