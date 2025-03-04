@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
@@ -29,29 +28,39 @@ const Index = () => {
     setActiveTab(value);
   };
 
-  // This function is called from DealershipSearch when a dealer is selected
   const handleDealershipSelect = (dealershipId: string, dealershipName: string) => {
     console.log(`🏢 Selected dealership in Index: ID='${dealershipId}', Name='${dealershipName}'`);
     setDealershipUUID(dealershipId);     // This is the UUID, used for filtering
     setDealershipName(dealershipName);   // This is just for display purposes
   };
 
-  // Create the subnavbar content with tabs on the left and dealership search on the right
   const subnavbarContent = (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
       <div>
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid grid-cols-2 w-full max-w-md">
-            <TabsTrigger value="agreements">Agreements</TabsTrigger>
-            <TabsTrigger value="claims">Claims</TabsTrigger>
+          <TabsList className="h-9 p-0.5 bg-muted/70">
+            <TabsTrigger 
+              value="agreements" 
+              className="text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Agreements
+            </TabsTrigger>
+            <TabsTrigger 
+              value="claims" 
+              className="text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Claims
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
-      <DealershipSearch 
-        onDealershipSelect={handleDealershipSelect}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-      />
+      <div className="w-full sm:w-auto min-w-0 sm:min-w-[240px]">
+        <DealershipSearch 
+          onDealershipSelect={handleDealershipSelect}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+        />
+      </div>
     </div>
   );
 

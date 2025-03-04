@@ -51,7 +51,7 @@ const AuthNav = () => {
   };
 
   if (loading) {
-    return <Button variant="ghost" size="icon" disabled><span className="sr-only">Loading</span></Button>;
+    return <Button variant="ghost" size="icon" className="h-8 w-8" disabled><span className="sr-only">Loading</span></Button>;
   }
 
   return user ? (
@@ -61,8 +61,9 @@ const AuthNav = () => {
         size="icon"
         onClick={toggleMenu}
         aria-label="Account menu"
+        className="h-8 w-8 rounded-full bg-muted/50 hover:bg-muted"
       >
-        {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
       </Button>
       
       <AccountMenu 
@@ -74,7 +75,7 @@ const AuthNav = () => {
       />
     </div>
   ) : (
-    <Button variant="default" size="sm" onClick={() => navigate('/auth')}>
+    <Button variant="default" size="sm" className="h-8 text-xs" onClick={() => navigate('/auth')}>
       Sign In
     </Button>
   );

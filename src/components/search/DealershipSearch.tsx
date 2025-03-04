@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -14,7 +13,6 @@ type DealershipSearchProps = {
   setSearchTerm: (term: string) => void;
 };
 
-// Function to fetch dealership names from Supabase
 const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => {
   console.log('🔍 Fetching dealership names from Supabase...');
   
@@ -196,7 +194,6 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     }
   };
 
-  // Hide suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
@@ -211,7 +208,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   }, []);
 
   return (
-    <div ref={searchContainerRef} className="relative w-64">
+    <div ref={searchContainerRef} className="relative w-full">
       <form onSubmit={handleSearchSubmit} className="relative">
         <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
           <Search className="h-4 w-4 text-muted-foreground" />
@@ -223,7 +220,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
           value={searchTerm}
           onChange={handleSearchChange}
           onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))}
-          className="pl-8 pr-10 w-full"
+          className="pl-8 pr-10 w-full h-9 text-sm bg-muted/30 border-border/30 focus-visible:border-primary/30"
           autoComplete="off"
           disabled={isLoadingDealerships}
         />

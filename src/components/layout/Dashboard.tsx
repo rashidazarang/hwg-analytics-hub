@@ -19,13 +19,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur-sm">
-        <div className="dashboard-container py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold tracking-tight">Analytics Dashboard</h1>
-            <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur-sm shadow-sm">
+        <div className="dashboard-container py-3">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+            <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Analytics Dashboard</h1>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <DateRangeFilter onChange={onDateRangeChange} />
-              <AuthNav />
+              <div className="sm:ml-2">
+                <AuthNav />
+              </div>
             </div>
           </div>
         </div>
@@ -40,7 +42,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         )}
       </header>
       
-      <main className="dashboard-container py-6 space-y-8 animate-fade-in">
+      <main className="dashboard-container py-4 md:py-6 space-y-6 md:space-y-8 animate-fade-in">
         {/* KPI Metrics Section */}
         <section className="animate-slide-up" style={{ animationDelay: '100ms' }}>
           {kpiSection}
