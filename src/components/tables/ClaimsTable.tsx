@@ -1,9 +1,12 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { DateRange } from '@/lib/dateUtils';
 import ClaimStatusBadge from '@/components/claims/ClaimStatusBadge';
 import { useClaimsFetching } from '@/hooks/useClaimsFetching';
+import FilterDropdown, { FilterOption } from '@/components/ui/filter-dropdown';
+import { getClaimStatus } from '@/utils/claimUtils';
 
 const PAGE_SIZE = 100; // Set consistent page size for claims
 
@@ -14,6 +17,12 @@ interface ClaimsTableProps {
   dateRange?: DateRange; 
 }
 
+const CLAIM_STATUS_OPTIONS: FilterOption[] = [
+  { value: "OPEN", label: "Open" },
+  { value: "PENDING", label: "Pending" },
+  { value: "CLOSED", label: "Closed" }
+];
+
 const ClaimsTable: React.FC<ClaimsTableProps> = ({
   className = '',
   dealerFilter = '',
@@ -23,6 +32,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -39,21 +49,33 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
   
-  // Apply client-side search filtering
+  // Apply client-side search filtering and status filtering
   const filteredClaims = useMemo(() => {
     console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', localSearchQuery);
+    console.log('🔍 ClaimsTable: Filtering claims by status:', statusFilters);
     
-    if (!localSearchQuery) {
-      return claims;
+    let filtered = claims;
+    
+    // Apply search filter
+    if (localSearchQuery) {
+      const term = localSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(claim => 
+        claim.ClaimID?.toLowerCase().includes(term) || 
+        claim.AgreementID?.toLowerCase().includes(term) ||
+        claim.agreements?.dealers?.Payee?.toLowerCase().includes(term)
+      );
     }
     
-    const term = localSearchQuery.toLowerCase();
-    return claims.filter(claim => 
-      claim.ClaimID?.toLowerCase().includes(term) || 
-      claim.AgreementID?.toLowerCase().includes(term) ||
-      claim.agreements?.dealers?.Payee?.toLowerCase().includes(term)
-    );
-  }, [claims, localSearchQuery]);
+    // Apply status filter
+    if (statusFilters.length > 0) {
+      filtered = filtered.filter(claim => {
+        const status = getClaimStatus(claim);
+        return statusFilters.includes(status);
+      });
+    }
+    
+    return filtered;
+  }, [claims, localSearchQuery, statusFilters]);
   
   // Define table columns
   const columns: Column<any>[] = [
@@ -121,6 +143,11 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     setPage(1);
   };
 
+  const handleStatusFilterChange = (values: string[]) => {
+    setStatusFilters(values);
+    setPage(1);
+  };
+
   return (
     <div className={className}>
       <div className="text-sm text-muted-foreground mb-2">
@@ -149,6 +176,15 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
           onPageChange: handlePageChange,
           onPageSizeChange: handlePageSizeChange,
         }}
+        customFilters={
+          <FilterDropdown
+            options={CLAIM_STATUS_OPTIONS}
+            selectedValues={statusFilters}
+            onChange={handleStatusFilterChange}
+            label="Status"
+            className="ml-2"
+          />
+        }
       />
     </div>
   );

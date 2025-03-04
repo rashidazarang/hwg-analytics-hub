@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
+import { useMemo, useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
+import FilterDropdown, { FilterOption } from '@/components/ui/filter-dropdown';
 
 // Define the Dealer interface
 interface Dealer {
@@ -17,6 +19,16 @@ interface Dealer {
 }
 
 const PAGE_SIZE = 100; // Set consistent page size for agreements
+
+const AGREEMENT_STATUS_OPTIONS: FilterOption[] = [
+  { value: "PENDING", label: "Pending" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "VOID", label: "Void" },
+  { value: "CLAIMABLE", label: "Claimable" },
+  { value: "CANCELLED", label: "Cancelled" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "TERMINATED", label: "Terminated" }
+];
 
 async function fetchAgreements(
   page: number = 1,
@@ -146,6 +158,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
   // Debug logging for dealerFilter changes
   useEffect(() => {
@@ -223,26 +236,38 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return map;
   }, [dealers]);
   
-  // Filter agreements by search term
+  // Filter agreements by search term and status
   const filteredAgreements = useMemo(() => {
     console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
+    console.log(`🔍 Filtering agreements by status:`, statusFilters);
     
-    if (!searchTerm.trim()) {
-      return agreements;
+    let filtered = agreements;
+    
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(agreement => {
+        // Safely access dealers.Payee with optional chaining
+        const payee = agreement.dealers?.Payee || "";
+        const dealerName = typeof payee === 'string' ? payee.toLowerCase() : "";
+        
+        return (
+          (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
+          (dealerName && dealerName.includes(term))
+        );
+      });
     }
     
-    const term = searchTerm.toLowerCase().trim();
-    return agreements.filter(agreement => {
-      // Safely access dealers.Payee with optional chaining
-      const payee = agreement.dealers?.Payee || "";
-      const dealerName = typeof payee === 'string' ? payee.toLowerCase() : "";
-      
-      return (
-        (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
-        (dealerName && dealerName.includes(term))
-      );
-    });
-  }, [agreements, searchTerm]);
+    // Apply status filter
+    if (statusFilters.length > 0) {
+      filtered = filtered.filter(agreement => {
+        const status = agreement.AgreementStatus || 'UNKNOWN';
+        return statusFilters.includes(status);
+      });
+    }
+    
+    return filtered;
+  }, [agreements, searchTerm, statusFilters]);
   
   const isFetching = isFetchingAgreements || isFetchingDealers;
 
@@ -263,6 +288,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       setPage(1);
     }
   }, [pageSize, setPage]);
+
+  const handleStatusFilterChange = (values: string[]) => {
+    setStatusFilters(values);
+    setPage(1);
+  };
 
   const formatName = (name?: string | null): string => {
     if (!name) return '';
@@ -396,6 +426,15 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
           onPageSizeChange: handlePageSizeChange,
         }}
         loading={isFetching}
+        customFilters={
+          <FilterDropdown
+            options={AGREEMENT_STATUS_OPTIONS}
+            selectedValues={statusFilters}
+            onChange={handleStatusFilterChange}
+            label="Status"
+            className="ml-2"
+          />
+        }
       />
     </>
   );

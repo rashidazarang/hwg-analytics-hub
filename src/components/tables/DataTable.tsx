@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -38,6 +39,7 @@ type DataTableProps<T> = {
   className?: string;
   loading?: boolean;
   paginationProps?: PaginationProps;
+  customFilters?: React.ReactNode;
 };
 
 const DataTable = <T extends Record<string, any>>({
@@ -50,6 +52,7 @@ const DataTable = <T extends Record<string, any>>({
   className = '',
   loading = false,
   paginationProps,
+  customFilters,
 }: DataTableProps<T>) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -164,10 +167,14 @@ const DataTable = <T extends Record<string, any>>({
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" className="h-9">
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
-            </Button>
+            {!customFilters && (
+              <Button variant="outline" size="sm" className="h-9">
+                <Filter className="mr-2 h-4 w-4" />
+                Filter
+              </Button>
+            )}
+            
+            {customFilters}
             
             {paginationProps && (
               <Select 
