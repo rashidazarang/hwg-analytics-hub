@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
@@ -71,19 +70,9 @@ const Index = () => {
   };
 
   const subnavbarContent = (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between sm:space-y-0 space-y-3">
-      {/* Dealership Search - Left side */}
-      <div className="w-full sm:w-auto sm:min-w-[240px] sm:max-w-[400px]">
-        <DealershipSearch 
-          onDealershipSelect={handleDealershipSelect}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-        />
-      </div>
-      
-      {/* Date Range - Right side */}
-      <div className="self-end sm:self-auto">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="hidden">
+    <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+      <div>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="h-9 p-0.5 bg-muted/70">
             <TabsTrigger 
               value="agreements" 
@@ -99,6 +88,13 @@ const Index = () => {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+      </div>
+      <div className="w-full sm:w-auto min-w-0 sm:min-w-[240px]">
+        <DealershipSearch 
+          onDealershipSelect={handleDealershipSelect}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+        />
       </div>
     </div>
   );

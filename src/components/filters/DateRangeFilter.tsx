@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { 
@@ -56,8 +55,11 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   }, [dateRange]);
 
   return (
-    <div className="flex items-center bg-muted/30 rounded-md px-2 py-1.5 border border-border/10">
-      <Calendar className="h-4 w-4 text-muted-foreground mr-1" />
+    <div className="flex items-center space-x-2 bg-muted/30 rounded-md px-2 py-1.5 border border-border/10">
+      <div className="inline-flex items-center space-x-1 text-muted-foreground">
+        <Calendar className="h-4 w-4" />
+        <span className="text-sm font-medium hidden sm:inline">Date Range:</span>
+      </div>
       
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
