@@ -14,7 +14,7 @@ type ClaimChartProps = {
   dealershipFilter?: string;
 };
 
-// 1) Fetch claims data, but select the 'Correction' field
+// Fetch claims data including the Correction field
 const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) => {
   console.log('🔍 Fetching claims data...', { dateRange, dealershipFilter });
 
@@ -26,7 +26,7 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
       Closed,
       Correction,
       LastModified,
-      agreements!inner(DealerUUID, dealers!inner(Payee))
+      agreements(DealerUUID, dealers(Payee))
     `)
     .order('LastModified', { ascending: false });
 
@@ -44,13 +44,13 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
   return data;
 };
 
-// 2) Simple check for "denied" text
+// Function to check if a claim is denied based on Correction field
 function isClaimDenied(correction: string | null | undefined): boolean {
   if (!correction) return false;
   return /denied|not covered|rejected/i.test(correction);
 }
 
-// 3) Process data => only OPEN, DENIED, CLOSED
+// Process data to count claims by status: OPEN, DENIED, CLOSED
 const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
   if (!claims || claims.length === 0) {
     console.warn('⚠️ No claims data available, returning zero-count for all statuses.');
@@ -67,13 +67,14 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
     CLOSED: 0,
   };
 
-  // Fix: Use the proper DateRange property names (from and to)
+  // Use the proper DateRange property names (from and to)
   const startDate = new Date(dateRange.from);
   const endDate = new Date(dateRange.to);
 
   claims.forEach((claim) => {
     const reportedDate = claim.ReportedDate ? new Date(claim.ReportedDate) : null;
     if (reportedDate && reportedDate >= startDate && reportedDate <= endDate) {
+      // Apply the updated status logic consistently
       if (claim.Closed) {
         statusCounts.CLOSED += 1;
       } else if (isClaimDenied(claim.Correction)) {
@@ -94,7 +95,7 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
 };
 
 const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) => {
-  // 4) Use React Query to fetch claims by dateRange/dealership
+  // Use React Query to fetch claims data
   const { data: claims = [], isFetching } = useQuery({
     queryKey: ['claims-data', dateRange, dealershipFilter],
     queryFn: () => fetchClaimsData(dateRange, dealershipFilter),
@@ -108,7 +109,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     (window as any).claimsData = claims;
   }
 
-  // Always build an array with OPEN, DENIED, CLOSED
+  // Process claims data to get counts by status
   const data = getClaimsByStatus(claims, dateRange);
   console.log('📊 Data sent to chart:', JSON.stringify(data, null, 2));
   
@@ -117,7 +118,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
     (window as any).claimsChartData = data;
   }
 
-  // 5) Check if all counts are zero => no data scenario
+  // Check if all counts are zero => no data scenario
   const totalCount = data.reduce((sum, d) => sum + d.count, 0);
 
   return (
@@ -183,9 +184,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
               />
               <Bar dataKey="count" name="Claims" barSize={20} radius={[4, 4, 4, 4]}>
                 {data.map((entry, index) => {
-                  // Using the first 3 colors of the Agreement palette:
-                  // #3b82f6 (blue), #10b981 (green), #ef4444 (red)
-                  // Match them to OPEN, CLOSED, DENIED in any order you like:
+                  // Status colors based on requirements
                   const statusColors: Record<string, string> = {
                     OPEN: '#3b82f6',    // Blue
                     DENIED: '#ef4444',  // Red

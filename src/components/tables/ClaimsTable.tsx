@@ -17,6 +17,7 @@ async function fetchClaims(dealerFilter?: string) {
       ReportedDate, 
       Closed,
       Cause,
+      Correction,
       LastModified,
       agreements(DealerUUID, dealers(Payee))
     `)
@@ -36,6 +37,19 @@ async function fetchClaims(dealerFilter?: string) {
   return data;
 }
 
+// Updated function to check if a claim is denied based on Correction field
+function isClaimDenied(correction: string | null | undefined): boolean {
+  if (!correction) return false;
+  return /denied|not covered|rejected/i.test(correction);
+}
+
+// Updated status mapper function based on the new logic
+const getClaimStatus = (claim: any): string => {
+  if (claim.Closed) return 'CLOSED';
+  if (isClaimDenied(claim.Correction)) return 'DENIED';
+  return 'OPEN';
+};
+
 const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQuery?: string; }> = ({
   className = '',
   dealerFilter = '',
@@ -54,22 +68,14 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
     if (searchQuery) {
       const term = searchQuery.toLowerCase();
       filtered = filtered.filter(claim => 
-  claim.ClaimID.toLowerCase().includes(term) || 
-  claim.AgreementID.toLowerCase().includes(term) ||
-  claim.agreements?.dealers?.[0]?.Payee?.toLowerCase().includes(term)
+  claim.ClaimID?.toLowerCase().includes(term) || 
+  claim.AgreementID?.toLowerCase().includes(term) ||
+  claim.agreements?.dealers?.Payee?.toLowerCase().includes(term)
 );
     }
 
     return filtered;
   }, [claims, searchQuery]);
-  
-  // Define a claim status mapper function to handle N/A/undefined statuses
- const getClaimStatus = (claim: any): string => {
-  if (claim.Closed) return 'CLOSED';
-  if (claim.Cause && claim.Closed === null) return 'DENIED';
-  if (claim.ReportedDate && !claim.Closed) return 'PENDING';
-  return 'OPEN';
-};
   
 const columns: Column<any>[] = [
   {
@@ -101,7 +107,6 @@ const columns: Column<any>[] = [
       const variants = {
         OPEN: 'bg-warning/15 text-warning border-warning/20',
         CLOSED: 'bg-success/15 text-success border-success/20',
-        PENDING: 'bg-info/15 text-info border-info/20',
         DENIED: 'bg-destructive/15 text-destructive border-destructive/20',
         UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
       };
@@ -141,11 +146,11 @@ const columns: Column<any>[] = [
       columns={columns}
       rowKey={(row) => row.ClaimID || row.id}
       className={className}
-searchConfig={{
-  enabled: true,
-  placeholder: "Search by Claim ID, Agreement ID, or Dealership...",
-  searchKeys: ["ClaimID", "AgreementID", "agreements.dealers.0.Payee"]
-}}
+      searchConfig={{
+        enabled: true,
+        placeholder: "Search by Claim ID, Agreement ID, or Dealership...",
+        searchKeys: ["ClaimID", "AgreementID", "agreements.dealers.Payee"]
+      }}
     />
   );
 };
