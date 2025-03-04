@@ -5,7 +5,6 @@ import DataTable, { Column } from './DataTable';
 import { DateRange } from '@/lib/dateUtils';
 import ClaimStatusBadge from '@/components/claims/ClaimStatusBadge';
 import { useClaimsFetching } from '@/hooks/useClaimsFetching';
-import FilterDropdown, { FilterOption } from '@/components/ui/filter-dropdown';
 
 const PAGE_SIZE = 100;
 
@@ -16,12 +15,6 @@ interface ClaimsTableProps {
   dateRange?: DateRange; 
 }
 
-const CLAIM_STATUS_OPTIONS: FilterOption[] = [
-  { value: "OPEN", label: "Open" },
-  { value: "CLOSED", label: "Closed" },
-  { value: "PENDING", label: "Pending" }
-];
-
 const ClaimsTable: React.FC<ClaimsTableProps> = ({
   className = '',
   dealerFilter = '',
@@ -31,7 +24,6 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
   // Only reset pagination when core filters change
   useEffect(() => {
@@ -39,19 +31,18 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     setLocalSearchQuery(searchQuery);
   }, [dealerFilter, searchQuery, dateRange]);
 
-  // Fetch claims data with all filters, including status filters
+  // Fetch claims data with all filters
   const { 
     data: claimsData, 
     isFetching 
-  } = useClaimsFetching(page, pageSize, dealerFilter, dateRange, statusFilters);
+  } = useClaimsFetching(page, pageSize, dealerFilter, dateRange);
   
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
 
-  // Apply client-side search filtering only (status filtering is now done on server)
+  // Apply client-side search filtering only
   const filteredClaims = useMemo(() => {
     console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', localSearchQuery);
-    console.log('🔍 ClaimsTable: Filtering claims by status:', statusFilters);
     
     let filtered = claims;
     
@@ -65,7 +56,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     }
     
     return filtered;
-  }, [claims, localSearchQuery, statusFilters]);
+  }, [claims, localSearchQuery]);
 
   // Define table columns
   const columns: Column<any>[] = [
@@ -124,13 +115,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     setPage(1); // Reset page only when searching
   };
 
-  const handleStatusFilterChange = (values: string[]) => {
-    console.log('🔍 ClaimsTable: Status filter changed to:', values);
-    setStatusFilters(values);
-    setPage(1); // Reset page when changing status filters
-  };
-
-  // Calculate the actual total displayed count - use server-side count since filtering is server-side
+  // Calculate the actual total displayed count
   const displayedCount = filteredClaims.length;
   const effectiveTotalCount = localSearchQuery ? displayedCount : totalCount;
 
@@ -165,15 +150,6 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
             setPage(1); // Reset to first page when changing page size
           },
         }}
-        customFilters={
-          <FilterDropdown
-            options={CLAIM_STATUS_OPTIONS}
-            selectedValues={statusFilters}
-            onChange={handleStatusFilterChange}
-            label="Status"
-            className="ml-2"
-          />
-        }
       />
     </div>
   );

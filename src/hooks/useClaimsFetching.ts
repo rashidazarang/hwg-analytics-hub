@@ -9,14 +9,12 @@ export async function fetchClaims(
   page: number = 1, 
   pageSize: number = PAGE_SIZE,
   dealerFilter?: string,
-  dateRange?: DateRange,
-  statusFilters?: string[]
+  dateRange?: DateRange
 ) {
   console.log('🔍 ClaimsTable: Fetching claims with parameters:');
   console.log(`🔍 Page: ${page}, Page size: ${pageSize}`);
   console.log('🔍 Dealer filter:', dealerFilter);
   console.log('🔍 Date range:', dateRange ? `${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}` : 'Not provided');
-  console.log('🔍 Status filters:', statusFilters);
   
   const startRow = (page - 1) * pageSize;
   const endRow = startRow + pageSize - 1;
@@ -49,28 +47,6 @@ if (dealerFilter && dealerFilter.trim() !== '') {
   console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
   query = query.eq("agreements.DealerUUID", dealerFilter.trim());
 }
-// Apply status filters correctly using OR conditions
-if (statusFilters && statusFilters.length > 0) {
-  console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
-
-  const orFilter = statusFilters.map(status => {
-    if (status === 'OPEN') {
-      // OPEN: ReportedDate is NOT NULL AND Closed IS NULL
-      return `(ReportedDate.not.is.null,Closed.is.null)`;
-    } else if (status === 'CLOSED') {
-      // CLOSED: Closed is NOT NULL
-      return `(Closed.not.is.null)`;
-    } else if (status === 'PENDING') {
-      // PENDING: ReportedDate is NULL
-      return `(ReportedDate.is.null)`;
-    }
-    return null;
-  }).filter(Boolean).join(',');
-
-  if (orFilter) {
-    query = query.or(orFilter);
-  }
-}
 
   // Apply pagination last
   query = query.range(startRow, endRow);
@@ -92,12 +68,11 @@ export function useClaimsFetching(
   page: number, 
   pageSize: number, 
   dealerFilter?: string, 
-  dateRange?: DateRange,
-  statusFilters?: string[]
+  dateRange?: DateRange
 ) {
   return useQuery({
-    queryKey: ['claims', page, pageSize, dealerFilter, dateRange?.from, dateRange?.to, statusFilters],
-    queryFn: () => fetchClaims(page, pageSize, dealerFilter, dateRange, statusFilters),
+    queryKey: ['claims', page, pageSize, dealerFilter, dateRange?.from, dateRange?.to],
+    queryFn: () => fetchClaims(page, pageSize, dealerFilter, dateRange),
     staleTime: 1000 * 60 * 10,
   });
 }
