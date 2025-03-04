@@ -33,7 +33,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
-  // Only reset pagination when core filters change (not when status filter changes)
+  // Only reset pagination when core filters change
   useEffect(() => {
     setPage(1);
     setLocalSearchQuery(searchQuery);
@@ -48,7 +48,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
 
-  // Apply client-side search filtering after server-side filtering
+  // Apply client-side search filtering only (status filtering is now done on server)
   const filteredClaims = useMemo(() => {
     console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', localSearchQuery);
     console.log('🔍 ClaimsTable: Filtering claims by status:', statusFilters);
@@ -130,10 +130,8 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     setPage(1); // Reset page when changing status filters
   };
 
-  // Calculate the actual total displayed count
+  // Calculate the actual total displayed count - use server-side count since filtering is server-side
   const displayedCount = filteredClaims.length;
-  
-  // Use server-side count for total (since filtering is now server-side)
   const effectiveTotalCount = localSearchQuery ? displayedCount : totalCount;
 
   return (
