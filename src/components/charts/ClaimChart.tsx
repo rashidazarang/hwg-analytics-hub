@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -187,8 +188,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
       </CardHeader>
       <CardContent>
         {isFetching ? (
-          <div className="flex items-center justify-center h-[240px] text-muted-foreground">
-            Loading claims data...
+          <div className="flex items-center justify-center h-[240px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : processedData.every(d => d.count === 0) ? (
           <div className="flex items-center justify-center h-[240px] text-muted-foreground">
