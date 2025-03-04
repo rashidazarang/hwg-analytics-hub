@@ -172,7 +172,7 @@ const DataTable = <T extends Record<string, any>>({
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={searchConfig.placeholder || "Search by Agreement ID..."}
+              placeholder={searchConfig.placeholder || "Search by ID..."}
               value={searchTerm}
               onChange={handleSearch}
               className="pl-8 w-64"
