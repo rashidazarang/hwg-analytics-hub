@@ -34,7 +34,7 @@ export async function fetchClaims(
     `, { count: 'exact' })
     .order("LastModified", { ascending: false });
 
-  // Apply date range filter first - USING LastModified as specified in the requirements
+  // Apply date range filter first
   if (dateRange) {
     console.log(`🔍 ClaimsTable: Filtering by date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
     query = query
@@ -49,9 +49,7 @@ export async function fetchClaims(
   }
 
   // Apply pagination last
-  if (!dealerFilter || dealerFilter.trim() === '') {
-    query = query.range(startRow, endRow);
-  }
+  query = query.range(startRow, endRow);
 
   const { data, error, count } = await query;
 

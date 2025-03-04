@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -79,12 +78,14 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
     const statusCounts = {
       OPEN: 0,
       PENDING: 0,
-      CLOSED: 0
+      CLOSED: 0,
+      DENIED: 0
     };
 
     claims.forEach(claim => {
       const status = getClaimStatus(claim);
-      statusCounts[status as keyof typeof statusCounts]++;
+      statusCounts[status as keyof typeof statusCounts] = 
+        (statusCounts[status as keyof typeof statusCounts] || 0) + 1;
     });
 
     const chartData = Object.entries(statusCounts).map(([status, count]) => ({
@@ -118,7 +119,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
   const COLORS = {
     OPEN: '#10b981',
     PENDING: '#f59e0b',
-    CLOSED: '#ef4444'
+    CLOSED: '#ef4444',
+    DENIED: '#64748b'
   };
 
   const CustomTooltip = ({
@@ -194,7 +196,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
               fill: 'rgba(0, 0, 0, 0.05)'
             }} />
                 <Bar dataKey="count" radius={[4, 4, 4, 4]} onMouseEnter={onBarEnter} onMouseLeave={onBarLeave} animationBegin={0} animationDuration={800} animationEasing="ease-in-out">
-                  {animatedData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[entry.status as keyof typeof COLORS]} stroke={activeIndex === index ? 'rgba(255,255,255,0.3)' : 'transparent'} strokeWidth={activeIndex === index ? 2 : 0} className="transition-all duration-200" style={{
+                  {animatedData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[entry.status as keyof typeof COLORS] || '#777'} stroke={activeIndex === index ? 'rgba(255,255,255,0.3)' : 'transparent'} strokeWidth={activeIndex === index ? 2 : 0} className="transition-all duration-200" style={{
                 filter: activeIndex === index ? 'drop-shadow(0 0 4px rgba(0,0,0,0.2))' : 'none',
                 opacity: activeIndex === null || activeIndex === index ? 1 : 0.7,
                 transition: 'opacity 0.3s, filter 0.3s'
@@ -221,6 +223,12 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
               backgroundColor: '#ef4444'
             }}></span>
                 <span className="text-xs font-medium">CLOSED</span>
+              </div>
+              <div className="flex items-center">
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{
+              backgroundColor: '#64748b'
+            }}></span>
+                <span className="text-xs font-medium">DENIED</span>
               </div>
             </div>
           </div>}

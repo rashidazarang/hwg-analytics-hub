@@ -12,30 +12,31 @@ export function isClaimDenied(correction: string | null | undefined): boolean {
 }
 
 /**
- * Determines the status of a claim based on its Closed and ReportedDate fields
+ * Determines the status of a claim based on its Closed, ReportedDate and Correction fields
  * STANDARDIZED to ensure consistent status determination across all components
  */
 export function getClaimStatus(claim: any): string {
-  // First check for completed claims
+  // First check for closed claims
   if (claim.Closed) return 'CLOSED';
   
-  // Then check for claims in progress
-  if (claim.ReportedDate && !claim.Closed) return 'OPEN';
+  // Then check for denied claims (which may not be marked as closed)
+  if (isClaimDenied(claim.Correction)) return 'DENIED';
   
-  // Default to pending for anything else
-  return 'PENDING';
+  // Then check for pending claims (no ReportedDate and not closed)
+  if (!claim.ReportedDate && !claim.Closed) return 'PENDING';
+  
+  // Default to open for anything else (has ReportedDate but not closed or denied)
+  return 'OPEN';
 }
 
 /**
  * Status variant mapping for styling claim status badges
- * Updated to match the required color scheme:
- * - Open: Green
- * - Pending: Yellow
- * - Closed: Red
+ * Updated to match the required color scheme and include DENIED status
  */
 export const statusVariants = {
   OPEN: 'bg-success/15 text-success border-success/20',
   PENDING: 'bg-warning/15 text-warning border-warning/20',
   CLOSED: 'bg-destructive/15 text-destructive border-destructive/20',
+  DENIED: 'bg-slate-700/15 text-slate-700 border-slate-700/20',
   UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
 };
