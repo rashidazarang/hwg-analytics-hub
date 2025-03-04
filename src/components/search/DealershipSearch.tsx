@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Store } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
 type DealershipSearchProps = {
   onDealershipSelect: (dealershipId: string, dealershipName: string) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
 };
+
 const fetchDealershipNames = async (): Promise<{
   id: string;
   name: string;
@@ -56,6 +58,7 @@ const fetchDealershipNames = async (): Promise<{
     return [];
   }
 };
+
 const DealershipSearch: React.FC<DealershipSearchProps> = ({
   onDealershipSelect,
   searchTerm,
@@ -65,6 +68,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+
   const {
     data: dealerships = [],
     isLoading: isLoadingDealerships
@@ -75,6 +79,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     gcTime: 1000 * 60 * 60 * 2,
     refetchOnWindowFocus: false
   });
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const searchValue = e.target.value;
     setSearchTerm(searchValue);
@@ -84,17 +89,17 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     }
     console.log('🔍 Search Term:', searchValue);
   };
+
   const filteredDealerships = dealerships.filter(dealership => dealership.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm) {
-      // First try exact match
       const exactMatch = dealerships.find(dealership => dealership.name?.toLowerCase() === searchTerm.toLowerCase());
       if (exactMatch) {
         console.log(`🎯 DealershipSearch: Found exact match - UUID: "${exactMatch.id}", Name: "${exactMatch.name}"`);
         handleDealershipSelect(exactMatch.id, exactMatch.name);
       } else if (filteredDealerships.length > 0) {
-        // If no exact match, use the first filtered result
         console.log(`🎯 DealershipSearch: Using first match - UUID: "${filteredDealerships[0].id}", Name: "${filteredDealerships[0].name}"`);
         handleDealershipSelect(filteredDealerships[0].id, filteredDealerships[0].name);
       } else {
@@ -105,8 +110,8 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     }
     setShowSuggestions(false);
   };
+
   const handleDealershipSelect = (value: string, name: string = '') => {
-    // Get the actual name if not provided
     let dealerName = name;
     if (!dealerName && value) {
       const selected = dealerships.find(d => d.id === value);
@@ -116,9 +121,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     if (value && dealerName) {
       setSearchTerm(dealerName);
       console.log(`🎯 DealershipSearch: Selected dealership - UUID: "${value}", Name: "${dealerName}"`);
-      onDealershipSelect(value, dealerName); // Pass the UUID as value, and name separately
-
-      // Invalidate the queries that depend on dealer filter
+      onDealershipSelect(value, dealerName);
       queryClient.invalidateQueries({
         queryKey: ['agreement-status-distribution'],
         exact: false
@@ -127,13 +130,12 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
         queryKey: ['agreements-data'],
         exact: false
       });
-
-      // Removed toast notification for dealership selection
     } else {
       handleClearSearch();
     }
     setShowSuggestions(false);
   };
+
   const handleDealershipClick = (dealership: {
     id: string;
     name: string;
@@ -142,6 +144,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     setSearchTerm(dealership.name);
     handleDealershipSelect(dealership.id, dealership.name);
   };
+
   const handleClearSearch = () => {
     setSearchTerm('');
     console.log('🧹 DealershipSearch: Clearing dealership filter');
@@ -156,9 +159,8 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
       queryKey: ['agreements-data'],
       exact: false
     });
-
-    // Removed toast notification for dealership filter clearing
   };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
@@ -170,39 +172,77 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
   return <div ref={searchContainerRef} className="relative w-full">
       <form onSubmit={handleSearchSubmit} className="relative">
-        <div className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none">
-          <Search className="h-4 w-4 text-muted-foreground/70" />
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <Search className="h-4 w-4 text-primary/70" />
         </div>
         
-        <Input type="text" placeholder={isLoadingDealerships ? "Loading dealerships..." : "Search dealerships..."} value={searchTerm} onChange={handleSearchChange} onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))} autoComplete="off" disabled={isLoadingDealerships} className="pl-9 pr-9 w-full h-9 text-sm border-border/30 search-field rounded-md mx-0 my-0 bg-white py-[20px] px-[21px]" />
+        <Input 
+          type="text" 
+          placeholder={isLoadingDealerships ? "Loading dealerships..." : "Search dealerships..."} 
+          value={searchTerm} 
+          onChange={handleSearchChange} 
+          onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))} 
+          autoComplete="off" 
+          disabled={isLoadingDealerships} 
+          className="pl-9 pr-9 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm mx-0 my-0 bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
+        />
         
-        {searchTerm && <button type="button" onClick={handleClearSearch} className="absolute right-0 top-0 h-full flex items-center justify-center w-9 cursor-pointer" aria-label="Clear search" title="Clear search">
-            <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/50 transition-colors duration-200">
-              <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-            </div>
-          </button>}
+        {searchTerm && <button 
+          type="button" 
+          onClick={handleClearSearch} 
+          className="absolute right-0 top-0 h-full flex items-center justify-center w-10 cursor-pointer" 
+          aria-label="Clear search" 
+          title="Clear search"
+        >
+          <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/70 transition-colors duration-200">
+            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+          </div>
+        </button>}
         
         <Button type="submit" variant="ghost" size="sm" className="absolute right-8 inset-y-0 px-2 opacity-0" disabled={isLoadingDealerships}>
           <Search className="h-4 w-4" />
         </Button>
         
-        {showSuggestions && <div className="absolute mt-1 w-full rounded-md shadow-lg bg-popover z-10 max-h-60 overflow-auto">
-            {isLoadingDealerships ? <div className="px-4 py-2 text-sm text-muted-foreground">
+        {showSuggestions && (
+          <div className="absolute mt-1 w-full rounded-md bg-white shadow-lg border border-border/20 z-10 max-h-60 overflow-auto animate-fade-in">
+            {isLoadingDealerships ? (
+              <div className="px-4 py-3 text-sm text-muted-foreground flex items-center justify-center">
+                <div className="mr-2 animate-spin h-4 w-4 border-2 border-primary/50 border-t-transparent rounded-full"></div>
                 Loading dealerships...
-              </div> : filteredDealerships.length > 0 ? <div className="py-1">
-                {filteredDealerships.slice(0, 10).map(dealership => <div key={dealership.id} className={cn("px-4 py-2 text-sm hover:bg-accent cursor-pointer transition-colors duration-150", selectedDealershipId === dealership.id ? "bg-accent/70" : "")} onClick={() => handleDealershipClick(dealership)}>
-                    {dealership.name}
-                  </div>)}
-                {filteredDealerships.length > 10 && <div className="px-4 py-2 text-xs text-muted-foreground italic">
+              </div>
+            ) : filteredDealerships.length > 0 ? (
+              <div className="py-1">
+                {filteredDealerships.slice(0, 10).map(dealership => (
+                  <div 
+                    key={dealership.id} 
+                    className={cn(
+                      "px-4 py-2.5 text-sm hover:bg-accent/50 cursor-pointer transition-colors duration-150 flex items-center gap-2",
+                      selectedDealershipId === dealership.id ? "bg-primary/10 text-primary" : ""
+                    )} 
+                    onClick={() => handleDealershipClick(dealership)}
+                  >
+                    <Store className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate">{dealership.name}</span>
+                  </div>
+                ))}
+                {filteredDealerships.length > 10 && (
+                  <div className="px-4 py-2 text-xs text-muted-foreground italic bg-muted/20">
                     {filteredDealerships.length - 10} more results...
-                  </div>}
-              </div> : <div className="px-4 py-2 text-sm text-muted-foreground">
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="px-4 py-3 text-sm text-muted-foreground flex items-center justify-center">
                 No dealerships found
-              </div>}
-          </div>}
+              </div>
+            )}
+          </div>
+        )}
       </form>
     </div>;
 };
+
 export default DealershipSearch;
