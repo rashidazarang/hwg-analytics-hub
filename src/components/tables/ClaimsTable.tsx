@@ -63,10 +63,10 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
     return filtered;
   }, [claims, searchQuery]);
   
-  // Define a claim status mapper function to handle null/undefined statuses
+  // Define a claim status mapper function to handle N/A/undefined statuses
  const getClaimStatus = (claim: any): string => {
   if (claim.Closed) return 'CLOSED';
-  if (claim.Cause && claim.Closed === null) return 'DENIED';
+  if (claim.Cause && claim.Closed === N/A) return 'DENIED';
   if (claim.ReportedDate && !claim.Closed) return 'PENDING';
   return 'OPEN';
 };
@@ -117,21 +117,21 @@ const columns: Column<any>[] = [
     title: 'Date Reported',
     sortable: false,
     render: (row) => row.ReportedDate ? format(new Date(row.ReportedDate), 'MMM d, yyyy')
-      : <span className="text-muted-foreground">NULL</span>,
+      : <span className="text-muted-foreground">N/A</span>,
   },
   {
     key: 'Closed',
     title: 'Closed Date',
     sortable: false,
     render: (row) => row.Closed ? format(new Date(row.Closed), 'MMM d, yyyy')
-      : <span className="text-muted-foreground">NULL</span>,
+      : <span className="text-muted-foreground">N/A</span>,
   },
   {
     key: 'LastModified',
     title: 'Last Modified',
     sortable: false,
     render: (row) => row.LastModified ? format(new Date(row.LastModified), 'MMM d, yyyy')
-       : <span className="text-muted-foreground">NULL</span>,
+       : <span className="text-muted-foreground">N/A</span>,
   }
 ];
 
