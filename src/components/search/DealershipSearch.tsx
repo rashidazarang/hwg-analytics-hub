@@ -1,9 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -30,7 +30,6 @@ const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => 
       
       if (error) {
         console.error('❌ Error fetching dealerships:', error);
-        toast.error("Failed to load dealerships. Please try again.");
         return [];
       }
       
@@ -66,7 +65,6 @@ const fetchDealershipNames = async (): Promise<{id: string, name: string}[]> => 
     return dealerships;
   } catch (err) {
     console.error('❌ Exception when fetching dealerships:', err);
-    toast.error("An error occurred while loading dealerships");
     return [];
   }
 };
@@ -122,7 +120,6 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
         console.log(`🎯 DealershipSearch: Using first match - UUID: "${filteredDealerships[0].id}", Name: "${filteredDealerships[0].name}"`);
         handleDealershipSelect(filteredDealerships[0].id, filteredDealerships[0].name);
       } else {
-        toast.info("No matching dealerships found");
         handleClearSearch();
       }
     } else {
@@ -158,7 +155,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
         exact: false
       });
       
-      toast.success(`Filtered to dealership: ${dealerName}`);
+      // Removed toast notification for dealership selection
     } else {
       handleClearSearch();
     }
@@ -189,9 +186,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
       exact: false
     });
     
-    if (searchTerm) {
-      toast.info("Cleared dealership filter");
-    }
+    // Removed toast notification for dealership filter clearing
   };
 
   useEffect(() => {

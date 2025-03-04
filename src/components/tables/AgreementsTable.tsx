@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useMemo, useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -11,7 +10,6 @@ import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
 import FilterDropdown, { FilterOption } from '@/components/ui/filter-dropdown';
 
-// Define the Dealer interface
 interface Dealer {
   DealerUUID: string;
   PayeeID: string;
@@ -44,11 +42,9 @@ async function fetchAgreements(
   const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
   const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
   
-  // Calculate start and end rows for pagination
   const startRow = (page - 1) * pageSize;
   const endRow = startRow + pageSize - 1;
 
-  // Start building the query
   let query = supabase
     .from("agreements")
     .select(`
@@ -71,16 +67,13 @@ async function fetchAgreements(
     .lte("EffectiveDate", to)
     .order("EffectiveDate", { ascending: false });
   
-  // Add dealer filter if specified
   if (dealerFilter && dealerFilter.trim()) {
     console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
     query = query.eq("DealerUUID", dealerFilter);
   }
   
-  // Apply pagination using range
   query = query.range(startRow, endRow);
   
-  // Execute the query
   const { data, error, count } = await query;
 
   if (error) {
@@ -123,7 +116,6 @@ async function fetchDealers() {
 
       allDealers = [...allDealers, ...data];
 
-      // If we got fewer than PAGE_SIZE, we're at the last batch
       if (data.length < PAGE_SIZE) {
         hasMore = false;
       } else {
@@ -160,26 +152,23 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
-  // Debug logging for dealerFilter changes
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
     
-    // Force reset to page 1 when dealer filter changes
     setPage(1);
   }, [dealerFilter, dealerName, dateRange]);
 
   useEffect(() => {
     if (searchQuery !== undefined) {
       setSearchTerm(searchQuery);
-      setPage(1); // Reset to page 1 when search query changes
+      setPage(1);
     }
   }, [searchQuery]);
 
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    // Include page, pageSize, and dealerFilter in the query key
     return ["agreements-data", from, to, dealerFilter, page, pageSize];
   }, [dateRange, dealerFilter, page, pageSize]);
   
@@ -193,8 +182,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       console.log(`🔍 Executing agreements query for page ${page}`);
       return fetchAgreements(page, pageSize, dateRange, dealerFilter);
     },
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
-    gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
   });
 
@@ -212,12 +201,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   } = useQuery({
     queryKey: ["dealers-data"],
     queryFn: fetchDealers,
-    staleTime: 1000 * 60 * 60, // 1 hour
-    gcTime: 1000 * 60 * 60 * 2, // 2 hours
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 2,
     refetchOnWindowFocus: false,
   });
   
-  // Create dealer map for display name lookups
   const dealerMap = useMemo(() => {
     if (!dealers || dealers.length === 0) {
       console.warn("⚠️ No dealers found, returning empty map.");
@@ -237,18 +225,15 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return map;
   }, [dealers]);
   
-  // Filter agreements by search term and status
   const filteredAgreements = useMemo(() => {
     console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
     console.log(`🔍 Filtering agreements by status:`, statusFilters);
     
     let filtered = agreements;
     
-    // Apply search filter
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(agreement => {
-        // Safely access dealers.Payee with optional chaining
         const payee = agreement.dealers?.Payee || "";
         const dealerName = typeof payee === 'string' ? payee.toLowerCase() : "";
         
@@ -259,7 +244,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       });
     }
     
-    // Apply status filter
     if (statusFilters.length > 0) {
       filtered = filtered.filter(agreement => {
         const status = agreement.AgreementStatus || 'UNKNOWN';
@@ -275,7 +259,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const handleSearch = (term: string) => {
     console.log("🔍 Search term updated:", term);
     setSearchTerm(term);
-    setPage(1); // Reset to page 1 on search
+    setPage(1);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -286,13 +270,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     if (newPageSize !== pageSize) {
       setPageSize(newPageSize);
-      setPage(1); // Reset to page 1 when changing page size
+      setPage(1);
     }
   }, [pageSize, setPage]);
 
   const handleStatusFilterChange = (values: string[]) => {
     setStatusFilters(values);
-    setPage(1); // Reset to page 1 when status filter changes
+    setPage(1);
   };
 
   const formatName = (name?: string | null): string => {
@@ -324,7 +308,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       title: 'Dealership',
       searchable: true,
       render: (row) => {
-        // Safely access the dealers.Payee with optional chaining
         return row.dealers?.Payee || "Unknown Dealership";
       },
     },
@@ -398,9 +381,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     },
   ];
 
-  // Calculate the actual total displayed count based on filters
   const displayedCount = filteredAgreements.length;
-  // Use server total when no client-side filters are applied, otherwise use filtered count
   const effectiveTotalCount = (searchTerm.trim() || statusFilters.length > 0) ? displayedCount : totalCount;
 
   const currentStatus = isFetching
@@ -426,7 +407,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         }}
         paginationProps={{
           currentPage: page,
-          totalItems: effectiveTotalCount, // Use filtered count for pagination
+          totalItems: effectiveTotalCount,
           pageSize: pageSize,
           onPageChange: handlePageChange,
           onPageSizeChange: handlePageSizeChange,

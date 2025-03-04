@@ -146,6 +146,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   const handleStatusFilterChange = (values: string[]) => {
     setStatusFilters(values);
     setPage(1); // Reset to page 1 when filter changes
+    // Removed toast notification for status filter change
   };
 
   // Calculate the actual total displayed count based on filters
