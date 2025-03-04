@@ -17,15 +17,16 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
 }) => {
   const [animatedData, setAnimatedData] = useState<any[]>([]);
   
-  // Ensure we're using dateRange and dealershipFilter in the query
+  // Use the shared claims data hook via useClaimsChartData
   const {
-    data: claims = [],
-    isFetching,
+    data: claimsData,
+    isLoading: isFetching,
     isError
   } = useClaimsChartData(dateRange, dealershipFilter);
 
+  // Process the data for the chart
   const processedData = React.useMemo(() => 
-    processClaimsForChart(claims), [claims]);
+    processClaimsForChart(claimsData?.data || []), [claimsData?.data]);
 
   useEffect(() => {
     if (processedData.length > 0) {
@@ -37,6 +38,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
 
   console.log('[CLAIMCHART_RENDER] Rendering chart with data:', processedData);
   console.log('[CLAIMCHART_FILTERS] Using filters:', { dateRange, dealershipFilter });
+  console.log('[CLAIMCHART_DATA] Claims count:', claimsData?.data?.length || 0, 'Total:', claimsData?.count || 0);
+  console.log('[CLAIMCHART_DATA] Status breakdown:', claimsData?.statusBreakdown || {});
 
   if (isError) {
     return (

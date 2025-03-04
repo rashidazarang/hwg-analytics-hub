@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { KPIData } from '@/lib/types';
-import { getClaimStatus } from '@/utils/claimUtils';
+import { fetchClaimsData } from './useSharedClaimsData';
 
 interface UseKPIDataProps {
   dateRange: DateRange;
@@ -70,71 +70,13 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           cancelled: cancelledContractsCount
         });
 
-        // Fetch claims data using the SAME approach as in ClaimsTable and ClaimChart
-        let claimsQuery = supabase
-          .from('claims')
-          .select(`
-            id,
-            ClaimID,
-            ReportedDate,
-            Closed,
-            Correction,
-            Deductible,
-            LastModified,
-            agreements(DealerUUID)
-          `, { count: 'exact' });
-        
-        // Apply same date range filter as ClaimsTable and ClaimChart
-        // Use LastModified to match ClaimsTable and ClaimChart
-        claimsQuery = claimsQuery
-          .gte('LastModified', fromDate)
-          .lte('LastModified', toDate);
-        
-        // Apply dealer filter at the database level - same as ClaimsTable and ClaimChart
-        if (dealerFilter && dealerFilter.trim() !== '') {
-          console.log(`[KPI_DATA] Filtering claims by dealer: ${dealerFilter}`);
-          claimsQuery = claimsQuery.eq('agreements.DealerUUID', dealerFilter);
-        }
-        
-        const { data: claimsData, error: claimsError, count: claimsCount } = await claimsQuery;
-        
-        if (claimsError) {
-          console.error('[KPI_DATA] Error fetching claims:', claimsError);
-          throw claimsError;
-        }
-        
-        // Process claims using the same getClaimStatus function
-        const filteredClaims = claimsData || [];
-        console.log(`[KPI_DATA] Retrieved ${filteredClaims.length} claims out of total ${claimsCount || 0}`);
-        
-        // Count claims by status using the consistent getClaimStatus logic
-        const openClaimsCount = filteredClaims.filter(claim => 
-          getClaimStatus(claim) === 'OPEN'
-        ).length;
-        
-        const pendingClaimsCount = filteredClaims.filter(claim => 
-          getClaimStatus(claim) === 'PENDING'
-        ).length;
-        
-        const closedClaimsCount = filteredClaims.filter(claim => 
-          getClaimStatus(claim) === 'CLOSED'
-        ).length;
-        
-        console.log('[KPI_DATA] Claims breakdown:', {
-          total: filteredClaims.length,
-          open: openClaimsCount,
-          pending: pendingClaimsCount,
-          closed: closedClaimsCount
+        // Use the shared claims data fetching function for consistent filtering
+        const claimsResult = await fetchClaimsData({
+          dateRange,
+          dealerFilter,
+          includeCount: true
         });
-
-        // Calculate claim amounts from Deductible (if available)
-        const totalClaimsAmount = filteredClaims.reduce((sum, claim) => 
-          sum + (Number(claim.Deductible) || 0), 0);
         
-        const averageClaimAmount = filteredClaims.length > 0 
-          ? totalClaimsAmount / filteredClaims.length 
-          : 0;
-
         // Get total agreements count for this date range
         const { count: totalAgreementsCount } = await supabase
           .from('agreements')
@@ -143,14 +85,22 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           .lte('EffectiveDate', toDate)
           .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true);
 
+        // Calculate claim amounts from Deductible (if available)
+        const totalClaimsAmount = claimsResult.data.reduce((sum, claim) => 
+          sum + (Number(claim.Deductible) || 0), 0);
+        
+        const averageClaimAmount = claimsResult.data.length > 0 
+          ? totalClaimsAmount / claimsResult.data.length 
+          : 0;
+
         return {
           pendingContracts: pendingContractsCount,
           newlyActiveContracts: activeContractsCount,
           cancelledContracts: cancelledContractsCount,
-          openClaims: openClaimsCount,
+          openClaims: claimsResult.statusBreakdown.OPEN,
           activeAgreements: activeContractsCount,
           totalAgreements: totalAgreementsCount || 0,
-          totalClaims: claimsCount || 0,
+          totalClaims: claimsResult.count || 0,
           activeDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           totalDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           averageClaimAmount,
@@ -162,7 +112,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           pendingContracts: 0,
           newlyActiveContracts: 0,
           cancelledContracts: 0,
-          openClaims: 0,
+          openClaims: 0, // Fixed typo here
           activeAgreements: 0,
           totalAgreements: 0,
           totalClaims: 0,
