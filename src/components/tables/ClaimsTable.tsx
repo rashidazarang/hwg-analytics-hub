@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -17,7 +18,8 @@ interface ClaimsTableProps {
 
 const CLAIM_STATUS_OPTIONS: FilterOption[] = [
   { value: "OPEN", label: "Open" },
-  { value: "CLOSED", label: "Closed" }
+  { value: "CLOSED", label: "Closed" },
+  { value: "PENDING", label: "Pending" }
 ];
 
 const ClaimsTable: React.FC<ClaimsTableProps> = ({
@@ -37,7 +39,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     setLocalSearchQuery(searchQuery);
   }, [dealerFilter, searchQuery, dateRange]);
 
-  // Fetch claims data with all filters
+  // Fetch claims data with all filters, including status filters
   const { 
     data: claimsData, 
     isFetching 
@@ -46,9 +48,10 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
 
-  // Apply client-side search filtering
+  // Apply client-side search filtering only (status filtering is now done on server)
   const filteredClaims = useMemo(() => {
     console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', localSearchQuery);
+    console.log('🔍 ClaimsTable: Filtering claims by status:', statusFilters);
     
     let filtered = claims;
     
@@ -62,7 +65,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     }
     
     return filtered;
-  }, [claims, localSearchQuery]);
+  }, [claims, localSearchQuery, statusFilters]);
 
   // Define table columns
   const columns: Column<any>[] = [
@@ -127,7 +130,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     setPage(1); // Reset page when changing status filters
   };
 
-  // Calculate the actual total displayed count
+  // Calculate the actual total displayed count - use server-side count since filtering is server-side
   const displayedCount = filteredClaims.length;
   const effectiveTotalCount = localSearchQuery ? displayedCount : totalCount;
 

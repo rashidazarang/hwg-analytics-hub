@@ -50,16 +50,45 @@ export async function fetchClaims(
     query = query.eq("agreements.DealerUUID", dealerFilter);
   }
 
-  // Finally apply status filters if any
+  // Apply status filters properly on the server-side
   if (statusFilters && statusFilters.length > 0) {
-    console.log('🔍 ClaimsTable: Applying status filters:', statusFilters);
-    if (statusFilters.includes('CLOSED')) {
-      query = query.not('Closed', 'is', null);
+    console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
+    
+    // Create an array to store filter conditions
+    const statusConditions = [];
+    
+    // Add conditions based on status values
+    for (const status of statusFilters) {
+      if (status === 'OPEN') {
+        // Open claims have ReportedDate but no Closed date
+        statusConditions.push('(ReportedDate.is.not.null,Closed.is.null)');
+      } else if (status === 'CLOSED') {
+        // Closed claims have a Closed date
+        statusConditions.push('(Closed.is.not.null)');
+      } else if (status === 'PENDING') {
+        // Pending claims have no ReportedDate
+        statusConditions.push('(ReportedDate.is.null)');
+      }
     }
-    if (statusFilters.includes('OPEN')) {
-      query = query.is('Closed', null);
+    
+    // Apply the conditions if we have any
+    if (statusConditions.length > 0) {
+      // Use or() for multiple status conditions
+      if (statusConditions.length === 1) {
+        // Simple case with one condition
+        const [condition] = statusConditions[0].slice(1, -1).split(',');
+        const [field, operator] = condition.split('.is.');
+        
+        if (operator === 'null') {
+          query = query.is(field, null);
+        } else if (operator === 'not.null') {
+          query = query.not(field, 'is', null);
+        }
+      } else {
+        // Multiple conditions - use OR filter
+        query = query.or(statusConditions.join(','));
+      }
     }
-    // Add other status conditions as needed
   }
 
   // Apply pagination last

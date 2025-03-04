@@ -32,12 +32,14 @@ async function fetchAgreements(
   page: number = 1,
   pageSize: number = PAGE_SIZE,
   dateRange?: DateRange, 
-  dealerFilter?: string
+  dealerFilter?: string,
+  statusFilters?: string[]
 ): Promise<{ data: Agreement[], count: number }> {
   console.log("🔍 Fetching agreements with parameters:");
   console.log("🔍 Page:", page, "Page size:", pageSize);
   console.log("🔍 Date Range:", dateRange);
   console.log("🔍 Dealer UUID filter:", dealerFilter);
+  console.log("🔍 Status filters:", statusFilters);
 
   const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
   const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
@@ -70,6 +72,11 @@ async function fetchAgreements(
   if (dealerFilter && dealerFilter.trim()) {
     console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
     query = query.eq("DealerUUID", dealerFilter);
+  }
+  
+  if (statusFilters && statusFilters.length > 0) {
+    console.log(`🎯 Filtering by status(es): ${statusFilters.join(', ')}`);
+    query = query.in("AgreementStatus", statusFilters);
   }
   
   query = query.range(startRow, endRow);
@@ -169,8 +176,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    return ["agreements-data", from, to, dealerFilter, page, pageSize];
-  }, [dateRange, dealerFilter, page, pageSize]);
+    return ["agreements-data", from, to, dealerFilter, page, pageSize, statusFilters];
+  }, [dateRange, dealerFilter, page, pageSize, statusFilters]);
   
   const { 
     data: agreementsData = { data: [], count: 0 }, 
@@ -179,8 +186,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   } = useQuery({
     queryKey: agreementsQueryKey,
     queryFn: async () => {
-      console.log(`🔍 Executing agreements query for page ${page}`);
-      return fetchAgreements(page, pageSize, dateRange, dealerFilter);
+      console.log(`🔍 Executing agreements query for page ${page} with status filters:`, statusFilters);
+      return fetchAgreements(page, pageSize, dateRange, dealerFilter, statusFilters);
     },
     staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 30,
@@ -244,13 +251,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       });
     }
     
-    if (statusFilters.length > 0) {
-      filtered = filtered.filter(agreement => {
-        const status = agreement.AgreementStatus || 'UNKNOWN';
-        return statusFilters.includes(status);
-      });
-    }
-    
     return filtered;
   }, [agreements, searchTerm, statusFilters]);
   
@@ -275,6 +275,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   }, [pageSize, setPage]);
 
   const handleStatusFilterChange = (values: string[]) => {
+    console.log('🔍 Status filter changed to:', values);
     setStatusFilters(values);
     setPage(1);
   };
@@ -382,7 +383,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   ];
 
   const displayedCount = filteredAgreements.length;
-  const effectiveTotalCount = (searchTerm.trim() || statusFilters.length > 0) ? displayedCount : totalCount;
+  const effectiveTotalCount = searchTerm.trim() ? displayedCount : totalCount;
 
   const currentStatus = isFetching
     ? "Loading..."
