@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useMemo, useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
@@ -35,73 +36,103 @@ async function fetchAgreements(
   dealerFilter?: string,
   statusFilters?: string[]
 ): Promise<{ data: Agreement[], count: number }> {
-  console.log("🔍 Fetching agreements with parameters:");
-  console.log("🔍 Page:", page, "Page size:", pageSize);
-  console.log("🔍 Date Range:", dateRange);
-  console.log("🔍 Dealer UUID filter:", dealerFilter);
-  console.log("🔍 Status filters:", statusFilters);
+  try {
+    console.log("🔍 Fetching agreements with parameters:");
+    console.log("🔍 Page:", page, "Page size:", pageSize);
+    console.log("🔍 Date Range:", dateRange);
+    console.log("🔍 Dealer UUID filter:", dealerFilter);
+    console.log("🔍 Status filters:", statusFilters);
 
-  const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
-  const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-  
-  const startRow = (page - 1) * pageSize;
-  const endRow = startRow + pageSize - 1;
+    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
+    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+    
+    const startRow = (page - 1) * pageSize;
+    const endRow = startRow + pageSize - 1;
 
-  let query = supabase
-    .from("agreements")
-    .select(`
-      id, 
-      AgreementID, 
-      HolderFirstName, 
-      HolderLastName, 
-      DealerUUID, 
-      DealerID, 
-      EffectiveDate, 
-      ExpireDate, 
-      AgreementStatus, 
-      Total, 
-      DealerCost, 
-      ReserveAmount,
-      StatusChangeDate,
-      dealers(Payee)
-    `, { count: 'exact' })
-    .gte("EffectiveDate", from)
-    .lte("EffectiveDate", to)
-    .order("EffectiveDate", { ascending: false });
-  
-  if (dealerFilter && dealerFilter.trim()) {
-    console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
-    query = query.eq("DealerUUID", dealerFilter);
-  }
-  
-  if (statusFilters && statusFilters.length > 0) {
-    console.log(`🎯 Filtering by status(es): ${statusFilters.join(', ')}`);
-    query = query.in("AgreementStatus", statusFilters);
-  }
-  
-if (!dealerFilter || dealerFilter.trim() === '') {
-  query = query.range(startRow, endRow);
-}
-  
-  const { data, error, count } = await query;
+    // First get the count with a separate query to avoid timeout issues
+    let countQuery = supabase
+      .from("agreements")
+      .select("id", { count: 'exact', head: true })
+      .gte("EffectiveDate", from)
+      .lte("EffectiveDate", to);
+      
+    if (dealerFilter && dealerFilter.trim()) {
+      countQuery = countQuery.eq("DealerUUID", dealerFilter);
+    }
+    
+    if (statusFilters && statusFilters.length > 0) {
+      countQuery = countQuery.in("AgreementStatus", statusFilters);
+    }
+    
+    const { count: totalCount, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.error("❌ Supabase Count Error:", countError);
+      toast.error("Failed to count agreements");
+      return { data: [], count: 0 };
+    }
+    
+    // Now get the actual data
+    let query = supabase
+      .from("agreements")
+      .select(`
+        id, 
+        AgreementID, 
+        HolderFirstName, 
+        HolderLastName, 
+        DealerUUID, 
+        DealerID, 
+        EffectiveDate, 
+        ExpireDate, 
+        AgreementStatus, 
+        Total, 
+        DealerCost, 
+        ReserveAmount,
+        StatusChangeDate,
+        dealers(Payee)
+      `)
+      .gte("EffectiveDate", from)
+      .lte("EffectiveDate", to)
+      .order("EffectiveDate", { ascending: false });
+    
+    if (dealerFilter && dealerFilter.trim()) {
+      console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
+      query = query.eq("DealerUUID", dealerFilter);
+    }
+    
+    if (statusFilters && statusFilters.length > 0) {
+      console.log(`🎯 Filtering by status(es): ${statusFilters.join(', ')}`);
+      query = query.in("AgreementStatus", statusFilters);
+    }
+    
+    // Always paginate to avoid timeout issues
+    query = query.range(startRow, endRow);
+    
+    const { data, error } = await query;
 
-  if (error) {
-    console.error("❌ Supabase Fetch Error:", error);
-    toast.error("Failed to load agreements");
+    if (error) {
+      console.error("❌ Supabase Fetch Error:", error);
+      toast.error("Failed to load agreements");
+      return { data: [], count: 0 };
+    }
+
+    console.log(`✅ Fetched ${data?.length || 0} agreements for page ${page}`);
+    console.log(`✅ Total agreements: ${totalCount || 0}`);
+    
+    return { 
+      data: data as unknown as Agreement[] || [], 
+      count: totalCount || 0 
+    };
+  } catch (error) {
+    console.error("❌ Exception in fetchAgreements:", error);
+    toast.error("An unexpected error occurred while loading agreements");
     return { data: [], count: 0 };
   }
-
-  console.log(`✅ Fetched ${data?.length || 0} agreements for page ${page}`);
-  console.log(`✅ Total agreements: ${count || 0}`);
-  
-  return { 
-    data: data as unknown as Agreement[] || [], 
-    count: count || 0 
-  };
 }
 
 async function fetchDealers() {
   try {
+    console.log("🔍 Fetching dealers...");
     const PAGE_SIZE = 1000;
     let allDealers: Dealer[] = [];
     let page = 0;
@@ -115,6 +146,7 @@ async function fetchDealers() {
 
       if (error) {
         console.error("❌ Supabase Error fetching dealers:", error);
+        toast.error("Failed to load dealer information");
         return allDealers; // Return what we have so far
       }
 
@@ -135,7 +167,8 @@ async function fetchDealers() {
     console.log("✅ Fetched Dealers:", allDealers.length, "records");
     return allDealers;
   } catch (error) {
-    console.error("Error fetching dealers:", error);
+    console.error("❌ Exception in fetchDealers:", error);
+    toast.error("An unexpected error occurred while loading dealers");
     return [];
   }
 }
@@ -164,6 +197,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
+    console.log('🔍 AgreementsTable - Current date range:', dateRange);
     
     setPage(1);
   }, [dealerFilter, dealerName, dateRange]);
@@ -184,7 +218,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const { 
     data: agreementsData = { data: [], count: 0 }, 
     isFetching: isFetchingAgreements,
-    error: agreementsError
+    error: agreementsError,
+    refetch: refetchAgreements
   } = useQuery({
     queryKey: agreementsQueryKey,
     queryFn: async () => {
@@ -194,26 +229,48 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
   });
 
-  if (agreementsError) {
-    console.error("Failed to load agreements:", agreementsError);
-    return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
-  }
+  useEffect(() => {
+    if (agreementsError) {
+      console.error("Failed to load agreements:", agreementsError);
+      toast.error("Failed to load agreements data");
+      
+      // Schedule a retry after 5 seconds on error
+      const timer = setTimeout(() => {
+        console.log("🔄 Auto-retrying agreements fetch after error");
+        refetchAgreements();
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [agreementsError, refetchAgreements]);
   
   const agreements = agreementsData.data || [];
   const totalCount = agreementsData.count || 0;
 
   const { 
     data: dealers = [],
-    isFetching: isFetchingDealers 
+    isFetching: isFetchingDealers,
+    error: dealersError 
   } = useQuery({
     queryKey: ["dealers-data"],
     queryFn: fetchDealers,
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 2,
     refetchOnWindowFocus: false,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(attempt * 1000, 5000),
   });
+  
+  useEffect(() => {
+    if (dealersError) {
+      console.error("Failed to load dealers:", dealersError);
+      toast.error("Failed to load dealer information");
+    }
+  }, [dealersError]);
   
   const dealerMap = useMemo(() => {
     if (!dealers || dealers.length === 0) {
@@ -231,6 +288,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       return acc;
     }, {});
   
+    console.log(`✅ Created dealer map with ${Object.keys(map).length} entries`);
     return map;
   }, [dealers]);
   

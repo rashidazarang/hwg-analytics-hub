@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
+import { toast } from 'sonner';
 
 // Define the type for our RPC function return
 export type AgreementStatusCount = {
@@ -57,6 +58,7 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
     queryKey: ['agreement-status-distribution', dateRange.from?.toISOString(), dateRange.to?.toISOString(), dealerFilter],
     queryFn: async () => {
       console.log('📊 Fetching agreement status distribution data...');
+      console.log('📊 Date range:', dateRange.from?.toISOString(), 'to', dateRange.to?.toISOString());
       console.log('📊 Dealer filter:', dealerFilter);
       
       try {
@@ -78,6 +80,7 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
             
           if (error) {
             console.error('❌ Error fetching filtered agreements:', error);
+            toast.error('Failed to load agreement data');
             return [];
           }
           
@@ -93,71 +96,88 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
             statusCounts[status] = (statusCounts[status] || 0) + 1;
           });
           
+          console.log('📊 Status counts for filtered agreements:', statusCounts);
+          
           // Process the data with grouping
           return processStatusData(statusCounts);
         }
         
-        // If no dealer filter, use the RPC function to get all agreements status distribution
-        const { data, error } = await supabase.rpc('count_agreements_by_status', {
-          from_date: fromDate,
-          to_date: toDate
-        });
-
-        if (error) {
-          console.error('❌ Error fetching agreement status distribution:', error);
+        // If no dealer filter, use client-side counting with a paginated approach to avoid timeouts
+        // First, get total count
+        const { count, error: countError } = await supabase
+          .from('agreements')
+          .select('*', { count: 'exact', head: true })
+          .gte('EffectiveDate', fromDate)
+          .lte('EffectiveDate', toDate);
+          
+        if (countError) {
+          console.error('❌ Error getting agreement count:', countError);
+          toast.error('Failed to count agreements');
           return [];
         }
-
-        console.log('📊 Agreement status counts from database:', data);
         
-        // If no data returned from RPC, fall back to client-side counting
-        if (!data || (Array.isArray(data) && data.length === 0)) {
-          console.log('📊 Falling back to client-side counting...');
+        console.log(`📊 Total agreements in date range: ${count || 0}`);
+        
+        if (!count || count === 0) {
+          return [];
+        }
+        
+        // Fetch in chunks of 1000 to avoid timeouts
+        const chunkSize = 1000;
+        const chunks = Math.ceil((count || 0) / chunkSize);
+        const statusCounts: Record<string, number> = {};
+        
+        console.log(`📊 Fetching agreements in ${chunks} chunks of ${chunkSize}`);
+        
+        for (let i = 0; i < chunks; i++) {
+          const from = i * chunkSize;
+          const to = from + chunkSize - 1;
+          
+          console.log(`📊 Fetching chunk ${i+1}/${chunks} (rows ${from}-${to})`);
+          
           const { data: agreements, error: fetchError } = await supabase
             .from('agreements')
             .select('AgreementStatus')
             .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate);
-
+            .lte('EffectiveDate', toDate)
+            .range(from, to);
+            
           if (fetchError) {
-            console.error('❌ Error fetching agreements:', fetchError);
-            return [];
+            console.error(`❌ Error fetching agreements chunk ${i+1}:`, fetchError);
+            continue; // Continue with other chunks
           }
-
-          // Count agreements by status
-          const statusCounts: Record<string, number> = {};
-          agreements.forEach(agreement => {
+          
+          // Count by status
+          agreements?.forEach(agreement => {
             const status = agreement.AgreementStatus || 'Unknown';
             statusCounts[status] = (statusCounts[status] || 0) + 1;
           });
-
-          // Process the data with grouping
-          return processStatusData(statusCounts);
         }
         
-        // Safely type-check and convert the data from RPC
-        const typedData = data as AgreementStatusCount[];
-        
-        // Convert RPC result to an object with status counts
-        const statusCounts: Record<string, number> = {};
-        typedData.forEach(item => {
-          statusCounts[item.status || 'Unknown'] = Number(item.count);
-        });
+        console.log('📊 Final status counts:', statusCounts);
         
         // Process the data with grouping
         return processStatusData(statusCounts);
       } catch (error) {
         console.error('❌ Error processing agreement status data:', error);
+        toast.error('Error processing agreement data');
         return [];
       }
     },
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     refetchOnWindowFocus: false,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
   });
 }
 
 // Helper function to process status data with grouping
 function processStatusData(statusCounts: Record<string, number>): AgreementChartData[] {
+  if (!statusCounts || Object.keys(statusCounts).length === 0) {
+    console.log('📊 No status counts to process');
+    return [];
+  }
+  
   // Group data by status group
   const groupedData: Record<string, {
     count: number,

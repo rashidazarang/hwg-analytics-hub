@@ -14,7 +14,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
   
   // Update animated data when real data changes
   useEffect(() => {
-    if (data.length > 0) {
+    if (data && data.length > 0) {
       setAnimatedData(data);
     } else {
       setAnimatedData([]);
@@ -73,7 +73,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
     );
   }
 
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[240px] text-muted-foreground">
         No agreement data available
@@ -83,10 +83,10 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
 
   // Define predefined colors for each category
   const pieColors = {
-  'ACTIVE': '#00B179', // Green
-  'PENDING': '#0079EE', // Blue
-  'CANCELLED': '#FC912A', // Yellow
-  'OTHER': '#F6383F', // Red
+    'ACTIVE': '#00B179', // Green
+    'PENDING': '#0079EE', // Blue
+    'CANCELLED': '#FC912A', // Yellow
+    'OTHER': '#F6383F', // Red
   };
 
   return (
@@ -146,6 +146,6 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
           <span className="text-xs font-medium">OTHER</span>
         </div>
       </div>      
-    </div> 
+    </div>
   );
 };
