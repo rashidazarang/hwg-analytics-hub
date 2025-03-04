@@ -43,7 +43,7 @@ const fetchClaimsForCharts = async (dealerFilter?: string): Promise<Claim[]> => 
   }));
 };
 
-const SubNavbar = ({ isDesktopHeader = false, isMobileMenu = false }) => {
+const SubNavbar = ({ isDesktopHeader = false, isMobileMenu = false, isDesktopSubnavbar = false }) => {
   const [activeTab, setActiveTab] = useState<string>('agreements');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [dealershipUUID, setDealershipUUID] = useState<string>('');
@@ -115,6 +115,16 @@ const SubNavbar = ({ isDesktopHeader = false, isMobileMenu = false }) => {
           />
         </div>
       </div>
+    );
+  }
+
+  if (isDesktopSubnavbar) {
+    return (
+      <DealershipSearch 
+        onDealershipSelect={handleDealershipSelect}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+      />
     );
   }
 

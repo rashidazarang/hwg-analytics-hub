@@ -74,9 +74,15 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
         
-        {/* Subnavbar for date range filter - desktop only */}
+        {/* Subnavbar for date range filter and dealership search - desktop only */}
         <div className="border-t border-border/30 bg-muted/30 hidden md:block">
           <div className="dashboard-container py-2 flex justify-between items-center">
+            {/* Dealership Search on the left */}
+            <div className="w-full md:w-auto">
+              {subnavbar && React.cloneElement(subnavbar as React.ReactElement, { isDesktopSubnavbar: true })}
+            </div>
+            
+            {/* Date Range Filter on the right */}
             <div className="w-full md:w-auto">
               <DateRangeFilter onChange={onDateRangeChange} />
             </div>
