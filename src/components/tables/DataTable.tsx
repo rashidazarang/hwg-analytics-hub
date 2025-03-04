@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -162,6 +163,15 @@ const DataTable = <T extends Record<string, any>>({
   const displayedCount = displayData.length;
   const totalItemsCount = paginationProps?.totalItems || displayedCount;
   
+  // Calculate the current page range for display
+  const pageStart = paginationProps 
+    ? Math.min((paginationProps.currentPage - 1) * paginationProps.pageSize + 1, totalItemsCount)
+    : 1;
+  
+  const pageEnd = paginationProps
+    ? Math.min(pageStart + paginationProps.pageSize - 1, totalItemsCount)
+    : displayedCount;
+  
   return (
     <div className={className}>
       {searchConfig.enabled && (
@@ -175,7 +185,7 @@ const DataTable = <T extends Record<string, any>>({
                 </span>
               ) : (
                 <span>
-                  Displaying <span className="font-medium text-foreground">{displayedCount}</span> of <span className="font-medium text-foreground">{totalItemsCount}</span> records
+                  Displaying <span className="font-medium text-foreground">{pageStart}-{pageEnd}</span> of <span className="font-medium text-foreground">{totalItemsCount}</span> records
                 </span>
               )}
             </div>
@@ -261,7 +271,7 @@ const DataTable = <T extends Record<string, any>>({
                 {paginationProps.totalItems === 0 ? (
                   "No entries to display"
                 ) : (
-                  `Showing ${Math.min(paginationProps.pageSize * (paginationProps.currentPage - 1) + 1, paginationProps.totalItems)} to ${Math.min(paginationProps.pageSize * paginationProps.currentPage, paginationProps.totalItems)} of ${paginationProps.totalItems} entries`
+                  `Showing ${pageStart} to ${pageEnd} of ${paginationProps.totalItems} entries`
                 )}
               </span>
             )}
