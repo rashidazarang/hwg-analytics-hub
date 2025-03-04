@@ -71,9 +71,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             .not('Correction', 'ilike', '%rejected%')
             .gte('ReportedDate', dateRange.from.toISOString())
             .lte('ReportedDate', dateRange.to.toISOString())
-            .when(!!dealerFilter, query => 
-              query.eq('agreements.DealerUUID', dealerFilter)
-            )
+            .eq(dealerFilter ? 'agreements.DealerUUID' : 'id', dealerFilter || 'id')
         ]);
 
         console.log('[KPI_DATA] Open claims query result:', {

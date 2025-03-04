@@ -121,7 +121,6 @@ const Index = () => {
           <DashboardCharts 
             dateRange={dateRange}
             dealershipFilter={dealershipUUID}
-            claims={claims}
           />
           <DashboardTables
             activeTab={activeTab}
