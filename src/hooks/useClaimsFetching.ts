@@ -54,42 +54,33 @@ export async function fetchClaims(
   if (statusFilters && statusFilters.length > 0) {
     console.log('🔍 ClaimsTable: Applying status filters on server-side:', statusFilters);
     
-    // Start with an empty array for our OR conditions
-    const filterConditions = [];
-    
-    // Add the appropriate filter for each status
-    for (const status of statusFilters) {
+    if (statusFilters.length === 1) {
+      // For a single status filter, we can apply it directly
+      const status = statusFilters[0];
       if (status === 'OPEN') {
-        // Open claims: ReportedDate is NOT NULL AND Closed is NULL
-        filterConditions.push(`ReportedDate.is.not.null,Closed.is.null`);
+        query = query.not('ReportedDate', 'is', null).is('Closed', null);
       } else if (status === 'CLOSED') {
-        // Closed claims: Closed is NOT NULL
-        filterConditions.push(`Closed.is.not.null`);
+        query = query.not('Closed', 'is', null);
       } else if (status === 'PENDING') {
-        // Pending claims: ReportedDate is NULL
-        filterConditions.push(`ReportedDate.is.null`);
+        query = query.is('ReportedDate', null);
       }
-    }
-    
-    // If we have filter conditions, apply them
-    if (filterConditions.length > 0) {
-      if (filterConditions.length === 1) {
-        // For a single condition, we can apply it directly
-        const condition = filterConditions[0];
-        const parts = condition.split(',');
-        
-        for (const part of parts) {
-          const [field, operatorValue] = part.split('.is.');
-          
-          if (operatorValue === 'null') {
-            query = query.is(field, null);
-          } else if (operatorValue === 'not.null') {
-            query = query.not(field, 'is', null);
-          }
+    } else {
+      // For multiple status filters, we need to use filter expressions with OR
+      const filterExpressions: string[] = [];
+      
+      for (const status of statusFilters) {
+        if (status === 'OPEN') {
+          filterExpressions.push('ReportedDate.not.is.null,and,Closed.is.null');
+        } else if (status === 'CLOSED') {
+          filterExpressions.push('Closed.not.is.null');
+        } else if (status === 'PENDING') {
+          filterExpressions.push('ReportedDate.is.null');
         }
-      } else {
-        // For multiple conditions, we need to use OR
-        query = query.or(filterConditions.join(','));
+      }
+      
+      if (filterExpressions.length > 0) {
+        // Join all filter expressions with OR
+        query = query.or(filterExpressions.join(',or,'));
       }
     }
   }
