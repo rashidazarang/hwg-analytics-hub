@@ -9,6 +9,19 @@ interface UseKPIDataProps {
   dealerFilter: string;
 }
 
+// Function to check if a claim is denied based on Correction field - matching ClaimsTable.tsx
+function isClaimDenied(correction: string | null | undefined): boolean {
+  if (!correction) return false;
+  return /denied|not covered|rejected/i.test(correction);
+}
+
+// Updated function to determine claim status - matching ClaimsTable.tsx
+function getClaimStatus(claim: any): string {
+  if (claim.Closed) return 'CLOSED';
+  if (isClaimDenied(claim.Correction)) return 'DENIED';
+  return 'OPEN';
+}
+
 export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
   return useQuery({
     queryKey: ['kpis', dateRange, dealerFilter],
@@ -26,7 +39,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           pendingContractsCount,
           newlyActiveContractsCount,
           cancelledContractsCount,
-          openClaimsQuery
+          claimsQuery
         ] = await Promise.all([
           // Pending contracts
           supabase
@@ -55,40 +68,39 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             .lte('StatusChangeDate', dateRange.to.toISOString())
             .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
 
-          // Updated open claims query with proper dealer filtering
+          // Get all claims within date range for status filtering
           supabase
             .from('claims')
             .select(`
               id,
               Closed,
               Correction,
+              ReportedDate,
               agreements:AgreementID(
                 DealerUUID
               )
-            `, { count: 'exact' })
-            .is('Closed', null)
-            .not('Correction', 'ilike', '%denied%')
-            .not('Correction', 'ilike', '%not covered%')
-            .not('Correction', 'ilike', '%rejected%')
+            `)
             .gte('ReportedDate', dateRange.from.toISOString())
             .lte('ReportedDate', dateRange.to.toISOString())
         ]);
 
-        // Additional filtering for claims by dealer if needed
-        let openClaimsCount = openClaimsQuery.count || 0;
+        // Process claims to count open claims using the same logic as ClaimsTable
+        let claims = claimsQuery.data || [];
         
-        // If dealer filter is active, filter the open claims client-side
-        if (dealerFilter && openClaimsQuery.data) {
-          const filteredClaims = openClaimsQuery.data.filter(
-            claim => claim.agreements?.DealerUUID === dealerFilter
-          );
-          openClaimsCount = filteredClaims.length;
+        // Filter by dealer if needed
+        if (dealerFilter) {
+          claims = claims.filter(claim => claim.agreements?.DealerUUID === dealerFilter);
         }
-
-        console.log('[KPI_DATA] Open claims query result:', {
-          count: openClaimsCount,
-          dealerFilter,
-          error: openClaimsQuery.error
+        
+        // Count only OPEN claims using the same status determination as ClaimsTable
+        const openClaimsCount = claims.filter(claim => 
+          getClaimStatus(claim) === 'OPEN'
+        ).length;
+        
+        console.log('[KPI_DATA] Open claims count:', {
+          total: claims.length,
+          open: openClaimsCount,
+          dealerFilter
         });
 
         // Claims data - separate query to get actual data

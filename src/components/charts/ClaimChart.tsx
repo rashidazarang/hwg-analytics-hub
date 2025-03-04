@@ -14,18 +14,18 @@ type ClaimChartProps = {
   dealershipFilter?: string;
 };
 
-// Helper function to check if a claim is denied based on Correction field
-const isClaimDenied = (correction: string | null | undefined): boolean => {
-  if (!correction) return false;
-  return /denied|not covered|rejected/i.test(correction);
-};
-
-// Helper function to get claim status
+// Updated status mapper function to match ClaimsTable.tsx logic
 const getClaimStatus = (claim: any): string => {
   if (claim.Closed) return 'CLOSED';
   if (isClaimDenied(claim.Correction)) return 'DENIED';
   return 'OPEN';
 };
+
+// Function to check if a claim is denied based on Correction field - matching ClaimsTable.tsx
+function isClaimDenied(correction: string | null | undefined): boolean {
+  if (!correction) return false;
+  return /denied|not covered|rejected/i.test(correction);
+}
 
 const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) => {
   console.log('[CLAIMCHART_FETCH] Fetching claims with filters:', {
