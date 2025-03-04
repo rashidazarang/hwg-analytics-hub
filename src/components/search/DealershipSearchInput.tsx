@@ -21,7 +21,7 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
 }) => {
   return (
     <div className="relative">
-      {/* Left-Side Search Icon */}
+      {/* Left side: Search icon or Loader */}
       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
         {isLoading ? (
           <Loader2 className="h-4 w-4 text-primary/70 animate-spin" />
@@ -30,7 +30,7 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
         )}
       </div>
       
-      {/* Search Input */}
+      {/* Input Field */}
       <Input 
         type="text" 
         placeholder={isLoading ? "Loading dealerships..." : "Search dealerships..."} 
@@ -39,16 +39,16 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
         onFocus={onFocus} 
         autoComplete="off" 
         disabled={isLoading} 
-        className="pl-10 pr-10 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm mx-0 my-0 bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
+        className="pl-10 pr-10 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
       />
       
-      {/* Right-Side Clear Button (Only if a Search Term Exists) */}
-      <div className="absolute inset-y-0 right-0 flex items-center">
-        {searchTerm && (
+      {/* Right side: Clear button OR Search button (not both) */}
+      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+        {searchTerm ? (
           <button 
             type="button" 
             onClick={onClear} 
-            className="flex items-center justify-center w-10 h-full cursor-pointer" 
+            className="flex items-center justify-center w-5 h-full cursor-pointer" 
             aria-label="Clear search" 
             title="Clear search"
           >
@@ -56,7 +56,7 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
               <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
             </div>
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );
