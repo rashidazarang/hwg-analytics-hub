@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Check, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,7 +50,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
           size="sm" 
           className={cn("h-9 relative", className)}
         >
-          <Filter className="mr-2 h-4 w-4" />
+          <Filter className="mr-1 h-4 w-4" />
           {label}
           {activeFiltersCount > 0 && (
             <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">

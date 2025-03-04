@@ -368,7 +368,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
 
   return (
     <>
-      
       <DataTable
         data={filteredAgreements}
         columns={columns}
@@ -393,8 +392,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
             options={AGREEMENT_STATUS_OPTIONS}
             selectedValues={statusFilters}
             onChange={handleStatusFilterChange}
-            label="Status"
-            className="ml-2"
+            label="Filters"
+            className="ml-0"
           />
         }
       />
