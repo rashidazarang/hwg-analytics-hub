@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,14 +29,12 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   dealerName = '',
   searchQuery = '',
 }) => {
-  // Define state variables first
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [totalClaims, setTotalClaims] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load claims with pagination, filtering, and sorting
   const { data, isLoading: queryLoading, error } = useQuery({
     queryKey: ['claims', dealerFilter, searchQuery, pageIndex, pageSize],
     queryFn: async () => {
@@ -45,41 +42,50 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       setIsLoading(true);
       
       try {
-        // Start building the query
         let query = supabase
           .from('claims')
-          .select('*', { count: 'exact' });
+          .select(`
+            *,
+            agreements (
+              DealerName
+            )
+          `, { count: 'exact' });
         
-        // Apply dealer filter if provided
         if (dealerFilter) {
           query = query.eq('DealerUUID', dealerFilter);
         }
         
-        // Apply search filter if provided
         if (searchQuery) {
           query = query.or(`ClaimID.ilike.%${searchQuery}%,VIN.ilike.%${searchQuery}%`);
         }
         
-        // Apply pagination
         const from = pageIndex * pageSize;
         const to = from + pageSize - 1;
         
-        // Execute the query
         const { data, count, error } = await query
           .order('ReportedDate', { ascending: false })
           .range(from, to);
         
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
         
+        const transformedClaims = data?.map(claim => ({
+          id: claim.id,
+          ClaimID: claim.ClaimID,
+          ClaimStatus: claim.ClaimStatus || 'UNKNOWN',
+          ReportedDate: claim.ReportedDate,
+          ClaimAmount: claim.ClaimAmount || 0,
+          VIN: claim.VIN || 'N/A',
+          DealerName: claim.agreements?.DealerName || 'Unknown Dealer',
+          AgreementID: claim.AgreementID,
+          ...claim
+        })) as Claim[];
+
         return {
-          claims: data as Claim[] || [],
+          claims: transformedClaims || [],
           totalCount: count || 0
         };
       } catch (error) {
         console.error('Error fetching claims:', error);
-        // Fallback to mock data
         return {
           claims: initialClaims.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize) as Claim[],
           totalCount: initialClaims.length
@@ -88,7 +94,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         setIsLoading(false);
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -99,7 +105,6 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     }
   }, [data]);
 
-  // Reset pagination when filters change
   useEffect(() => {
     setPageIndex(0);
   }, [dealerFilter, searchQuery]);
@@ -145,7 +150,6 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              // Loading skeleton
               Array.from({ length: pageSize }).map((_, i) => (
                 <TableRow key={`loading-${i}`}>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -188,7 +192,6 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         </Table>
       </div>
 
-      {/* Pagination controls */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           Showing {claims.length > 0 ? pageIndex * pageSize + 1 : 0} to {Math.min((pageIndex + 1) * pageSize, totalClaims)} of {totalClaims} claims

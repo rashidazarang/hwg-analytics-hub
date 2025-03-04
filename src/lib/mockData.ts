@@ -135,30 +135,30 @@ export const generateMockAgreements = (count: number): Agreement[] => {
 };
 
 // Generate mock claims
-export const generateMockClaims = (count: number, agreements: Agreement[]): Claim[] => {
+export const generateMockClaims = (count: number): Claim[] => {
   const claims: Claim[] = [];
   const statuses = ['OPEN', 'CLOSED', 'PENDING'] as const;
   
   for (let i = 0; i < count; i++) {
-    const agreement = agreements[Math.floor(Math.random() * agreements.length)];
-    const dateIncurred = randomDate(agreement.startDate, new Date() < agreement.endDate ? new Date() : agreement.endDate);
-    const dateReported = randomDate(dateIncurred, new Date(dateIncurred.getTime() + 1000 * 60 * 60 * 24 * 14)); // Report within 14 days
-    
     claims.push({
       id: `CLM-${i.toString().padStart(5, '0')}`,
-      agreementId: agreement.id,
-      customerId: agreement.customerId,
-      customerName: agreement.customerName,
-      dealerId: agreement.dealerId,
-      dealerName: agreement.dealerName,
-      dateIncurred,
-      dateReported,
-      amount: Math.floor(Math.random() * 5000) + 100,
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      description: `Claim for ${['repair', 'replacement', 'maintenance', 'damage', 'malfunction'][Math.floor(Math.random() * 5)]}`,
-      createdAt: dateReported,
-      updatedAt: randomDate(dateReported, new Date()),
-      deductible: Math.floor(Math.random() * 100) + 10
+      ClaimID: `CLM-${i.toString().padStart(5, '0')}`,
+      ClaimStatus: statuses[Math.floor(Math.random() * statuses.length)],
+      ReportedDate: new Date().toISOString(),
+      ClaimAmount: Math.floor(Math.random() * 5000) + 100,
+      VIN: `VIN${Math.random().toString(36).substring(7)}`,
+      DealerName: `Dealer ${Math.floor(Math.random() * 20) + 1}`,
+      AgreementID: `AGR-${Math.floor(Math.random() * 1000)}`,
+      Cause: 'Sample cause',
+      CauseID: '123',
+      Complaint: 'Sample complaint',
+      ComplaintID: '456',
+      Correction: 'Sample correction',
+      CorrectionID: '789',
+      Deductible: Math.floor(Math.random() * 100) + 10,
+      IncurredDate: new Date().toISOString(),
+      LastModified: new Date().toISOString(),
+      Closed: ''
     });
   }
   
@@ -200,7 +200,7 @@ export const generateMockDealers = (count: number): Dealer[] => {
 
 // Generate all mock data
 export const mockAgreements = generateMockAgreements(200);
-export const mockClaims = generateMockClaims(150, mockAgreements);
+export const mockClaims = generateMockClaims(150);
 export const mockDealers = generateMockDealers(20);
 
 // Calculate KPI metrics
@@ -217,15 +217,15 @@ export const calculateKPIs = (
   );
   
   const filteredClaims = claims.filter(c => 
-    c.dateReported >= dateRange.from && c.dateReported <= dateRange.to
+    c.ReportedDate >= dateRange.from && c.ReportedDate <= dateRange.to
   );
   
   const activeAgreements = filteredAgreements.filter(a => a.status === 'ACTIVE').length;
   const totalAgreementsValue = filteredAgreements.reduce((sum, a) => sum + a.value, 0);
   
-  const openClaims = filteredClaims.filter(c => c.status === 'OPEN').length;
-  const closedClaims = filteredClaims.filter(c => c.status === 'CLOSED').length;
-  const totalClaimsAmount = filteredClaims.reduce((sum, c) => sum + c.amount, 0);
+  const openClaims = filteredClaims.filter(c => c.ClaimStatus === 'OPEN').length;
+  const closedClaims = filteredClaims.filter(c => c.ClaimStatus === 'CLOSED').length;
+  const totalClaimsAmount = filteredClaims.reduce((sum, c) => sum + c.ClaimAmount, 0);
   
   const activeDealers = [...new Set(filteredAgreements.map(a => a.dealerId))].length;
   const totalDealers = dealers.length;
@@ -270,21 +270,21 @@ export const getAgreementStatusDistribution = (agreements: Agreement[], dateRang
 // Get claims timeline data
 export const getClaimsTimeline = (claims: Claim[], dateRange: { from: Date; to: Date }) => {
   const filteredClaims = claims.filter(c => 
-    c.dateReported >= dateRange.from && c.dateReported <= dateRange.to
+    c.ReportedDate >= dateRange.from && c.ReportedDate <= dateRange.to
   );
   
   // Group by month
   const monthlyData: Record<string, { reported: number; amount: number }> = {};
   
   filteredClaims.forEach(claim => {
-    const monthKey = format(claim.dateReported, 'MMM yyyy');
+    const monthKey = format(claim.ReportedDate, 'MMM yyyy');
     
     if (!monthlyData[monthKey]) {
       monthlyData[monthKey] = { reported: 0, amount: 0 };
     }
     
     monthlyData[monthKey].reported++;
-    monthlyData[monthKey].amount += claim.amount;
+    monthlyData[monthKey].amount += claim.ClaimAmount;
   });
   
   return Object.entries(monthlyData).map(([month, data]) => ({

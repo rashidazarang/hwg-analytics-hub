@@ -172,9 +172,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    onPaginationChange: state => {
-      setPageIndex(state.pageIndex);
-      setPageSize(state.pageSize);
+    onPaginationChange: (updater) => {
+      const newState = typeof updater === 'function' ? updater({
+        pageIndex,
+        pageSize
+      }) : updater;
+      setPageIndex(newState.pageIndex);
+      setPageSize(newState.pageSize);
     },
     state: {
       pagination: {

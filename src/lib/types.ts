@@ -20,7 +20,6 @@ export interface Agreement {
   EffectiveDate: string;
   StatusChangeDate: string;
   DealerUUID?: string;
-  // Other fields...
 }
 
 export interface Claim {
@@ -32,5 +31,14 @@ export interface Claim {
   VIN: string;
   DealerName: string;
   AgreementID: string;
-  // Other fields...
+  Cause?: string;
+  CauseID?: string;
+  Complaint?: string;
+  ComplaintID?: string;
+  Correction?: string;
+  CorrectionID?: string;
+  Deductible?: number;
+  IncurredDate?: string;
+  LastModified?: string;
+  Closed?: string;
 }
