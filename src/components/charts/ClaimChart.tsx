@@ -160,11 +160,11 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
   };
 
   const COLORS = {
-    OPEN: '#10b981',
-    PENDING: '#f59e0b',
-    CLOSED: '#ef4444'
+    OPEN: '#00B179',
+    PENDING: '#FC912A',
+    CLOSED: '#F6383F'
   };
-
+  
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -297,17 +297,17 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
             {/* Static legend that matches the AgreementChart */}
             <div className="flex justify-center items-center gap-4 mt-2 mb-1">
               <div className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }}></span>
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#00B179' }}></span>
                 <span className="text-xs font-medium">OPEN</span>
               </div>
               <div className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#f59e0b' }}></span>
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#FC912A' }}></span>
                 <span className="text-xs font-medium">PENDING</span>
               </div>
               <div className="flex items-center">
-                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#ef4444' }}></span>
+                <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#F6383F' }}></span>
                 <span className="text-xs font-medium">CLOSED</span>
-              </div>
+              </div>              
             </div>
           </div>
         )}
