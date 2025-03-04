@@ -66,7 +66,7 @@ const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQ
   // Define a claim status mapper function to handle N/A/undefined statuses
  const getClaimStatus = (claim: any): string => {
   if (claim.Closed) return 'CLOSED';
-  if (claim.Cause && claim.Closed === NULL) return 'DENIED';
+  if (claim.Cause && claim.Closed === null) return 'DENIED';
   if (claim.ReportedDate && !claim.Closed) return 'PENDING';
   return 'OPEN';
 };
