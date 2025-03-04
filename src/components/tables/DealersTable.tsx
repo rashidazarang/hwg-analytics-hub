@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
 import { Dealer } from '@/lib/types';
@@ -39,13 +40,14 @@ const DealersTable: React.FC<DealersTableProps> = ({
         if (statusFilters && statusFilters.length > 0) {
           console.log('🔍 DealersTable: Applying status filters:', statusFilters);
           
-          // Fixed: Instead of creating complex OR conditions, handle this more simply
+          // Use more straightforward filtering approach
           if (statusFilters.length === 1) {
             // For a single status filter
             query = query.eq('status', statusFilters[0]);
           } else if (statusFilters.length > 1) {
-            // For multiple statuses, use in() instead of building a complex OR string
-            query = query.in('status', statusFilters);
+            // For multiple statuses, use the `in` operator without type complexity
+            const statusArray = [...statusFilters]; // Create a simple array copy
+            query = query.in('status', statusArray);
           }
         }
         
