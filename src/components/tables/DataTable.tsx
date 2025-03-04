@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -126,11 +125,8 @@ const DataTable = <T extends Record<string, any>>({
       })
     : filteredData;
 
-  // Display all data if pagination is not provided
-  // If pagination is provided, we're already getting paginated data from the server
   const displayData = sortedData;
 
-  // Calculate total pages based on pagination props (for the pagination UI)
   const totalPages = paginationProps 
     ? Math.ceil(paginationProps.totalItems / paginationProps.pageSize)
     : 1;
@@ -160,7 +156,7 @@ const DataTable = <T extends Record<string, any>>({
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={searchConfig.placeholder || "Search..."}
+              placeholder={searchConfig.placeholder || "Search by ID..."}
               value={searchTerm}
               onChange={handleSearch}
               className="pl-8 w-64"
