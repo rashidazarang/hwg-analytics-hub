@@ -1,88 +1,21 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
-import { Claim } from '@/lib/types';
-import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
+import ClaimStatusBadge from '@/components/claims/ClaimStatusBadge';
+import { useClaimsFetching } from '@/hooks/useClaimsFetching';
 
 const PAGE_SIZE = 100; // Set consistent page size for claims
 
-async function fetchClaims(
-  page: number = 1, 
-  pageSize: number = PAGE_SIZE,
-  dealerFilter?: string,
-  dateRange?: DateRange
-) {
-  console.log('🔍 ClaimsTable: Fetching claims with parameters:');
-  console.log(`🔍 Page: ${page}, Page size: ${pageSize}`);
-  console.log('🔍 Dealer filter:', dealerFilter);
-  console.log('🔍 Date range:', dateRange ? `${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}` : 'Not provided');
-  
-  const startRow = (page - 1) * pageSize;
-  const endRow = startRow + pageSize - 1;
-  
-  let query = supabase
-    .from("claims")
-    .select(`
-      id,
-      ClaimID, 
-      AgreementID, 
-      ReportedDate, 
-      Closed,
-      Cause,
-      Correction,
-      LastModified,
-      agreements(DealerUUID, dealers(Payee))
-    `, { count: 'exact' })
-    .order("LastModified", { ascending: false });
-
-  if (dateRange) {
-    console.log(`🔍 ClaimsTable: Filtering by date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
-    query = query
-      .gte("LastModified", dateRange.from.toISOString())
-      .lte("LastModified", dateRange.to.toISOString());
-  }
-
-  if (dealerFilter && dealerFilter.trim() !== '') {
-    console.log(`🔍 ClaimsTable: Filtering by dealership UUID: "${dealerFilter}"`);
-    query = query.eq("agreements.DealerUUID", dealerFilter);
-  }
-
-  query = query.range(startRow, endRow);
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error("❌ Error fetching claims:", error);
-    return { data: [], count: 0 };
-  }
-
-  console.log(`✅ ClaimsTable: Fetched ${data?.length || 0} claims (Page ${page})`);
-  console.log(`✅ ClaimsTable: Total count: ${count || 0}`);
-  
-  return { data: data || [], count: count || 0 };
-}
-
-function isClaimDenied(correction: string | null | undefined): boolean {
-  if (!correction) return false;
-  return /denied|not covered|rejected/i.test(correction);
-}
-
-const getClaimStatus = (claim: any): string => {
-  if (claim.Closed && claim.ReportedDate) return 'CLOSED';
-  if (claim.Closed && !claim.ReportedDate) return 'PENDING';
-  if (claim.ReportedDate && !claim.Closed) return 'OPEN';
-  return 'PENDING';
-};
-
-const ClaimsTable: React.FC<{ 
+interface ClaimsTableProps {
   className?: string; 
   dealerFilter?: string; 
   searchQuery?: string;
   dateRange?: DateRange; 
-}> = ({
+}
+
+const ClaimsTable: React.FC<ClaimsTableProps> = ({
   className = '',
   dealerFilter = '',
   searchQuery = '',
@@ -92,24 +25,22 @@ const ClaimsTable: React.FC<{
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
+  // Reset pagination when filters change
   useEffect(() => {
     setPage(1);
     setLocalSearchQuery(searchQuery);
   }, [dealerFilter, searchQuery, dateRange]);
 
+  // Fetch claims data
   const { 
     data: claimsData, 
-    isFetching,
-    refetch
-  } = useQuery({
-    queryKey: ['claims', page, pageSize, dealerFilter, dateRange?.from, dateRange?.to],
-    queryFn: () => fetchClaims(page, pageSize, dealerFilter, dateRange),
-    staleTime: 1000 * 60 * 10,
-  });
+    isFetching 
+  } = useClaimsFetching(page, pageSize, dealerFilter, dateRange);
   
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
   
+  // Apply client-side search filtering
   const filteredClaims = useMemo(() => {
     console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', localSearchQuery);
     
@@ -125,6 +56,7 @@ const ClaimsTable: React.FC<{
     );
   }, [claims, localSearchQuery]);
   
+  // Define table columns
   const columns: Column<any>[] = [
     {
       key: 'ClaimID',
@@ -150,20 +82,7 @@ const ClaimsTable: React.FC<{
       key: 'Status',
       title: 'Status',
       sortable: false,
-      render: (row) => {
-        const status = getClaimStatus(row);
-        const variants = {
-          OPEN: 'bg-warning/15 text-warning border-warning/20',
-          CLOSED: 'bg-success/15 text-success border-success/20',
-          PENDING: 'bg-muted/15 text-muted-foreground border-muted/20',
-          UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
-        };
-        return (
-          <Badge variant="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border pointer-events-none`}>
-            {status}
-          </Badge>
-        );
-      },
+      render: (row) => <ClaimStatusBadge claim={row} />,
     },
     {
       key: 'ReportedDate',
@@ -188,6 +107,7 @@ const ClaimsTable: React.FC<{
     }
   ];
 
+  // Handlers
   const handleSearch = (term: string) => {
     setLocalSearchQuery(term);
     setPage(1);
