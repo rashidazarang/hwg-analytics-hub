@@ -401,7 +401,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         className={className}
         searchConfig={{
           enabled: true,
-          placeholder: "Search by Agreement ID only...",
+          placeholder: "Search by ID...",
           onChange: handleSearch,
           searchKeys: ["AgreementID"]
         }}
