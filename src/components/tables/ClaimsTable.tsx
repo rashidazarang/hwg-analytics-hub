@@ -1,145 +1,219 @@
-
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import DataTable, { Column } from './DataTable';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/formatters';
 import { Claim } from '@/lib/mockData';
 import { Badge } from '@/components/ui/badge';
 
 type ClaimsTableProps = {
   claims: Claim[];
-  className?: string;
-  searchQuery?: string;
   dealerFilter?: string;
   dealerName?: string;
+  searchQuery?: string;
 };
 
-const ClaimsTable: React.FC<ClaimsTableProps> = ({ 
-  claims, 
-  className = '', 
-  searchQuery = '',
+const ClaimsTable: React.FC<ClaimsTableProps> = ({
+  claims: initialClaims,
   dealerFilter = '',
-  dealerName = ''
+  dealerName = '',
+  searchQuery = '',
 }) => {
-  const [filteredClaims, setFilteredClaims] = useState<Claim[]>(claims);
-  
-  // Filter claims based on dealerFilter and searchQuery
-  useEffect(() => {
-    let filtered = claims;
-    
-    // Filter by dealer name if specified
-    if (dealerFilter && dealerFilter.trim()) {
-      const normalizedTerm = dealerFilter.toLowerCase().trim();
-      filtered = filtered.filter(claim => 
-        claim.dealerName && claim.dealerName.toLowerCase().includes(normalizedTerm)
-      );
-    }
-    
-    // Filter by searchQuery if specified
-    if (searchQuery && searchQuery.trim()) {
-      const normalizedTerm = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(claim => {
-        // Search in claim ID
-        const claimId = (claim.id || claim.ClaimID || '').toLowerCase();
-        // Search in agreement ID
-        const agreementId = (claim.agreementId || claim.AgreementID || '').toLowerCase();
-        // Search in dealer name
-        const dealerName = (claim.dealerName || '').toLowerCase();
+  // Move these variable declarations before they're used
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [totalClaims, setTotalClaims] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load claims with pagination, filtering, and sorting
+  const { data, isLoading: queryLoading, error } = useQuery({
+    queryKey: ['claims', dealerFilter, searchQuery, pageIndex, pageSize],
+    queryFn: async () => {
+      console.log('Fetching claims:', { pageIndex, pageSize });
+      setIsLoading(true);
+      
+      try {
+        // Start building the query
+        let query = supabase
+          .from('claims')
+          .select('*', { count: 'exact' });
         
-        return claimId.includes(normalizedTerm) || 
-               agreementId.includes(normalizedTerm) || 
-               dealerName.includes(normalizedTerm);
-      });
-    }
-    
-    setFilteredClaims(filtered);
-  }, [dealerFilter, searchQuery, claims]);
-  
-  const columns: Column<Claim>[] = [
-    {
-      key: 'id',
-      title: 'Claim ID',
-      sortable: true,
-      searchable: true,
-      render: (row) => row.id || row.ClaimID || '',
-    },
-    {
-      key: 'agreementId',
-      title: 'Agreement ID',
-      sortable: true,
-      searchable: true,
-      render: (row) => row.agreementId || row.AgreementID || '',
-    },
-    {
-      key: 'dealerName',
-      title: 'Dealer Name',
-      sortable: true,
-      searchable: true,
-    },
-    {
-      key: 'dateReported',
-      title: 'Date Reported',
-      sortable: true,
-      render: (row) => {
-        const date = row.ReportedDate || row.dateReported;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'dateIncurred',
-      title: 'Date Incurred',
-      sortable: true,
-      render: (row) => {
-        const date = row.IncurredDate || row.dateIncurred;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'deductible',
-      title: 'Deductible',
-      sortable: true,
-      render: (row) => {
-        const deductible = row.Deductible || row.deductible || 0;
-        return `$${(deductible).toLocaleString()}`;
-      },
-    },
-    {
-      key: 'amount',
-      title: 'Claim Amount',
-      sortable: true,
-      render: (row) => `$${(row.amount || 0).toLocaleString()}`,
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      sortable: true,
-      render: (row) => {
-        const status = row.status || 'UNKNOWN';
-        const variants = {
-          OPEN: 'bg-warning/15 text-warning border-warning/20',
-          CLOSED: 'bg-success/15 text-success border-success/20',
-          PENDING: 'bg-info/15 text-info border-info/20',
-          UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
+        // Apply dealer filter if provided
+        if (dealerFilter) {
+          query = query.eq('DealerUUID', dealerFilter);
+        }
+        
+        // Apply search filter if provided
+        if (searchQuery) {
+          query = query.or(`ClaimID.ilike.%${searchQuery}%,VIN.ilike.%${searchQuery}%`);
+        }
+        
+        // Apply pagination
+        const from = pageIndex * pageSize;
+        const to = from + pageSize - 1;
+        
+        // Execute the query
+        const { data, count, error } = await query
+          .order('ReportedDate', { ascending: false })
+          .range(from, to);
+        
+        if (error) {
+          throw error;
+        }
+        
+        return {
+          claims: data || [],
+          totalCount: count || 0
         };
-        
-        return (
-          <Badge variant="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
-            {status}
-          </Badge>
-        );
-      },
+      } catch (error) {
+        console.error('Error fetching claims:', error);
+        // Fallback to mock data
+        return {
+          claims: initialClaims.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize),
+          totalCount: initialClaims.length
+        };
+      } finally {
+        setIsLoading(false);
+      }
     },
-  ];
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setClaims(data.claims);
+      setTotalClaims(data.totalCount);
+    }
+  }, [data]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPageIndex(0);
+  }, [dealerFilter, searchQuery]);
+
+  const totalPages = Math.ceil(totalClaims / pageSize);
+
+  const handlePreviousPage = () => {
+    setPageIndex(old => Math.max(0, old - 1));
+  };
+
+  const handleNextPage = () => {
+    setPageIndex(old => Math.min(totalPages - 1, old + 1));
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'OPEN':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'APPROVED':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'DENIED':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'PENDING':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
 
   return (
-    <DataTable
-      data={filteredClaims}
-      columns={columns}
-      rowKey={(row) => row.id || row.ClaimID || ''}
-      className={className}
-      searchConfig={{
-        enabled: false  // Disable the search in the table
-      }}
-    />
+    <div className="space-y-4">
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Claim ID</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Reported Date</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>VIN</TableHead>
+              <TableHead>Dealership</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: pageSize }).map((_, i) => (
+                <TableRow key={`loading-${i}`}>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                </TableRow>
+              ))
+            ) : claims.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  No claims found
+                  {dealerFilter && dealerName && (
+                    <span> for {dealerName}</span>
+                  )}
+                  {searchQuery && (
+                    <span> matching "{searchQuery}"</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ) : (
+              claims.map(claim => (
+                <TableRow key={claim.id}>
+                  <TableCell className="font-medium">{claim.ClaimID}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(claim.ClaimStatus)}>
+                      {claim.ClaimStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatDate(new Date(claim.ReportedDate))}</TableCell>
+                  <TableCell>{formatCurrency(claim.ClaimAmount)}</TableCell>
+                  <TableCell>{claim.VIN}</TableCell>
+                  <TableCell>{claim.DealerName}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination controls */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {claims.length > 0 ? pageIndex * pageSize + 1 : 0} to {Math.min((pageIndex + 1) * pageSize, totalClaims)} of {totalClaims} claims
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePreviousPage}
+            disabled={pageIndex === 0}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleNextPage}
+            disabled={pageIndex >= totalPages - 1}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 

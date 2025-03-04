@@ -1,466 +1,264 @@
-import React from 'react';
-import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
-import { format } from 'date-fns';
-import DataTable, { Column } from './DataTable';
-import { Badge } from '@/components/ui/badge';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getPaginationRowModel,
+} from '@tanstack/react-table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ArrowDown, ArrowUp } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
-import { toast } from 'sonner';
-
-type Agreement = {
-  id: string;
-  AgreementID: string;
-  HolderFirstName?: string | null;
-  HolderLastName?: string | null;
-  dealerName?: string;
-  DealerUUID?: string | null;
-  DealerID?: string | null;
-  EffectiveDate?: string | null;
-  ExpireDate?: string | null;
-  AgreementStatus?: string | null;
-  Total?: number | null;
-  DealerCost?: number | null;
-  ReserveAmount?: number | null;
-  status?: string;
-  startDate?: string;
-  endDate?: string;
-  value?: number;
-  dealerCost?: number;
-  reserveAmount?: number;
-};
-
-type Dealer = {
-  DealerUUID: string;
-  PayeeID: string;
-  Payee?: string | null;
-};
-
-const formatName = (name?: string | null): string => {
-  if (!name) return '';
-  return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const SUPABASE_PAGE_SIZE = 500;
-
-async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string): Promise<Agreement[]> {
-  console.log("🔍 Fetching agreements with parameters:");
-  console.log("���� Date Range:", dateRange);
-  console.log("🔍 Dealer UUID filter:", dealerFilter);
-
-  let allAgreements: Agreement[] = [];
-  let page = 1;
-  let hasMore = true;
-
-  while (hasMore) {
-    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
-    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    const offset = (page - 1) * SUPABASE_PAGE_SIZE;
-
-    console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
-    
-    // Start building the query
-let query = supabase
-  .from("agreements")
-  .select(`
-    id, 
-    AgreementID, 
-    HolderFirstName, 
-    HolderLastName, 
-    DealerUUID, 
-    DealerID, 
-    EffectiveDate, 
-    ExpireDate, 
-    AgreementStatus, 
-    Total, 
-    DealerCost, 
-    ReserveAmount, 
-    dealers(Payee)  -- 👈 Fetch dealer name
-  `)
-  .gte("EffectiveDate", from)
-  .lte("EffectiveDate", to);
-    
-    // Add dealer filter if specified
-    if (dealerFilter && dealerFilter.trim()) {
-      console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
-      query = query.eq("DealerUUID", dealerFilter);
-    }
-    
-    // Execute the query with pagination
-    const { data, error } = await query
-      .order("EffectiveDate", { ascending: false })
-      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
-
-    if (error) {
-      console.error("❌ Supabase Fetch Error:", error);
-      toast.error("Failed to load agreements");
-      return allAgreements;
-    }
-
-    if (!data || data.length === 0) {
-      console.log(`⚠️ No more agreements found for this query. Total fetched: ${allAgreements.length}`);
-      hasMore = false;
-      break;
-    }
-
-    console.log(`✅ Fetched ${data.length} agreements from page ${page}`);
-    if (data.length > 0) {
-      console.log(`📊 Sample agreement:`, data[0]);
-    }
-    
-    allAgreements = [...allAgreements, ...data];
-
-    if (data && data.length === SUPABASE_PAGE_SIZE) {
-      page++; // Move to the next batch
-    } else {
-      hasMore = false;
-    }
-  }
-
-  console.log(`✅ Total agreements fetched: ${allAgreements.length}`);
-  return allAgreements;
-}
-
-async function fetchDealers(): Promise<Dealer[]> {
-  try {
-    const PAGE_SIZE = 1000;
-    let allDealers: Dealer[] = [];
-    let page = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from("dealers")
-        .select("DealerUUID, PayeeID, Payee")
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-
-      if (error) {
-        console.error("❌ Supabase Error fetching dealers:", error);
-        return allDealers; // Return what we have so far
-      }
-
-      if (!data || data.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      allDealers = [...allDealers, ...data];
-
-      // If we got fewer than PAGE_SIZE, we're at the last batch
-      if (data.length < PAGE_SIZE) {
-        hasMore = false;
-      } else {
-        page++;
-      }
-    }
-
-    console.log("✅ Fetched Dealers:", allDealers.length, "records");
-    return allDealers;
-  } catch (error) {
-    console.error("Error fetching dealers:", error);
-    return [];
-  }
-}
+import { Agreement } from '@/lib/types';
 
 type AgreementsTableProps = {
-  className?: string;
-  dateRange?: DateRange;
+  dateRange: DateRange;
+  dealerFilter: string; // This should be the UUID of the dealer
+  dealerName?: string;  // This is the display name of the dealer
   searchQuery?: string;
-  dealerFilter?: string; // This should be the UUID of the dealer
-  dealerName?: string;   // This is the display name of the dealer
 };
 
-const AgreementsTable: React.FC<AgreementsTableProps> = ({ 
-  className = '', 
-  dateRange, 
-  searchQuery = '',
-  dealerFilter = '',  // This is the dealer UUID
-  dealerName = ''     // This is the dealer display name
+const AgreementsTable: React.FC<AgreementsTableProps> = ({
+  dateRange,
+  dealerFilter, // This is the dealer UUID
+  dealerName = '',
+  searchQuery = ''
 }) => {
-  const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [searchTerm, setSearchTerm] = useState("");
-  const initialFetchDone = useRef<boolean>(false);
-
-  // Debug logging for dealerFilter changes
-  useEffect(() => {
-    console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
-    console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
-    
-    // Force reset to page 1 when dealer filter changes
-    if (dealerFilter) {
-      setPage(1);
-    }
-  }, [dealerFilter, dealerName]);
-
-  useEffect(() => {
-    if (searchQuery !== undefined) {
-      setSearchTerm(searchQuery);
-    }
-  }, [searchQuery]);
-
-  const agreementsQueryKey = useMemo(() => {
-    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
-    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    // Include dealerFilter in the query key to ensure React Query refetches when it changes
-    return ["agreements-data", from, to, dealerFilter];
-  }, [dateRange, dealerFilter]);
-  
-  const { 
-    data: allAgreements = [], 
-    isFetching: isFetchingAgreements,
-    error: agreementsError,
-    refetch: refetchAgreements
-  } = useQuery({
-    queryKey: agreementsQueryKey,
-    queryFn: async () => {
-      console.log(`🔍 Executing agreements query with dealer UUID filter: "${dealerFilter}"`);
-      const agreements = await fetchAllAgreements(dateRange, dealerFilter);
-      console.log(`🟢 Fetched ${agreements.length} agreements with dealer filter: "${dealerFilter}"`);
-      return agreements;
-    },
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
-    gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
-    refetchOnWindowFocus: false,
-  });
-
-  if (agreementsError) {
-    console.error("Failed to load agreements:", agreementsError);
-    return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
-  }
-  
-  const agreements = Array.isArray(allAgreements) ? allAgreements : [];
-
-  const { 
-    data: dealers = [],
-    isFetching: isFetchingDealers 
-  } = useQuery({
-    queryKey: ["dealers-data"],
-    queryFn: fetchDealers,
-    staleTime: 1000 * 60 * 60, // 1 hour
-    gcTime: 1000 * 60 * 60 * 2, // 2 hours
-    refetchOnWindowFocus: false,
-  });
-  
-  const dealerMap = useMemo(() => {
-    if (!dealers || dealers.length === 0) {
-      console.warn("⚠️ No dealers found, returning empty map.");
-      return {};
-    }
-  
-    const map = dealers.reduce<Record<string, Dealer>>((acc, dealer) => {
-      if (dealer.DealerUUID) {
-        acc[dealer.DealerUUID.trim().toLowerCase()] = dealer;
-      }
-      if (dealer.PayeeID) {
-        acc[dealer.PayeeID.trim().toLowerCase()] = dealer;
-      }
-      return acc;
-    }, {});
-  
-    return map;
-  }, [dealers]);
-  
-const filteredAgreements = useMemo(() => {
-  console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
-  let filtered = agreements;
-  
-  if (searchTerm.trim()) {
-    const term = searchTerm.toLowerCase().trim();
-    filtered = filtered.filter(agreement => {
-      const dealerName = agreement.dealers?.Payee?.toLowerCase() || ""; // 👈 Get dealer name
-      return (
-        (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
-        (dealerName && dealerName.includes(term)) // 👈 Now filters by dealership name
-      );
-    });
-  }
-
-  console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
-  return filtered;
-}, [agreements, searchTerm, dealerFilter]);
-  
-  useEffect(() => {
-    if (filteredAgreements.length > 0) {
-      setTotalCount(filteredAgreements.length);
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const slicedAgreements = filteredAgreements.slice(startIndex, endIndex);
-      console.log(`📋 Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(filteredAgreements.length / pageSize)}`);
-      setDisplayAgreements(slicedAgreements);
-    } else {
-      console.log("⚠️ No agreements to display after filtering.");
-      setDisplayAgreements([]);
-      setTotalCount(0);
-    }
-  }, [filteredAgreements, page, pageSize]);
-
-  const handleSearch = (term: string) => {
-    console.log("🔍 Search term updated:", term);
-    setSearchTerm(term);
-    setPage(1);
-  };
-
-  const columns: Column<Agreement>[] = [
+  const columns: ColumnDef<Agreement>[] = [
     {
-      key: 'id',
-      title: 'Agreement ID',
-      sortable: false,
-      searchable: true,
-      render: (row) => row.AgreementID || '',
-    },
-    {
-      key: 'customerName',
-      title: 'Customer Name',
-      sortable: false,
-      searchable: true,
-      render: (row) => {
-        const firstName = formatName(row.HolderFirstName);
-        const lastName = formatName(row.HolderLastName);
-        return firstName || lastName ? `${firstName} ${lastName}`.trim() : 'N/A';
-      },
-    },
-{
-  key: 'dealership',
-  title: 'Dealership',
-  searchable: true,
-  render: (row) => {
-    return row.dealers?.Payee || "Unknown Dealership"; // ✅ Uses fetched dealer name directly
-  },
-},
-    {
-      key: 'DealerID',
-      title: 'Dealer ID',
-      searchable: true,
-      render: (row) => {
-        const dealerUUID = row.DealerUUID?.trim().toLowerCase();
-        const dealerID = row.DealerID?.trim().toLowerCase();
-    
-        let dealer = dealerUUID ? dealerMap[dealerUUID] : null;
-        if (!dealer && dealerID) {
-          dealer = dealerMap[dealerID];
-        }
-    
-        return dealer ? dealer.PayeeID : 'No Dealer Assigned';
-      },
-    },
-    {
-      key: 'effectiveDate',
-      title: 'Effective Date',
-      sortable: false,
-      render: (row) => {
-        const date = row.EffectiveDate || row.startDate;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'expireDate',
-      title: 'Expire Date',
-      sortable: false,
-      render: (row) => {
-        const date = row.ExpireDate || row.endDate;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      sortable: false,
-      render: (row) => {
-        const status = row.AgreementStatus || row.status || 'UNKNOWN';
-        const variants = {
-          ACTIVE: 'bg-success/15 text-success border-success/20',
-          EXPIRED: 'bg-muted/30 text-muted-foreground border-muted/40',
-          CANCELLED: 'bg-destructive/15 text-destructive border-destructive/20',
-          PENDING: 'bg-warning/15 text-warning border-warning/20',
-          TERMINATED: 'bg-destructive/15 text-destructive border-destructive/20',
-          UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40',
-        };
-        
+      accessorKey: 'AgreementID',
+      header: ({ column }) => {
         return (
-          <Badge color="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
-            {status}
-          </Badge>
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Agreement ID
+            {column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 h-4 w-4" /> : <ArrowUp className="ml-2 h-4 w-4" />}
+          </Button>
         );
       },
     },
     {
-      key: 'value',
-      title: 'Total Value',
-      sortable: false,
-      render: (row) => {
-        const value = row.Total || row.value || 0;
-        return `$${(value).toLocaleString()}`;
+      accessorKey: 'AgreementStatus',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Status
+            {column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 h-4 w-4" /> : <ArrowUp className="ml-2 h-4 w-4" />}
+          </Button>
+        );
       },
     },
     {
-      key: 'dealerCost',
-      title: 'Dealer Cost',
-      sortable: false,
-      render: (row) => {
-        const cost = row.DealerCost || row.dealerCost || 0;
-        return `$${(cost).toLocaleString()}`;
+      accessorKey: 'EffectiveDate',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Effective Date
+            {column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 h-4 w-4" /> : <ArrowUp className="ml-2 h-4 w-4" />}
+          </Button>
+        );
       },
     },
     {
-      key: 'reserveAmount',
-      title: 'Reserve Amount',
-      sortable: false,
-      render: (row) => {
-        const reserve = row.ReserveAmount || row.reserveAmount || 0;
-        return `$${(reserve).toLocaleString()}`;
+      accessorKey: 'StatusChangeDate',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Status Change Date
+            {column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 h-4 w-4" /> : <ArrowUp className="ml-2 h-4 w-4" />}
+          </Button>
+        );
+      },
+    },
+    {
+      accessorKey: 'DealerUUID',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Dealer UUID
+            {column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 h-4 w-4" /> : <ArrowUp className="ml-2 h-4 w-4" />}
+          </Button>
+        );
       },
     },
   ];
 
-  const isFetching = isFetchingAgreements || isFetchingDealers;
+  // Move these variable declarations before they're used
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [agreements, setAgreements] = useState<Agreement[]>([]);
+  const [totalAgreements, setTotalAgreements] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handlePageChange = (newPage: number) => {
-    console.log(`Changing to page ${newPage}`);
-    setPage(newPage);
-  };
+  // Load agreements from Supabase with pagination, filtering, and sorting
+  const { data, isLoading: queryLoading, error } = useQuery({
+    queryKey: ['agreements', dealerFilter, searchQuery, dateRange, pageIndex, pageSize],
+    queryFn: async () => {
+      console.log('Fetching agreements:', { pageIndex, pageSize });
+      setIsLoading(true);
 
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    if (newPageSize !== pageSize) {
-      setPageSize(newPageSize);
-      setPage(1);
-    }
-  }, [pageSize, setPage]);
+      try {
+        // Get date range for filtering
+        const fromDate = dateRange.from?.toISOString() || "2020-01-01T00:00:00.000Z";
+        const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
 
-  const currentStatus = isFetching
-    ? "Loading..."
-    : `Displaying ${displayAgreements.length} of ${totalCount} agreements${dealerName ? ` for ${dealerName}` : ''}`;
+        let query = supabase
+          .from('agreements')
+          .select('*', { count: 'exact' })
+          .range(pageIndex * pageSize, (pageIndex + 1) * pageSize - 1)
+          .gte('EffectiveDate', fromDate)
+          .lte('EffectiveDate', toDate);
+
+        // Apply dealer UUID filter if it exists
+        if (dealerFilter) {
+          console.log(`Filtering agreements by dealer UUID: ${dealerFilter}`);
+          query = query.eq('DealerUUID', dealerFilter);
+        }
+
+        // Apply search query filter if it exists
+        if (searchQuery) {
+          console.log(`Filtering agreements by search query: ${searchQuery}`);
+          query = query.ilike('AgreementID', `%${searchQuery}%`); // Adjust column name as needed
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) {
+          console.error('Error fetching agreements:', error);
+          throw error;
+        }
+
+        // Safely cast data to the Agreement type array
+        const typedData: Agreement[] = data as Agreement[];
+
+        setAgreements(typedData || []);
+        setTotalAgreements(count || 0);
+        return {
+          data: typedData || [],
+          total: count || 0,
+        };
+      } catch (error) {
+        console.error('Error processing agreement data:', error);
+        return { data: [], total: 0 };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  const table = useReactTable({
+    data: agreements,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onPageIndexChange: setPageIndex,
+    onPageSizeChange: setPageSize,
+    state: {
+      pageIndex: pageIndex,
+      pageSize: pageSize,
+    },
+  });
 
   return (
-    <>
-      <div className="text-sm text-muted-foreground mb-2">
-        {currentStatus}
+    <div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="text-center">
+                  Loading agreements...
+                </TableCell>
+              </TableRow>
+            ) : agreements.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="text-center">
+                  No agreements found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
-      
-      <DataTable
-        data={displayAgreements}
-        columns={columns}
-        rowKey={(row) => row.id || row.AgreementID || ''}
-        className={className}
-        searchConfig={{
-          enabled: true,
-          placeholder: "Search by Agreement ID only...",
-          onChange: handleSearch,
-          searchKeys: ["AgreementID"]
-        }}
-        paginationProps={{
-          currentPage: page,
-          totalItems: totalCount,
-          pageSize: pageSize,
-          onPageChange: handlePageChange,
-          onPageSizeChange: handlePageSizeChange,
-        }}
-        loading={isFetching}
-      />
-    </>
+      <div className="flex items-center justify-between space-x-2 py-2">
+        <div className="flex-1 text-sm text-muted-foreground">
+          {totalAgreements} total agreements
+        </div>
+        <div className="space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 

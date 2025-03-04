@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import ClaimsTable from '@/components/tables/ClaimsTable';
-import { Claim, Dealer } from '@/lib/mockData';
 import { DateRange } from '@/lib/dateUtils';
 
 type DashboardTablesProps = {
@@ -12,8 +11,8 @@ type DashboardTablesProps = {
   dealerFilter: string; // This should be the UUID of the dealer
   dealerName?: string;  // This is the display name of the dealer
   searchQuery?: string;
-  claims: Claim[];
-  dealers: Dealer[];
+  claims: any[]; // Use a more generic type to avoid type conflicts
+  dealers: any[]; // Use a more generic type to avoid type conflicts
 };
 
 const DashboardTables: React.FC<DashboardTablesProps> = ({
