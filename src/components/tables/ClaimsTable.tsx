@@ -116,19 +116,19 @@ const columns: Column<any>[] = [
     key: 'ReportedDate',
     title: 'Date Reported',
     sortable: false,
-    render: (row) => row.ReportedDate ? format(new Date(row.ReportedDate), 'MMM d, yyyy') : 'N/A',
+    render: (row) => row.ReportedDate ? format(new Date(row.ReportedDate), 'MMM d, yyyy') : '',
   },
   {
     key: 'Closed',
     title: 'Closed Date',
     sortable: false,
-    render: (row) => row.Closed ? format(new Date(row.Closed), 'MMM d, yyyy') : 'N/A',
+    render: (row) => row.Closed ? format(new Date(row.Closed), 'MMM d, yyyy') : '',
   },
   {
     key: 'LastModified',
     title: 'Last Modified',
     sortable: false,
-    render: (row) => row.LastModified ? format(new Date(row.LastModified), 'MMM d, yyyy') : 'N/A',
+    render: (row) => row.LastModified ? format(new Date(row.LastModified), 'MMM d, yyyy') : '',
   }
 ];
 
