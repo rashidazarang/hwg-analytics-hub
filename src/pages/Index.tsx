@@ -64,7 +64,7 @@ const Index = () => {
       <main>
         <Dashboard 
           onDateRangeChange={handleDateRangeChange}
-          kpiSection={<KPISection dateRange={dateRange} />}
+          kpiSection={<KPISection dateRange={dateRange} dealerFilter={dealershipUUID} />}
           subnavbar={subnavbarContent}
         >
           <DashboardCharts 

@@ -8,4 +8,7 @@ export interface KPIData {
   totalDealers: number;
   averageClaimAmount: number;
   totalClaimsAmount: number;
+  pendingContracts: number;
+  newlyActiveContracts: number;
+  cancelledContracts: number;
 }

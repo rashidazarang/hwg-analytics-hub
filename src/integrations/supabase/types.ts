@@ -72,7 +72,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "agreements_dealeruuid_fk"
+            foreignKeyName: "agreements_dealeruuid_fkey"
             columns: ["DealerUUID"]
             isOneToOne: false
             referencedRelation: "dealers"
@@ -703,7 +703,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "agreements_dealeruuid_fk"
+            foreignKeyName: "agreements_dealeruuid_fkey"
             columns: ["DealerUUID"]
             isOneToOne: false
             referencedRelation: "dealers"
