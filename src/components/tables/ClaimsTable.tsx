@@ -1,144 +1,151 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Claim } from '@/lib/mockData';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
-type ClaimsTableProps = {
-  claims: Claim[];
-  className?: string;
-  searchQuery?: string;
-  dealerFilter?: string;
-  dealerName?: string;
-};
+async function fetchClaims(dealerFilter?: string) {
+let query = supabase
+  .from("claims")
+  .select(`
+    ClaimID, 
+    AgreementID, 
+    ReportedDate, 
+    IncurredDate, 
+    Closed,
+    Deductible,
+    ClaimStatus, 
+    agreements!inner(DealerUUID, dealers!inner(PayeeID, Payee))
+  `)
+  .order("ReportedDate", { ascending: false });
 
-const ClaimsTable: React.FC<ClaimsTableProps> = ({ 
-  claims, 
-  className = '', 
-  searchQuery = '',
+  if (dealerFilter) {
+    query = query.eq("agreements.DealerUUID", dealerFilter);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("❌ Error fetching claims:", error);
+    return [];
+  }
+
+  return data;
+}
+
+const ClaimsTable: React.FC<{ className?: string; dealerFilter?: string; searchQuery?: string }> = ({
+  className = '',
   dealerFilter = '',
-  dealerName = ''
+  searchQuery = ''
 }) => {
-  const [filteredClaims, setFilteredClaims] = useState<Claim[]>(claims);
+  const { data: claims = [], isFetching } = useQuery({
+    queryKey: ['claims', dealerFilter],
+    queryFn: () => fetchClaims(dealerFilter),
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+  });
   
   // Filter claims based on dealerFilter and searchQuery
-  useEffect(() => {
-    let filtered = claims;
-    
-    // Filter by dealer name if specified
-    if (dealerFilter && dealerFilter.trim()) {
-      const normalizedTerm = dealerFilter.toLowerCase().trim();
-      filtered = filtered.filter(claim => 
-        claim.dealerName && claim.dealerName.toLowerCase().includes(normalizedTerm)
-      );
-    }
-    
-    // Filter by searchQuery if specified
-    if (searchQuery && searchQuery.trim()) {
-      const normalizedTerm = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(claim => {
-        // Search in claim ID
-        const claimId = (claim.id || claim.ClaimID || '').toLowerCase();
-        // Search in agreement ID
-        const agreementId = (claim.agreementId || claim.AgreementID || '').toLowerCase();
-        // Search in dealer name
-        const dealerName = (claim.dealerName || '').toLowerCase();
-        
-        return claimId.includes(normalizedTerm) || 
-               agreementId.includes(normalizedTerm) || 
-               dealerName.includes(normalizedTerm);
-      });
-    }
-    
-    setFilteredClaims(filtered);
-  }, [dealerFilter, searchQuery, claims]);
+
+const filteredClaims = useMemo(() => {
+  let filtered = claims;
+
+  if (searchQuery) {
+    const term = searchQuery.toLowerCase();
+    filtered = filtered.filter(claim => 
+      claim.ClaimID.toLowerCase().includes(term) || 
+      claim.AgreementID.toLowerCase().includes(term) ||
+      (claim.agreements?.dealers?.Payee && claim.agreements.dealers.Payee.toLowerCase().includes(term))
+    );
+  }
+
+  return filtered;
+}, [claims, searchQuery]);  // ✅ FIXED: Removed extra `}, [dealerFilter, searchQuery, claims]);`
   
-  const columns: Column<Claim>[] = [
-    {
-      key: 'id',
-      title: 'Claim ID',
-      sortable: true,
-      searchable: true,
-      render: (row) => row.id || row.ClaimID || '',
+ const columns: Column<Claim>[] = [
+  {
+    key: 'ClaimID',
+    title: 'Claim ID',
+    sortable: true,
+    searchable: true,
+    render: (row) => row.ClaimID || '',
+  },
+  {
+    key: 'AgreementID',
+    title: 'Agreement ID',
+    sortable: true,
+    searchable: true,
+    render: (row) => row.AgreementID || '',
+  },
+ {
+  key: 'dealership',
+  title: 'Dealership',
+  searchable: true,
+  render: (row) => row.agreements?.dealers?.Payee || "Unknown Dealership",  // ✅ FIXED
+},
+{
+  key: 'DealerID',
+  title: 'Dealer ID',
+  searchable: true,
+  render: (row) => row.agreements?.dealers?.PayeeID || 'No Dealer Assigned',  // ✅ FIXED
+},
+  {
+    key: 'ReportedDate',
+    title: 'Date Reported',
+    sortable: true,
+    render: (row) => row.ReportedDate ? format(new Date(row.ReportedDate), 'MMM d, yyyy') : 'N/A',
+  },
+  {
+    key: 'IncurredDate',
+    title: 'Date Incurred',
+    sortable: true,
+    render: (row) => row.IncurredDate ? format(new Date(row.IncurredDate), 'MMM d, yyyy') : 'N/A',
+  },
+  {
+    key: 'Closed',
+    title: 'Closed',
+    sortable: true,
+    render: (row) => row.Closed ? format(new Date(row.Closed), 'MMM d, yyyy') : 'N/A',
+  },
+  {
+    key: 'Deductible',
+    title: 'Deductible',
+    sortable: true,
+    render: (row) => `$${(row.Deductible || 0).toLocaleString()}`,
+  },
+  {
+    key: 'ClaimStatus',
+    title: 'Status',
+    sortable: true,
+    render: (row) => {
+      const status = row.ClaimStatus || 'UNKNOWN';
+      const variants = {
+        OPEN: 'bg-warning/15 text-warning border-warning/20',
+        CLOSED: 'bg-success/15 text-success border-success/20',
+        PENDING: 'bg-info/15 text-info border-info/20',
+        UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
+      };
+      return (
+        <Badge variant="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
+          {status}
+        </Badge>
+      );
     },
-    {
-      key: 'agreementId',
-      title: 'Agreement ID',
-      sortable: true,
-      searchable: true,
-      render: (row) => row.agreementId || row.AgreementID || '',
-    },
-    {
-      key: 'dealerName',
-      title: 'Dealer Name',
-      sortable: true,
-      searchable: true,
-    },
-    {
-      key: 'dateReported',
-      title: 'Date Reported',
-      sortable: true,
-      render: (row) => {
-        const date = row.ReportedDate || row.dateReported;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'dateIncurred',
-      title: 'Date Incurred',
-      sortable: true,
-      render: (row) => {
-        const date = row.IncurredDate || row.dateIncurred;
-        return date ? format(new Date(date), 'MMM d, yyyy') : 'N/A';
-      },
-    },
-    {
-      key: 'deductible',
-      title: 'Deductible',
-      sortable: true,
-      render: (row) => {
-        const deductible = row.Deductible || row.deductible || 0;
-        return `$${(deductible).toLocaleString()}`;
-      },
-    },
-    {
-      key: 'amount',
-      title: 'Claim Amount',
-      sortable: true,
-      render: (row) => `$${(row.amount || 0).toLocaleString()}`,
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      sortable: true,
-      render: (row) => {
-        const status = row.status || 'UNKNOWN';
-        const variants = {
-          OPEN: 'bg-warning/15 text-warning border-warning/20',
-          CLOSED: 'bg-success/15 text-success border-success/20',
-          PENDING: 'bg-info/15 text-info border-info/20',
-          UNKNOWN: 'bg-muted/30 text-muted-foreground border-muted/40'
-        };
-        
-        return (
-          <Badge variant="outline" className={`${variants[status as keyof typeof variants] || variants.UNKNOWN} border`}>
-            {status}
-          </Badge>
-        );
-      },
-    },
-  ];
+  },
+];
 
   return (
     <DataTable
       data={filteredClaims}
       columns={columns}
-      rowKey={(row) => row.id || row.ClaimID || ''}
+rowKey={(row) => row.ClaimID}
       className={className}
-      searchConfig={{
-        enabled: false  // Disable the search in the table
-      }}
+searchConfig={{
+  enabled: true,
+  placeholder: "Search by Claim ID, Agreement ID, or Dealership...",
+  searchKeys: ["ClaimID", "AgreementID", "dealers.Payee"]
+}}
     />
   );
 };
