@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import DataTable, { Column } from './DataTable';
-import { Dealer } from '@/lib/types';
+import { Dealer } from '@/lib/mockData';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle } from 'lucide-react';
@@ -13,7 +12,6 @@ type DealersTableProps = {
   searchQuery?: string;
   dealerFilter?: string;
   dealerName?: string;
-  statusFilters?: string[];
 };
 
 const DealersTable: React.FC<DealersTableProps> = ({ 
@@ -21,8 +19,7 @@ const DealersTable: React.FC<DealersTableProps> = ({
   className = '', 
   searchQuery = '',
   dealerFilter = '',
-  dealerName = '',
-  statusFilters = []
+  dealerName = ''
 }) => {
   const [filteredDealers, setFilteredDealers] = useState<Dealer[]>(mockDealers);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,39 +31,9 @@ const DealersTable: React.FC<DealersTableProps> = ({
         setIsLoading(true);
         setHasError(false);
         
-        let query = supabase.from('dealers').select('*');
-
-        // Apply dealer filter if provided
-        if (dealerFilter && dealerFilter.trim()) {
-          console.log(`🔍 DealersTable: Filtering by dealership ID: "${dealerFilter}"`);
-          query = query.eq('DealerUUID', dealerFilter);
-        }
-        
-        // Apply status filters if provided - completely revised approach
-        if (statusFilters && statusFilters.length > 0) {
-          console.log('🔍 DealersTable: Applying status filters:', statusFilters);
-          
-          // For a single status, use eq()
-          if (statusFilters.length === 1) {
-            query = query.eq('status', statusFilters[0]);
-          } else {
-            // For multiple statuses, build a filter expression manually
-            let filterExpression = '';
-            
-            for (let i = 0; i < statusFilters.length; i++) {
-              if (i > 0) {
-                filterExpression += ',';
-              }
-              filterExpression += `status.eq.${statusFilters[i]}`;
-            }
-            
-            if (filterExpression) {
-              query = query.or(filterExpression);
-            }
-          }
-        }
-        
-        const { data: supabaseDealers, error } = await query;
+        const { data: supabaseDealers, error } = await supabase
+          .from('dealers')
+          .select('*');
 
         if (error) {
           console.warn('⚠️ Error fetching dealers from Supabase:', error.message);
@@ -75,36 +42,34 @@ const DealersTable: React.FC<DealersTableProps> = ({
             description: 'Using fallback data instead'
           });
           
-          applyClientSideFilters(dealerFilter, searchQuery, statusFilters, mockDealers);
+          applyFilters(dealerFilter, searchQuery, mockDealers);
         } else if (supabaseDealers && supabaseDealers.length > 0) {
           console.log(`✅ Successfully loaded ${supabaseDealers.length} dealers from Supabase`);
           toast.success(`Loaded ${supabaseDealers.length} dealers from database`);
-          applyClientSideFilters(dealerFilter, searchQuery, statusFilters, supabaseDealers);
+          applyFilters(dealerFilter, searchQuery, supabaseDealers);
         } else {
           console.log('📊 No dealers found in Supabase, using mock data');
-          applyClientSideFilters(dealerFilter, searchQuery, statusFilters, mockDealers);
+          applyFilters(dealerFilter, searchQuery, mockDealers);
         }
       } catch (error) {
         console.error('❌ Unexpected error loading dealers:', error);
         setHasError(true);
-        applyClientSideFilters(dealerFilter, searchQuery, statusFilters, mockDealers);
+        applyFilters(dealerFilter, searchQuery, mockDealers);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadDealers();
-  }, [mockDealers, dealerFilter, searchQuery, statusFilters]);
+  }, [mockDealers]);
+
+  useEffect(() => {
+    applyFilters(dealerFilter, searchQuery, filteredDealers.length ? filteredDealers : mockDealers);
+  }, [dealerFilter, searchQuery, mockDealers]);
   
-  const applyClientSideFilters = (
-    dealerName: string, 
-    searchTerm: string, 
-    statusFilters: string[],
-    data: Dealer[]
-  ) => {
+  const applyFilters = (dealerName: string, searchTerm: string, data: Dealer[]) => {
     let filtered = [...data];
     
-    // Apply dealer name filter
     if (dealerName && dealerName.trim()) {
       const normalizedDealerName = dealerName.toLowerCase().trim();
       filtered = filtered.filter(dealer => 
@@ -112,7 +77,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
       );
     }
     
-    // Apply search term filter
     if (searchTerm && searchTerm.trim()) {
       const normalizedSearchTerm = searchTerm.toLowerCase().trim();
       filtered = filtered.filter(dealer => {
@@ -127,16 +91,6 @@ const DealersTable: React.FC<DealersTableProps> = ({
         return name.includes(normalizedSearchTerm) || 
                id.includes(normalizedSearchTerm) || 
                location.includes(normalizedSearchTerm);
-      });
-    }
-    
-    // Apply status filters (for client-side filtering when needed)
-    if (statusFilters && statusFilters.length > 0) {
-      filtered = filtered.filter(dealer => {
-        // Fixed: Use optional chaining and provide default
-        const dealerStatus = dealer?.status || 'ACTIVE';
-        // Check if any of the selected statuses match this dealer
-        return statusFilters.some(status => status === dealerStatus);
       });
     }
     

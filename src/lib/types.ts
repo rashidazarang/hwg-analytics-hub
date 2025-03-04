@@ -55,25 +55,3 @@ export interface Claim {
     } | null;
   } | null;
 }
-
-export interface Dealer {
-  id?: string;
-  DealerUUID?: string;
-  PayeeID?: string;
-  Payee?: string;
-  name?: string;
-  City?: string;
-  Region?: string;
-  Country?: string;
-  city?: string;
-  region?: string;
-  country?: string;
-  activeAgreements?: number;
-  totalClaims?: number;
-  totalRevenue?: number;
-  Total?: number;
-  totalPayouts?: number;
-  TotalPayouts?: number;
-  performanceScore?: number;
-  status?: string;
-}
