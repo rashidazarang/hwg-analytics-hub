@@ -21,26 +21,33 @@ export const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: s
         Closed,
         Cause,
         Correction,
+        Deductible,
         LastModified,
         agreements(DealerUUID, dealers(Payee))
-      `)
-      // Use LastModified for date filtering to be consistent with ClaimsTable
-      .gte('LastModified', dateRange.from.toISOString())
-      .lte('LastModified', dateRange.to.toISOString());
+      `, { count: 'exact' });
     
+    // Apply date range filter - use LastModified for consistency with ClaimsTable
+    if (dateRange) {
+      console.log(`[CLAIMCHART_FILTER] Filtering by date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
+      query = query
+        .gte('LastModified', dateRange.from.toISOString())
+        .lte('LastModified', dateRange.to.toISOString());
+    }
+    
+    // Apply dealer filter
     if (dealershipFilter && dealershipFilter.trim() !== '') {
       console.log('[CLAIMCHART_FILTER] Filtering by dealership UUID:', dealershipFilter);
       query = query.eq('agreements.DealerUUID', dealershipFilter);
     }
 
-    const { data: claims, error } = await query;
+    const { data: claims, error, count } = await query;
 
     if (error) {
       console.error('[CLAIMCHART_ERROR] Error fetching claims:', error);
       return [];
     }
 
-    console.log(`[CLAIMCHART_RESULT] Fetched ${claims?.length || 0} claims`);
+    console.log(`[CLAIMCHART_RESULT] Fetched ${claims?.length || 0} claims. Total count: ${count || 0}`);
     
     return claims || [];
   } catch (error) {

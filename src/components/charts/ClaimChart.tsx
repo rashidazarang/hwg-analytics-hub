@@ -17,6 +17,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
 }) => {
   const [animatedData, setAnimatedData] = useState<any[]>([]);
   
+  // Ensure we're using dateRange and dealershipFilter in the query
   const {
     data: claims = [],
     isFetching,
@@ -35,6 +36,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
   }, [processedData]);
 
   console.log('[CLAIMCHART_RENDER] Rendering chart with data:', processedData);
+  console.log('[CLAIMCHART_FILTERS] Using filters:', { dateRange, dealershipFilter });
 
   if (isError) {
     return (
@@ -56,7 +58,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-medium">
           Claims Status Distribution
-          {dealershipFilter && <span className=""></span>}
+          {dealershipFilter && <span className="text-sm ml-2 text-muted-foreground">(Filtered)</span>}
         </CardTitle>
       </CardHeader>
       <CardContent>

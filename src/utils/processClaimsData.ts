@@ -18,8 +18,7 @@ export function processClaimsForChart(claims: any[]): ProcessedClaimData[] {
 
   claims.forEach(claim => {
     const status = getClaimStatus(claim);
-    // If status is "DENIED", we'll ignore it per requirements
-    if (status !== "DENIED" && statusCounts.hasOwnProperty(status)) {
+    if (statusCounts.hasOwnProperty(status)) {
       statusCounts[status as keyof typeof statusCounts] = 
         (statusCounts[status as keyof typeof statusCounts] || 0) + 1;
     }

@@ -82,8 +82,11 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             Deductible,
             LastModified,
             agreements(DealerUUID)
-          `)
-          // Use LastModified to match ClaimsTable and ClaimChart
+          `, { count: 'exact' });
+        
+        // Apply same date range filter as ClaimsTable and ClaimChart
+        // Use LastModified to match ClaimsTable and ClaimChart
+        claimsQuery = claimsQuery
           .gte('LastModified', fromDate)
           .lte('LastModified', toDate);
         
@@ -93,7 +96,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           claimsQuery = claimsQuery.eq('agreements.DealerUUID', dealerFilter);
         }
         
-        const { data: claimsData, error: claimsError } = await claimsQuery;
+        const { data: claimsData, error: claimsError, count: claimsCount } = await claimsQuery;
         
         if (claimsError) {
           console.error('[KPI_DATA] Error fetching claims:', claimsError);
@@ -102,7 +105,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         
         // Process claims using the same getClaimStatus function
         const filteredClaims = claimsData || [];
-        console.log(`[KPI_DATA] Retrieved ${filteredClaims.length} claims`);
+        console.log(`[KPI_DATA] Retrieved ${filteredClaims.length} claims out of total ${claimsCount || 0}`);
         
         // Count claims by status using the consistent getClaimStatus logic
         const openClaimsCount = filteredClaims.filter(claim => 
@@ -147,7 +150,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           openClaims: openClaimsCount,
           activeAgreements: activeContractsCount,
           totalAgreements: totalAgreementsCount || 0,
-          totalClaims: filteredClaims.length,
+          totalClaims: claimsCount || 0,
           activeDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           totalDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           averageClaimAmount,
