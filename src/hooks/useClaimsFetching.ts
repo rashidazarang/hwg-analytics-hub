@@ -49,7 +49,9 @@ if (dealerFilter && dealerFilter.trim() !== '') {
 }
 
   // Apply pagination last
+  if (!dealerFilter || dealerFilter.trim() === '') {
   query = query.range(startRow, endRow);
+}
 
   const { data, error, count } = await query;
 
