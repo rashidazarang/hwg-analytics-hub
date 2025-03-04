@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -162,19 +163,34 @@ const DataTable = <T extends Record<string, any>>({
   return (
     <div className={className}>
       {searchConfig.enabled && (
-        <div className="flex justify-between items-center mb-4">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={searchConfig.placeholder || "Search..."}
-              value={searchTerm}
-              onChange={handleSearch}
-              className="pl-8 w-64"
-            />
+        <div className="mb-4">
+          <div className="text-sm text-muted-foreground mb-2">
+            {loading ? (
+              <span>Loading records...</span>
+            ) : (
+              <span>
+                {paginationProps?.totalItems === 0 ? (
+                  "No entries to display"
+                ) : (
+                  `Displaying ${Math.min((paginationProps?.pageSize || 0) * ((paginationProps?.currentPage || 1) - 1) + 1, paginationProps?.totalItems || 0)} of ${paginationProps?.totalItems || 0} ${paginationProps?.totalItems === 1 ? 'entry' : 'entries'}`
+                )}
+              </span>
+            )}
           </div>
-          
-          <div className="flex items-center space-x-2">
-            {customFilters}
+
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={searchConfig.placeholder || "Search..."}
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pl-8 w-64"
+                />
+              </div>
+              {customFilters}
+            </div>
           </div>
         </div>
       )}
