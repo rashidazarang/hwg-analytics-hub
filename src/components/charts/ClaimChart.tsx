@@ -14,17 +14,17 @@ type ClaimChartProps = {
   dealershipFilter?: string;
 };
 
-// Updated status mapper function to match ClaimsTable.tsx logic
-const getClaimStatus = (claim: any): string => {
-  if (claim.Closed) return 'CLOSED';
-  if (isClaimDenied(claim.Correction)) return 'DENIED';
-  return 'OPEN';
-};
-
 // Function to check if a claim is denied based on Correction field - matching ClaimsTable.tsx
 function isClaimDenied(correction: string | null | undefined): boolean {
   if (!correction) return false;
   return /denied|not covered|rejected/i.test(correction);
+}
+
+// Updated status mapper function to match ClaimsTable.tsx logic exactly
+function getClaimStatus(claim: any): string {
+  if (claim.Closed) return 'CLOSED';
+  if (isClaimDenied(claim.Correction)) return 'DENIED';
+  return 'OPEN';
 }
 
 const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) => {
@@ -69,6 +69,17 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
         claim.agreements?.DealerUUID === dealershipFilter
       );
       console.log('[CLAIMCHART_FILTER] Claims after dealer filtering:', filteredClaims.length);
+    }
+
+    // Log a sample of the data to verify status determination
+    if (filteredClaims.length > 0) {
+      const sampleClaim = filteredClaims[0];
+      console.log('[CLAIMCHART_SAMPLE] Sample claim status:', {
+        claim: sampleClaim.ClaimID,
+        hasClosed: !!sampleClaim.Closed,
+        correction: sampleClaim.Correction,
+        status: getClaimStatus(sampleClaim)
+      });
     }
 
     return filteredClaims;

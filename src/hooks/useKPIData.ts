@@ -68,11 +68,12 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             .lte('StatusChangeDate', dateRange.to.toISOString())
             .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
 
-          // Get all claims within date range for status filtering
+          // Get all claims for status determination
           supabase
             .from('claims')
             .select(`
               id,
+              ClaimID,
               Closed,
               Correction,
               ReportedDate,
@@ -84,26 +85,30 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             .lte('ReportedDate', dateRange.to.toISOString())
         ]);
 
-        // Process claims to count open claims using the same logic as ClaimsTable
-        let claims = claimsQuery.data || [];
+        // Process claims based on dealer filter
+        let filteredClaims = claimsQuery.data || [];
         
-        // Filter by dealer if needed
+        // Apply dealer filter if provided
         if (dealerFilter) {
-          claims = claims.filter(claim => claim.agreements?.DealerUUID === dealerFilter);
+          console.log(`[KPI_DATA] Filtering claims by dealer: ${dealerFilter}`);
+          filteredClaims = filteredClaims.filter(claim => 
+            claim.agreements?.DealerUUID === dealerFilter
+          );
         }
         
-        // Count only OPEN claims using the same status determination as ClaimsTable
-        const openClaimsCount = claims.filter(claim => 
+        // Count OPEN claims using the same logic as ClaimsTable.tsx
+        const openClaimsCount = filteredClaims.filter(claim => 
           getClaimStatus(claim) === 'OPEN'
         ).length;
         
-        console.log('[KPI_DATA] Open claims count:', {
-          total: claims.length,
+        console.log('[KPI_DATA] Claims breakdown:', {
+          total: filteredClaims.length,
           open: openClaimsCount,
-          dealerFilter
+          denied: filteredClaims.filter(claim => getClaimStatus(claim) === 'DENIED').length,
+          closed: filteredClaims.filter(claim => getClaimStatus(claim) === 'CLOSED').length
         });
 
-        // Claims data - separate query to get actual data
+        // Claims data for amounts
         const claimsData = await supabase
           .from('claims')
           .select('Deductible');
