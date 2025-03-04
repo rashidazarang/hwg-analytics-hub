@@ -9,6 +9,13 @@ import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
 
+// Define the Dealer interface
+interface Dealer {
+  DealerUUID: string;
+  PayeeID: string;
+  Payee?: string | null;
+}
+
 const PAGE_SIZE = 100; // Set consistent page size for agreements
 
 async function fetchAgreements(
