@@ -81,7 +81,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
     );
   }
 
-  // Updated color palette based on requirements
+  // Explicitly define color palette with the required colors
   const pieColors = {
     'ACTIVE': '#10b981', // Green
     'PENDING': '#1EAEDB', // Blue
@@ -127,7 +127,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
         </PieChart>
       </ResponsiveContainer>
       
-      {/* Updated static legend with specified colors and labels */}
+      {/* Static legend with the required colors */}
       <div className="flex justify-center items-center gap-4 mt-2 mb-1">
         <div className="flex items-center">
           <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#10b981' }}></span>
