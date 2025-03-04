@@ -38,12 +38,12 @@ async function fetchClaims(
     `, { count: 'exact' })
     .order("LastModified", { ascending: false });
 
-  // Apply date range filter if provided
+  // Apply date range filter if provided - now using LastModified instead of ReportedDate
   if (dateRange) {
     console.log(`🔍 ClaimsTable: Filtering by date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
     query = query
-      .gte("ReportedDate", dateRange.from.toISOString())
-      .lte("ReportedDate", dateRange.to.toISOString());
+      .gte("LastModified", dateRange.from.toISOString())
+      .lte("LastModified", dateRange.to.toISOString());
   }
 
   // Apply dealer filter if provided
