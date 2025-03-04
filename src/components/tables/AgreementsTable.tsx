@@ -9,101 +9,77 @@ import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
 
-type Dealer = {
-  DealerUUID: string;
-  PayeeID: string;
-  Payee?: string | null;
-};
+const PAGE_SIZE = 100; // Set consistent page size for agreements
 
-const formatName = (name?: string | null): string => {
-  if (!name) return '';
-  return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const SUPABASE_PAGE_SIZE = 500;
-
-async function fetchAllAgreements(dateRange?: DateRange, dealerFilter?: string): Promise<Agreement[]> {
+async function fetchAgreements(
+  page: number = 1,
+  pageSize: number = PAGE_SIZE,
+  dateRange?: DateRange, 
+  dealerFilter?: string
+): Promise<{ data: Agreement[], count: number }> {
   console.log("🔍 Fetching agreements with parameters:");
+  console.log("🔍 Page:", page, "Page size:", pageSize);
   console.log("🔍 Date Range:", dateRange);
   console.log("🔍 Dealer UUID filter:", dealerFilter);
 
-  let allAgreements: Agreement[] = [];
-  let page = 1;
-  let hasMore = true;
+  const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
+  const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
+  
+  // Calculate start and end rows for pagination
+  const startRow = (page - 1) * pageSize;
+  const endRow = startRow + pageSize - 1;
 
-  while (hasMore) {
-    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
-    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    const offset = (page - 1) * SUPABASE_PAGE_SIZE;
+  // Start building the query
+  let query = supabase
+    .from("agreements")
+    .select(`
+      id, 
+      AgreementID, 
+      HolderFirstName, 
+      HolderLastName, 
+      DealerUUID, 
+      DealerID, 
+      EffectiveDate, 
+      ExpireDate, 
+      AgreementStatus, 
+      Total, 
+      DealerCost, 
+      ReserveAmount,
+      StatusChangeDate,
+      dealers(Payee)
+    `, { count: 'exact' })
+    .gte("EffectiveDate", from)
+    .lte("EffectiveDate", to)
+    .order("EffectiveDate", { ascending: false });
+  
+  // Add dealer filter if specified
+  if (dealerFilter && dealerFilter.trim()) {
+    console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
+    query = query.eq("DealerUUID", dealerFilter);
+  }
+  
+  // Apply pagination using range
+  query = query.range(startRow, endRow);
+  
+  // Execute the query
+  const { data, error, count } = await query;
 
-    console.log(`🚀 Fetching page ${page} from Supabase: ${from} to ${to}`);
-    
-    // Start building the query - fix the comment and properly join with dealers
-    let query = supabase
-      .from("agreements")
-      .select(`
-        id, 
-        AgreementID, 
-        HolderFirstName, 
-        HolderLastName, 
-        DealerUUID, 
-        DealerID, 
-        EffectiveDate, 
-        ExpireDate, 
-        AgreementStatus, 
-        Total, 
-        DealerCost, 
-        ReserveAmount,
-        StatusChangeDate,
-        dealers(Payee)
-      `)
-      .gte("EffectiveDate", from)
-      .lte("EffectiveDate", to);
-    
-    // Add dealer filter if specified
-    if (dealerFilter && dealerFilter.trim()) {
-      console.log(`🎯 Filtering by DealerUUID: "${dealerFilter}"`);
-      query = query.eq("DealerUUID", dealerFilter);
-    }
-    
-    // Execute the query with pagination
-    const { data, error } = await query
-      .order("EffectiveDate", { ascending: false })
-      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
-
-    if (error) {
-      console.error("❌ Supabase Fetch Error:", error);
-      toast.error("Failed to load agreements");
-      return allAgreements;
-    }
-
-    if (!data || data.length === 0) {
-      console.log(`⚠️ No more agreements found for this query. Total fetched: ${allAgreements.length}`);
-      hasMore = false;
-      break;
-    }
-
-    console.log(`✅ Fetched ${data.length} agreements from page ${page}`);
-    if (data.length > 0) {
-      console.log(`📊 Sample agreement:`, data[0]);
-    }
-    
-    // Ensure we properly cast the data to Agreement type
-    const typedData = data as unknown as Agreement[];
-    allAgreements = [...allAgreements, ...typedData];
-
-    if (data && data.length === SUPABASE_PAGE_SIZE) {
-      page++; // Move to the next batch
-    } else {
-      hasMore = false;
-    }
+  if (error) {
+    console.error("❌ Supabase Fetch Error:", error);
+    toast.error("Failed to load agreements");
+    return { data: [], count: 0 };
   }
 
-  console.log(`✅ Total agreements fetched: ${allAgreements.length}`);
-  return allAgreements;
+  console.log(`✅ Fetched ${data?.length || 0} agreements for page ${page}`);
+  console.log(`✅ Total agreements: ${count || 0}`);
+  
+  return { 
+    data: data as unknown as Agreement[] || [], 
+    count: count || 0 
+  };
 }
 
-async function fetchDealers(): Promise<Dealer[]> {
+async function fetchDealers() {
   try {
     const PAGE_SIZE = 1000;
     let allDealers: Dealer[] = [];
@@ -161,11 +137,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [displayAgreements, setDisplayAgreements] = useState<Agreement[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [searchTerm, setSearchTerm] = useState("");
-  const initialFetchDone = useRef<boolean>(false);
 
   // Debug logging for dealerFilter changes
   useEffect(() => {
@@ -173,10 +146,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
     
     // Force reset to page 1 when dealer filter changes
-    if (dealerFilter) {
-      setPage(1);
-    }
-  }, [dealerFilter, dealerName]);
+    setPage(1);
+  }, [dealerFilter, dealerName, dateRange]);
 
   useEffect(() => {
     if (searchQuery !== undefined) {
@@ -187,22 +158,19 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    // Include dealerFilter in the query key to ensure React Query refetches when it changes
-    return ["agreements-data", from, to, dealerFilter];
-  }, [dateRange, dealerFilter]);
+    // Include page, pageSize, and dealerFilter in the query key
+    return ["agreements-data", from, to, dealerFilter, page, pageSize];
+  }, [dateRange, dealerFilter, page, pageSize]);
   
   const { 
-    data: allAgreements = [], 
+    data: agreementsData = { data: [], count: 0 }, 
     isFetching: isFetchingAgreements,
-    error: agreementsError,
-    refetch: refetchAgreements
+    error: agreementsError
   } = useQuery({
     queryKey: agreementsQueryKey,
     queryFn: async () => {
-      console.log(`🔍 Executing agreements query with dealer UUID filter: "${dealerFilter}"`);
-      const agreements = await fetchAllAgreements(dateRange, dealerFilter);
-      console.log(`🟢 Fetched ${agreements.length} agreements with dealer filter: "${dealerFilter}"`);
-      return agreements;
+      console.log(`🔍 Executing agreements query for page ${page}`);
+      return fetchAgreements(page, pageSize, dateRange, dealerFilter);
     },
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
     gcTime: 1000 * 60 * 30, // Garbage collect after 30 minutes
@@ -214,7 +182,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return <div className="py-10 text-center text-destructive">Error loading agreements: {String(agreementsError)}</div>;
   }
   
-  const agreements = Array.isArray(allAgreements) ? allAgreements : [];
+  const agreements = agreementsData.data || [];
+  const totalCount = agreementsData.count || 0;
 
   const { 
     data: dealers = [],
@@ -227,6 +196,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     refetchOnWindowFocus: false,
   });
   
+  // Create dealer map for display name lookups
   const dealerMap = useMemo(() => {
     if (!dealers || dealers.length === 0) {
       console.warn("⚠️ No dealers found, returning empty map.");
@@ -246,47 +216,50 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return map;
   }, [dealers]);
   
+  // Filter agreements by search term
   const filteredAgreements = useMemo(() => {
     console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
-    let filtered = agreements;
     
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(agreement => {
-        // Safely access dealers.Payee with optional chaining
-        const payee = agreement.dealers?.Payee || "";
-        const dealerName = typeof payee === 'string' ? payee.toLowerCase() : "";
-        
-        return (
-          (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
-          (dealerName && dealerName.includes(term))
-        );
-      });
+    if (!searchTerm.trim()) {
+      return agreements;
     }
-
-    console.log(`✅ After filtering: ${filtered.length} agreements remain${dealerFilter ? ` for dealer UUID: ${dealerFilter}` : ''}`);
-    return filtered;
-  }, [agreements, searchTerm, dealerFilter]);
+    
+    const term = searchTerm.toLowerCase().trim();
+    return agreements.filter(agreement => {
+      // Safely access dealers.Payee with optional chaining
+      const payee = agreement.dealers?.Payee || "";
+      const dealerName = typeof payee === 'string' ? payee.toLowerCase() : "";
+      
+      return (
+        (agreement.AgreementID && agreement.AgreementID.toLowerCase().includes(term)) ||
+        (dealerName && dealerName.includes(term))
+      );
+    });
+  }, [agreements, searchTerm]);
   
-  useEffect(() => {
-    if (filteredAgreements.length > 0) {
-      setTotalCount(filteredAgreements.length);
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const slicedAgreements = filteredAgreements.slice(startIndex, endIndex);
-      console.log(`📋 Displaying ${slicedAgreements.length} agreements for page ${page}/${Math.ceil(filteredAgreements.length / pageSize)}`);
-      setDisplayAgreements(slicedAgreements);
-    } else {
-      console.log("⚠️ No agreements to display after filtering.");
-      setDisplayAgreements([]);
-      setTotalCount(0);
-    }
-  }, [filteredAgreements, page, pageSize]);
+  const isFetching = isFetchingAgreements || isFetchingDealers;
 
   const handleSearch = (term: string) => {
     console.log("🔍 Search term updated:", term);
     setSearchTerm(term);
-    setPage(1);
+    setPage(1); // Reset to page 1 on search
+  };
+
+  const handlePageChange = (newPage: number) => {
+    console.log(`Changing to page ${newPage}`);
+    setPage(newPage);
+  };
+
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    if (newPageSize !== pageSize) {
+      setPageSize(newPageSize);
+      setPage(1);
+    }
+  }, [pageSize, setPage]);
+
+  const formatName = (name?: string | null): string => {
+    if (!name) return '';
+    return name.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
   const columns: Column<Agreement>[] = [
@@ -387,23 +360,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     },
   ];
 
-  const isFetching = isFetchingAgreements || isFetchingDealers;
-
-  const handlePageChange = (newPage: number) => {
-    console.log(`Changing to page ${newPage}`);
-    setPage(newPage);
-  };
-
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    if (newPageSize !== pageSize) {
-      setPageSize(newPageSize);
-      setPage(1);
-    }
-  }, [pageSize, setPage]);
-
   const currentStatus = isFetching
     ? "Loading..."
-    : `Displaying ${displayAgreements.length} of ${totalCount} agreements${dealerName ? ` for ${dealerName}` : ''}`;
+    : `Displaying ${filteredAgreements.length} of ${totalCount} agreements${dealerName ? ` for ${dealerName}` : ''}`;
 
   return (
     <>
@@ -412,7 +371,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       </div>
       
       <DataTable
-        data={displayAgreements}
+        data={filteredAgreements}
         columns={columns}
         rowKey={(row) => row.id || row.AgreementID || ''}
         className={className}
