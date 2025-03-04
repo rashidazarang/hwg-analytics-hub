@@ -3,11 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { Menu, User } from 'lucide-react';
+import { User, Menu } from 'lucide-react';
 import { toast } from 'sonner';
 import AccountMenu from './AccountMenu';
+import { cn } from '@/lib/utils';
 
-const AuthNav = () => {
+type AuthNavProps = {
+  isMobileMenu?: boolean;
+};
+
+const AuthNav: React.FC<AuthNavProps> = ({ isMobileMenu = false }) => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -58,6 +63,41 @@ const AuthNav = () => {
     );
   }
 
+  // If in mobile menu, render a simpler version
+  if (isMobileMenu) {
+    return user ? (
+      <div className="flex flex-col space-y-2 w-full">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="justify-start text-left"
+          onClick={navigateToAccount}
+        >
+          <User className="h-4 w-4 mr-2" />
+          Account Settings
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="justify-start text-left text-destructive"
+          onClick={handleSignOut}
+        >
+          <span>Sign Out</span>
+        </Button>
+      </div>
+    ) : (
+      <Button 
+        variant="default" 
+        size="sm" 
+        className="h-8 text-xs font-medium shadow-sm" 
+        onClick={() => navigate('/auth')}
+      >
+        Sign In
+      </Button>
+    );
+  }
+
+  // Desktop version
   return user ? (
     <div className="relative">
       <Button 
