@@ -13,26 +13,29 @@ type ClaimChartProps = {
   dealershipFilter?: string;
 };
 
-// Fetch claims data
+// 1) Fetch claims data, but select the 'Correction' field
 const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) => {
   console.log('🔍 Fetching claims data...', { dateRange, dealershipFilter });
 
   let query = supabase
-    .from("claims")
+    .from('claims')
     .select(`
-      id, ReportedDate, Closed, Cause, LastModified,
+      id,
+      ReportedDate,
+      Closed,
+      Correction,
+      LastModified,
       agreements!inner(DealerUUID, dealers!inner(Payee))
     `)
-    .order("LastModified", { ascending: false });
+    .order('LastModified', { ascending: false });
 
   if (dealershipFilter) {
-    query = query.eq("agreements.DealerUUID", dealershipFilter);
+    query = query.eq('agreements.DealerUUID', dealershipFilter);
   }
 
   const { data, error } = await query;
-  
   if (error) {
-    console.error("❌ Error fetching claims:", error);
+    console.error('❌ Error fetching claims:', error);
     return [];
   }
 
@@ -40,13 +43,18 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
   return data;
 };
 
-// Process data
+// 2) Simple check for "denied" text
+function isClaimDenied(correction: string | null | undefined): boolean {
+  if (!correction) return false;
+  return /denied|not covered|rejected/i.test(correction);
+}
+
+// 3) Process data => only OPEN, DENIED, CLOSED
 const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
   if (!claims || claims.length === 0) {
     console.warn('⚠️ No claims data available, returning zero-count for all statuses.');
     return [
       { status: 'OPEN', count: 0 },
-      { status: 'PENDING', count: 0 },
       { status: 'DENIED', count: 0 },
       { status: 'CLOSED', count: 0 },
     ];
@@ -54,7 +62,6 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
 
   const statusCounts = {
     OPEN: 0,
-    PENDING: 0,
     DENIED: 0,
     CLOSED: 0,
   };
@@ -62,15 +69,13 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
   const startDate = new Date(dateRange.start);
   const endDate = new Date(dateRange.end);
 
-  claims.forEach(claim => {
+  claims.forEach((claim) => {
     const reportedDate = claim.ReportedDate ? new Date(claim.ReportedDate) : null;
     if (reportedDate && reportedDate >= startDate && reportedDate <= endDate) {
       if (claim.Closed) {
         statusCounts.CLOSED += 1;
-      } else if (claim.Cause && !claim.Closed) {
+      } else if (isClaimDenied(claim.Correction)) {
         statusCounts.DENIED += 1;
-      } else if (claim.ReportedDate && !claim.Closed) {
-        statusCounts.PENDING += 1;
       } else {
         statusCounts.OPEN += 1;
       }
@@ -78,15 +83,16 @@ const getClaimsByStatus = (claims: any[], dateRange: DateRange) => {
   });
 
   console.log('📊 Processed claims data:', JSON.stringify(statusCounts, null, 2));
+
   return [
     { status: 'OPEN', count: statusCounts.OPEN },
-    { status: 'PENDING', count: statusCounts.PENDING },
     { status: 'DENIED', count: statusCounts.DENIED },
     { status: 'CLOSED', count: statusCounts.CLOSED },
   ];
 };
 
 const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) => {
+  // 4) Use React Query to fetch claims by dateRange/dealership
   const { data: claims = [], isFetching } = useQuery({
     queryKey: ['claims-data', dateRange, dealershipFilter],
     queryFn: () => fetchClaimsData(dateRange, dealershipFilter),
@@ -95,9 +101,12 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
 
   console.log('📊 Raw Claims Data:', claims);
 
-  // Always attempt to process the claims — even if empty.
+  // Always build an array with OPEN, DENIED, CLOSED
   const data = getClaimsByStatus(claims, dateRange);
   console.log('📊 Data sent to chart:', JSON.stringify(data, null, 2));
+
+  // 5) Check if all counts are zero => no data scenario
+  const totalCount = data.reduce((sum, d) => sum + d.count, 0);
 
   return (
     <Card className="h-full card-hover-effect">
@@ -116,9 +125,8 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
           <div className="flex items-center justify-center h-[240px] text-muted-foreground">
             Loading claims data...
           </div>
-        ) : data.length === 0 ? (
+        ) : totalCount === 0 ? (
           <div className="flex items-center justify-center h-[240px] text-muted-foreground">
-            {/* If getClaimsByStatus returns [] for some reason, you'll see this */}
             No claims data available.
           </div>
         ) : (
@@ -134,7 +142,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 type="category"
                 axisLine={false}
                 tickLine={false}
-                width={100}
+                width={90}
               />
               <XAxis
                 type="number"
@@ -149,9 +157,7 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                 iconSize={10}
                 iconType="circle"
                 formatter={(value) =>
-                  <span className="text-xs font-medium">
-                    {value ? value.charAt(0) + value.slice(1).toLowerCase() : ''}
-                  </span>
+                  <span className="text-xs font-medium">{value}</span>
                 }
               />
               <Tooltip
@@ -161,18 +167,17 @@ const ClaimChart: React.FC<ClaimChartProps> = ({ dateRange, dealershipFilter }) 
                   boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                   fontSize: '14px',
                 }}
-                formatter={(value, name) => [
-                  `${value || 0} Claims`, 
-                  name ? name.charAt(0) + name.slice(1).toLowerCase() : 'Unknown'
-                ]}
+                formatter={(value: number, name: string) => [`${value} Claims`, name]}
               />
               <Bar dataKey="count" name="Claims" barSize={20} radius={[4, 4, 4, 4]}>
                 {data.map((entry, index) => {
+                  // Using the first 3 colors of the Agreement palette:
+                  // #3b82f6 (blue), #10b981 (green), #ef4444 (red)
+                  // Match them to OPEN, CLOSED, DENIED in any order you like:
                   const statusColors: Record<string, string> = {
-                    OPEN: '#3b82f6',   
-                    PENDING: '#f59e0b',
-                    DENIED: '#ef4444', 
-                    CLOSED: '#10b981',
+                    OPEN: '#3b82f6',    // Blue
+                    DENIED: '#ef4444',  // Red
+                    CLOSED: '#10b981',  // Green
                   };
                   const fillColor = statusColors[entry.status] || '#cccccc';
                   return <Cell key={`cell-${index}`} fill={fillColor} />;
