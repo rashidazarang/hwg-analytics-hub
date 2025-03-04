@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -32,8 +33,9 @@ const fetchClaimsData = async (dateRange: DateRange, dealershipFilter?: string) 
         LastModified,
         agreements(DealerUUID, dealers(Payee))
       `)
-      .gte('ReportedDate', dateRange.from.toISOString())
-      .lte('ReportedDate', dateRange.to.toISOString());
+      // Use LastModified for date filtering to be consistent with ClaimsTable
+      .gte('LastModified', dateRange.from.toISOString())
+      .lte('LastModified', dateRange.to.toISOString());
     
     if (dealershipFilter && dealershipFilter.trim() !== '') {
       console.log('[CLAIMCHART_FILTER] Filtering by dealership UUID:', dealershipFilter);

@@ -34,12 +34,12 @@ export async function fetchClaims(
     `, { count: 'exact' })
     .order("LastModified", { ascending: false });
 
-  // Apply date range filter first - STANDARDIZED TO USE ReportedDate for consistency with chart
+  // Apply date range filter first - USING LastModified as specified in the requirements
   if (dateRange) {
     console.log(`🔍 ClaimsTable: Filtering by date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
     query = query
-      .gte("ReportedDate", dateRange.from.toISOString())
-      .lte("ReportedDate", dateRange.to.toISOString());
+      .gte("LastModified", dateRange.from.toISOString())
+      .lte("LastModified", dateRange.to.toISOString());
   }
 
   // Then apply dealer filter

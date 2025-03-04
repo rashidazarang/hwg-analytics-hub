@@ -79,12 +79,14 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             Closed,
             Correction,
             ReportedDate,
+            LastModified,
             agreements:AgreementID(
               DealerUUID
             )
           `)
-          .gte('ReportedDate', fromDate)
-          .lte('ReportedDate', toDate);
+          // Use LastModified to match ClaimsTable and ClaimChart
+          .gte('LastModified', fromDate)
+          .lte('LastModified', toDate);
 
         // Process claims based on dealer filter
         let filteredClaims = claimsQuery.data || [];
