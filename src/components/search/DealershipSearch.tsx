@@ -177,7 +177,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   return <div ref={searchContainerRef} className="relative w-full">
       <form onSubmit={handleSearchSubmit} className="relative">
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
             {isLoadingDealerships ? (
               <Loader2 className="h-4 w-4 text-primary/70 animate-spin" />
             ) : (
@@ -193,24 +193,24 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
             onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))} 
             autoComplete="off" 
             disabled={isLoadingDealerships} 
-            className="pl-9 pr-9 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm mx-0 my-0 bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
+            className="pl-10 pr-9 w-full h-10 text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm mx-0 my-0 bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
           />
           
-          {searchTerm && <button 
-            type="button" 
-            onClick={handleClearSearch} 
-            className="absolute right-0 top-0 h-full flex items-center justify-center w-10 cursor-pointer" 
-            aria-label="Clear search" 
-            title="Clear search"
-          >
-            <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/70 transition-colors duration-200">
-              <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+          {searchTerm && (
+            <div className="absolute inset-y-0 right-0 flex items-center">
+              <button 
+                type="button" 
+                onClick={handleClearSearch} 
+                className="flex items-center justify-center w-10 h-full cursor-pointer" 
+                aria-label="Clear search" 
+                title="Clear search"
+              >
+                <div className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/70 transition-colors duration-200">
+                  <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                </div>
+              </button>
             </div>
-          </button>}
-          
-          <Button type="submit" variant="ghost" size="sm" className="absolute right-8 inset-y-0 px-2 opacity-0" disabled={isLoadingDealerships}>
-            <Search className="h-4 w-4" />
-          </Button>
+          )}
         </div>
         
         {showSuggestions && (
