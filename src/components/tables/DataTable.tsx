@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -174,8 +175,8 @@ const DataTable = <T extends Record<string, any>>({
     <div className={className}>
       {searchConfig.enabled && (
         <div className="mb-4">
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-muted-foreground animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <div className="text-sm text-muted-foreground animate-fade-in hidden sm:block">
               {loading ? (
                 <span className="flex items-center">
                   <div className="mr-2 h-3 w-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
@@ -188,17 +189,21 @@ const DataTable = <T extends Record<string, any>>({
               )}
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+              <div className="relative w-full sm:w-auto">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder={searchConfig.placeholder || "Search..."}
                   value={searchTerm}
                   onChange={handleSearch}
-                  className="pl-7 h-8 w-44 text-sm"
+                  className="pl-8 h-9 w-full sm:w-44 text-sm"
                 />
               </div>
-              {customFilters}
+              {customFilters && (
+                <div className="w-full sm:w-auto">
+                  {customFilters}
+                </div>
+              )}
             </div>
           </div>
         </div>
