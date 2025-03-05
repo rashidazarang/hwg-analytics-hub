@@ -10,7 +10,6 @@ type DealershipSearchInputProps = {
   onFocus: () => void;
   onClear: () => void;
   onSubmit: () => void;
-  inputRef?: React.RefObject<HTMLInputElement>;
 };
 
 const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
@@ -19,8 +18,7 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
   onChange,
   onFocus,
   onClear,
-  onSubmit,
-  inputRef
+  onSubmit
 }) => {
   return (
     <div className="relative">
@@ -58,7 +56,6 @@ const DealershipSearchInput: React.FC<DealershipSearchInputProps> = ({
         autoComplete="off" 
         disabled={isLoading} 
         className="pl-7 xs:pl-10 pr-7 xs:pr-10 w-full h-7 xs:h-8 text-xs xs:text-sm border-input/40 focus:border-primary/50 search-field rounded-lg shadow-sm bg-white/95 backdrop-blur-sm transition-all duration-200 hover:border-input/60 focus:shadow-md" 
-        ref={inputRef}
       />
 
       {/* Right side: Show "X" when a dealership is selected, show search icon otherwise */}
