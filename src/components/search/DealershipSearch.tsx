@@ -1,8 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import DealershipSearchInput from './DealershipSearchInput';
 import DealershipSuggestions from './DealershipSuggestions';
 import { useDealershipData } from '@/hooks/useDealershipData';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type DealershipSearchProps = {
   onDealershipSelect: (dealershipId: string, dealershipName: string) => void;
@@ -19,6 +21,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const {
     data: dealerships = [],
@@ -111,6 +114,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     });
   };
 
+  // Handle click outside to close suggestions
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
@@ -118,12 +122,24 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
       }
     };
     
-    document.addEventListener('mousedown', handleClickOutside);
+    // Add event listener with capture phase to ensure it fires before other handlers
+    document.addEventListener('mousedown', handleClickOutside, true);
     
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
     };
   }, []);
+
+  // For mobile, ensure body scroll is disabled when suggestions are shown
+  useEffect(() => {
+    if (isMobile && showSuggestions) {
+      // Optional: prevent body scroll when suggestions are open on mobile
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isMobile, showSuggestions]);
 
   return (
     <div ref={searchContainerRef} className="relative w-full">

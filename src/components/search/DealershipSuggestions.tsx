@@ -2,6 +2,7 @@
 import React from 'react';
 import { Store, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type DealershipSuggestionsProps = {
   showSuggestions: boolean;
@@ -20,10 +21,15 @@ const DealershipSuggestions: React.FC<DealershipSuggestionsProps> = ({
   selectedDealershipId,
   onDealershipClick
 }) => {
+  const isMobile = useIsMobile();
+  
   if (!showSuggestions) return null;
 
   return (
-    <div className="absolute mt-1 w-full rounded-md bg-white shadow-lg border border-border/20 z-50 max-h-60 overflow-auto animate-fade-in">
+    <div className={cn(
+      "absolute mt-1 w-full rounded-md bg-white shadow-lg border border-border/20 z-50 max-h-60 overflow-auto animate-fade-in search-dropdown",
+      isMobile && "fixed left-4 right-4 top-auto w-auto mt-2"
+    )}>
       {isLoading ? (
         <div className="px-4 py-3 text-sm text-muted-foreground flex items-center justify-center">
           <Loader2 className="mr-2 animate-spin h-4 w-4 text-primary/50" />

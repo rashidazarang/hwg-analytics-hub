@@ -175,7 +175,7 @@
   }
   
   .search-dropdown {
-    @apply z-50 bg-white shadow-lg border border-border/20 rounded-md;
+    @apply z-[1000] bg-white shadow-lg border border-border/20 rounded-md;
   }
   
   .mobile-menu {
@@ -261,6 +261,16 @@
   .mobile-date-sheet [role="dialog"] {
     max-height: 80vh;
     overflow-y: auto;
+  }
+  
+  .search-dropdown {
+    position: fixed;
+    top: auto !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    width: auto !important;
+    margin-top: 0.5rem;
+    max-height: 50vh !important;
   }
 }
 
