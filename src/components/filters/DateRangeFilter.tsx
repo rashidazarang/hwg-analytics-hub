@@ -39,7 +39,8 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
     console.log(`Preset changed to ${newPreset}:`, newRange);
     setDateRange(newRange);
     onChange(newRange);
-    if (newPreset !== 'custom' && isMobile) {
+    // Close sheet on mobile when a preset is selected
+    if (isMobile) {
       setIsOpen(false);
     }
   };
@@ -50,6 +51,12 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
       setDateRange(range);
       setPreset('custom');
       onChange(range);
+      
+      // Auto-close sheet after both dates are selected (from and to)
+      if (range.from && range.to && isMobile) {
+        // Add a small delay to make it feel more natural
+        setTimeout(() => setIsOpen(false), 300);
+      }
     }
   };
 
