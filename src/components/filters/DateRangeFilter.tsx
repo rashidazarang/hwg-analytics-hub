@@ -104,7 +104,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
               </div>
             </div>
           </div>
-          <div className="overflow-auto" style={{ maxHeight: 'min(calc(100vh - 200px), 350px)' }}>
+          <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
             <CalendarComponent
               mode="range"
               selected={{

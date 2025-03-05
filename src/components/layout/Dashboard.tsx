@@ -45,7 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.mobile-menu') && !target.closest('.mobile-toggle') && !target.closest('[data-radix-popper-content-wrapper]')) {
+      if (!target.closest('.mobile-menu') && !target.closest('.mobile-toggle')) {
         setMobileMenuOpen(false);
         setMobileFiltersOpen(false);
       }
@@ -56,35 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  // Force body scroll lock when mobile menus are open
-  useEffect(() => {
-    const body = document.body;
-    if (mobileFiltersOpen || mobileMenuOpen) {
-      // Store the current scroll position
-      const scrollY = window.scrollY;
-      // Add fixed positioning to body with the current scroll position
-      body.style.position = 'fixed';
-      body.style.width = '100%';
-      body.style.top = `-${scrollY}px`;
-    } else {
-      // Get the scroll position from the body's top property
-      const scrollY = parseInt(body.style.top || '0') * -1;
-      // Restore normal positioning
-      body.style.position = '';
-      body.style.width = '';
-      body.style.top = '';
-      // Restore scroll position
-      window.scrollTo(0, scrollY);
-    }
-    
-    return () => {
-      // Clean up on unmount
-      body.style.position = '';
-      body.style.width = '';
-      body.style.top = '';
-    };
-  }, [mobileFiltersOpen, mobileMenuOpen]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -133,19 +104,15 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="sm:hidden">
             {/* Mobile date filter panel */}
             {mobileFiltersOpen && (
-              <div className="mobile-menu mt-3 p-4 bg-background border rounded-md shadow-md animate-slide-down max-h-[60vh] overflow-auto">
+              <div className="mobile-menu mt-3 p-4 bg-background border rounded-md shadow-md animate-slide-down max-h-[90vh] overflow-auto">
                 <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
-                <DateRangeFilter onChange={(range) => {
-                  onDateRangeChange(range);
-                  // Auto-close the filters panel on mobile after selection
-                  setTimeout(() => setMobileFiltersOpen(false), 300);
-                }} />
+                <DateRangeFilter onChange={onDateRangeChange} />
               </div>
             )}
             
             {/* Mobile menu panel */}
             {mobileMenuOpen && (
-              <div className="mobile-menu mt-3 bg-background border rounded-md shadow-md animate-slide-down max-h-[60vh] overflow-auto">
+              <div className="mobile-menu mt-3 bg-background border rounded-md shadow-md animate-slide-down max-h-[90vh] overflow-auto">
                 {subnavbar && (
                   <div className="p-3 border-b border-border/30 bg-muted/20">
                     {subnavbar}
