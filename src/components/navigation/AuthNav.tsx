@@ -39,15 +39,19 @@ const AuthNav = () => {
   useEffect(() => {
     // Handle clicks outside both the button and menu
     const handleClickOutside = (event: MouseEvent) => {
+      // Only close if clicking outside both the menu and button
       if (
         menuOpen &&
-        !menuRef.current?.contains(event.target as Node) &&
-        !buttonRef.current?.contains(event.target as Node)
+        menuRef.current && 
+        buttonRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)
       ) {
         setMenuOpen(false);
       }
     };
 
+    // Use mousedown instead of click to ensure it captures all click types
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -62,7 +66,8 @@ const AuthNav = () => {
   };
 
   const toggleMenu = () => {
-    setMenuOpen(!menuOpen);
+    // Simple toggle function - if menu is open, close it; if closed, open it
+    setMenuOpen(prevState => !prevState);
   };
 
   const navigateToAccount = () => {
