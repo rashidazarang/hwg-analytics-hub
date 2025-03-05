@@ -39,7 +39,7 @@ const AuthNav = () => {
   useEffect(() => {
     // Handle clicks outside both the button and menu
     const handleClickOutside = (event: MouseEvent) => {
-      // Only close if clicking outside both the menu and button
+      // Only close if the menu is open AND the click is outside both menu and button
       if (
         menuOpen &&
         menuRef.current && 
@@ -66,7 +66,6 @@ const AuthNav = () => {
   };
 
   const toggleMenu = () => {
-    // Simple toggle function - if menu is open, close it; if closed, open it
     setMenuOpen(prevState => !prevState);
   };
 

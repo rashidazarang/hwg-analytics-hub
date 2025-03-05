@@ -20,6 +20,9 @@ const AccountMenu: React.FC<AccountMenuProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  // When a button inside the menu is clicked, the event will stop at menuRef
+  // and won't trigger the document click handler in AuthNav, allowing the menu actions to work
+  
   return (
     <div 
       ref={menuRef}
