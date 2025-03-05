@@ -29,9 +29,9 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const searchValue = e.target.value;
     setSearchTerm(searchValue);
-    setShowSuggestions(Boolean(searchValue.trim()));
+    setShowSuggestions(true); // Always show suggestions when typing
     if (!searchValue.trim()) {
-      handleClearSearch();
+      setShowSuggestions(false); // Hide suggestions if the search field is empty
     }
     console.log('🔍 Search Term:', searchValue);
   };
