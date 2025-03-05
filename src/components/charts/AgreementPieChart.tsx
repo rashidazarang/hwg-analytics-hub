@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { AgreementChartData, STATUS_COLORS } from '@/hooks/useAgreementStatusData';
+import { ChartLegend } from './ChartLegend';
 
 type AgreementPieChartProps = {
   data: AgreementChartData[];
@@ -127,25 +128,8 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
         </PieChart>
       </ResponsiveContainer>
       
-      {/* Static legend that matches the ClaimChart */}
-      <div className="flex justify-center items-center gap-4 mt-2 mb-1">
-        <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#00B179' }}></span>
-          <span className="text-xs font-medium">ACTIVE</span>
-        </div>
-        <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#0079EE' }}></span>
-          <span className="text-xs font-medium">PENDING</span>
-        </div>
-        <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#FC912A' }}></span>
-          <span className="text-xs font-medium">CANCELLED</span>
-        </div>
-        <div className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#F6383F' }}></span>
-          <span className="text-xs font-medium">OTHER</span>
-        </div>
-      </div>      
+      {/* Use the updated ChartLegend component */}
+      <ChartLegend statusColors={pieColors} />
     </div>
   );
 };

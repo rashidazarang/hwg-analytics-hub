@@ -7,7 +7,7 @@ interface ChartLegendProps {
 
 export const ChartLegend: React.FC<ChartLegendProps> = ({ statusColors }) => {
   return (
-    <div className="flex justify-center items-center gap-4 mt-2 mb-1">
+    <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 mt-2 mb-1 max-w-full">
       {Object.entries(statusColors).map(([status, color]) => (
         <div key={status} className="flex items-center">
           <span 
