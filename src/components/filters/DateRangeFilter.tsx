@@ -56,20 +56,20 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   }, [dateRange]);
 
   return (
-    <div className="flex items-center space-x-2 bg-white rounded-md px-2 py-1.5">
+    <div className="flex items-center space-x-1 xs:space-x-2 bg-white rounded-md px-1 xs:px-2 py-1.5 w-full xs:w-auto min-w-[110px]">
       <div className="inline-flex items-center">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <Calendar className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
       </div>
       
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button 
             variant="ghost" 
-            className="pl-2 pr-1 py-1 h-8 hover:bg-accent date-range-selector"
+            className="pl-1 xs:pl-2 pr-1 py-1 h-7 xs:h-8 hover:bg-accent date-range-selector text-xs xs:text-sm truncate flex-1 w-full justify-between"
             onClick={() => setIsOpen(true)}
           >
-            <span className="text-sm font-medium">{formatDateRange(dateRange)}</span>
-            <ChevronDown className="ml-1 h-3 w-3 text-muted-foreground" />
+            <span className="font-medium truncate">{formatDateRange(dateRange)}</span>
+            <ChevronDown className="ml-1 h-3 w-3 text-muted-foreground flex-shrink-0" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -111,7 +111,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
               to: dateRange.to,
             }}
             onSelect={handleDateRangeChange as any}
-            numberOfMonths={2}
+            numberOfMonths={1}
             defaultMonth={dateRange.from}
             initialFocus
           />
