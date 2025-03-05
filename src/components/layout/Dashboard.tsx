@@ -58,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
         <div className="dashboard-container py-3">
           <div className="flex justify-between items-center">
@@ -104,7 +104,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="sm:hidden">
             {/* Mobile date filter panel */}
             {mobileFiltersOpen && (
-              <div className="mobile-menu mt-3 p-4 bg-background border rounded-md shadow-md animate-slide-down max-h-[90vh] overflow-auto">
+              <div className="mobile-menu mt-3 p-4 bg-background border rounded-md shadow-md animate-slide-down">
                 <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
                 <DateRangeFilter onChange={onDateRangeChange} />
               </div>
@@ -112,7 +112,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             
             {/* Mobile menu panel */}
             {mobileMenuOpen && (
-              <div className="mobile-menu mt-3 bg-background border rounded-md shadow-md animate-slide-down max-h-[90vh] overflow-auto">
+              <div className="mobile-menu mt-3 bg-background border rounded-md shadow-md overflow-hidden animate-slide-down">
                 {subnavbar && (
                   <div className="p-3 border-b border-border/30 bg-muted/20">
                     {subnavbar}
@@ -133,7 +133,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         )}
       </header>
       
-      <main className="dashboard-container py-4 md:py-6 space-y-6 md:space-y-8 animate-fade-in flex-1 overflow-auto">
+      <main className="dashboard-container py-4 md:py-6 space-y-6 md:space-y-8 animate-fade-in">
         {/* KPI Metrics Section */}
         <section className="animate-slide-up" style={{ animationDelay: '100ms' }}>
           {kpiSection}
