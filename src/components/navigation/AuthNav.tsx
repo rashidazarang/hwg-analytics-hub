@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { Menu, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { toast } from 'sonner';
 import AccountMenu from './AccountMenu';
 
@@ -12,6 +12,8 @@ const AuthNav = () => {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     // Get initial session
@@ -33,6 +35,24 @@ const AuthNav = () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    // Handle clicks outside both the button and menu
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuOpen &&
+        !menuRef.current?.contains(event.target as Node) &&
+        !buttonRef.current?.contains(event.target as Node)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -65,14 +85,15 @@ const AuthNav = () => {
         size="icon"
         onClick={toggleMenu}
         aria-label="Account menu"
+        ref={buttonRef}
         className="h-7 w-7 xs:h-8 xs:w-8 rounded-full bg-muted/50 hover:bg-muted transition-all duration-200"
       >
         <User className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
       </Button>
       
       <AccountMenu 
-        isOpen={menuOpen} 
-        onClose={() => setMenuOpen(false)}
+        menuRef={menuRef}
+        isOpen={menuOpen}
         onAccountClick={navigateToAccount}
         onLogoutClick={handleSignOut}
         email={user.email} 
