@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRange } from '@/lib/dateUtils';
@@ -14,7 +13,6 @@ type AgreementBarChartProps = {
   dealerFilter?: string;
 };
 
-// Helper function to fetch dealer name by UUID (reused from AgreementChart)
 const fetchDealerNameByUUID = async (uuid: string): Promise<string> => {
   if (!uuid) return '';
   
@@ -37,7 +35,6 @@ const fetchDealerNameByUUID = async (uuid: string): Promise<string> => {
   }
 };
 
-// Custom tooltip component
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -55,7 +52,6 @@ const CustomTooltip = ({ active, payload }: any) => {
 const AgreementBarChart: React.FC<AgreementBarChartProps> = ({ dateRange, dealerFilter = '' }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  // Fetch agreement status data
   const { 
     data: statusData = [], 
     isLoading: isStatusLoading,
@@ -69,7 +65,6 @@ const AgreementBarChart: React.FC<AgreementBarChartProps> = ({ dateRange, dealer
     }
   }, [statusError]);
   
-  // Fetch dealer name when dealerFilter changes
   const { data: dealerName = '', isLoading: isNameLoading } = useQuery({
     queryKey: ['dealer-name', dealerFilter],
     queryFn: () => fetchDealerNameByUUID(dealerFilter),
@@ -85,6 +80,13 @@ const AgreementBarChart: React.FC<AgreementBarChartProps> = ({ dateRange, dealer
 
   const onBarLeave = () => {
     setActiveIndex(null);
+  };
+
+  const pieColors = {
+    'ACTIVE': '#00B179',
+    'PENDING': '#0079EE',
+    'CANCELLED': '#FC912A',
+    'OTHER': '#F6383F',
   };
 
   return (
@@ -169,25 +171,7 @@ const AgreementBarChart: React.FC<AgreementBarChartProps> = ({ dateRange, dealer
             </ResponsiveContainer>
           )}
           
-          {/* Static legend with the same style */}
-          <div className="flex justify-center items-center gap-4 mt-2 mb-1">
-            <div className="flex items-center">
-              <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#00B179' }}></span>
-              <span className="text-xs font-medium">ACTIVE</span>
-            </div>
-            <div className="flex items-center">
-              <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#0079EE' }}></span>
-              <span className="text-xs font-medium">PENDING</span>
-            </div>
-            <div className="flex items-center">
-              <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#FC912A' }}></span>
-              <span className="text-xs font-medium">CANCELLED</span>
-            </div>
-            <div className="flex items-center">
-              <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: '#F6383F' }}></span>
-              <span className="text-xs font-medium">OTHER</span>
-            </div>
-          </div>
+          <ChartLegend statusColors={pieColors} />
         </div>
       </CardContent>
     </Card>
