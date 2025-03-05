@@ -56,8 +56,8 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   }, [dateRange]);
 
   return (
-    <div className="flex items-center min-w-0 w-full bg-white rounded-md px-2 py-1.5">
-      <div className="inline-flex items-center flex-shrink-0">
+    <div className="flex items-center space-x-2 bg-white rounded-md px-2 py-1.5">
+      <div className="inline-flex items-center">
         <Calendar className="h-4 w-4 text-muted-foreground" />
       </div>
       
@@ -65,16 +65,16 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
         <PopoverTrigger asChild>
           <Button 
             variant="ghost" 
-            className="pl-2 pr-1 py-1 h-8 hover:bg-accent date-range-selector min-w-0 flex-grow text-left"
+            className="pl-2 pr-1 py-1 h-8 hover:bg-accent date-range-selector"
             onClick={() => setIsOpen(true)}
           >
-            <span className="text-sm font-medium truncate">{formatDateRange(dateRange)}</span>
-            <ChevronDown className="ml-1 h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm font-medium">{formatDateRange(dateRange)}</span>
+            <ChevronDown className="ml-1 h-3 w-3 text-muted-foreground" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <div className="p-3 border-b">
-            <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2">
+            <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Select Range</div>
               <div className="flex space-x-1">
                 <Button 

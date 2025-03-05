@@ -65,7 +65,7 @@ const AuthNav = () => {
         size="icon"
         onClick={toggleMenu}
         aria-label="Account menu"
-        className="h-8 w-8 rounded-full bg-muted/50 hover:bg-muted transition-all duration-200 flex-shrink-0"
+        className="h-8 w-8 rounded-full bg-muted/50 hover:bg-muted transition-all duration-200"
       >
         <User className="h-4 w-4" />
       </Button>
@@ -82,7 +82,7 @@ const AuthNav = () => {
     <Button 
       variant="default" 
       size="sm" 
-      className="h-8 text-xs font-medium shadow-sm flex-shrink-0" 
+      className="h-8 text-xs font-medium shadow-sm" 
       onClick={() => navigate('/auth')}
     >
       Sign In

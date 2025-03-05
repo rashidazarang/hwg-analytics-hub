@@ -19,9 +19,6 @@ export default {
 			}
 		},
 		extend: {
-			screens: {
-				'xs': '300px', // Added XS breakpoint for mobile optimization
-			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

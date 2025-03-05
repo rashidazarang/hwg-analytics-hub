@@ -72,25 +72,25 @@ const Index = () => {
 
   const subnavbarContent = (
     <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-      <div className="flex justify-center sm:justify-start">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
+      <div>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="h-9 p-0.5 bg-muted/70">
             <TabsTrigger 
               value="agreements" 
-              className="text-sm px-3 sm:px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Agreements
             </TabsTrigger>
             <TabsTrigger 
               value="claims" 
-              className="text-sm px-3 sm:px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="text-sm px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Claims
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
-      <div className="w-full sm:w-auto min-w-0 sm:min-w-[240px] max-w-full">
+      <div className="w-full sm:w-auto min-w-0 sm:min-w-[240px]">
         <DealershipSearch 
           onDealershipSelect={handleDealershipSelect}
           searchTerm={searchTerm}
