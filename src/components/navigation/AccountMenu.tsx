@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { User, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,12 +18,32 @@ const AccountMenu: React.FC<AccountMenuProps> = ({
   onLogoutClick,
   email
 }) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Close menu when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
     <div 
+      ref={menuRef}
       className={cn(
-        "absolute right-0 top-full mt-2 w-56 rounded-md shadow-lg bg-popover border border-border z-[9999]",
+        "absolute right-0 top-full mt-2 w-56 rounded-md shadow-lg bg-popover border border-border z-50",
         "animate-in fade-in slide-in-from-top-5 duration-200"
       )}
     >
