@@ -86,13 +86,15 @@ export async function fetchClaimsData({
       // First, get the total count
       const countQuery = supabase
         .from("claims")
-        .select('id', { count: 'exact' })
+        .select(`
+          id,
+          agreements!inner(DealerUUID)
+        `, { count: 'exact', head: true })
         .gte('LastModified', dateRange.from.toISOString())
         .lte('LastModified', dateRange.to.toISOString());
       
       // Apply dealer filter to count query if provided
       if (dealerFilter && dealerFilter.trim() !== '') {
-        // FIX: This line was missing the inner join needed for filtering
         countQuery.eq('agreements.DealerUUID', dealerFilter.trim());
       }
       
@@ -136,7 +138,7 @@ export async function fetchClaimsData({
             .order('LastModified', { ascending: false })
             .range(start, end);
           
-          // FIX: Apply dealer filter to each batch query
+          // Apply dealer filter to each batch query
           if (dealerFilter && dealerFilter.trim() !== '') {
             batchQuery = batchQuery.eq('agreements.DealerUUID', dealerFilter.trim());
           }
