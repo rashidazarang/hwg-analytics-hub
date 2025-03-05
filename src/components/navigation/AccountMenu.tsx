@@ -19,10 +19,12 @@ const AccountMenu: React.FC<AccountMenuProps> = ({
   menuRef
 }) => {
   if (!isOpen) return null;
-
-  // When a button inside the menu is clicked, the event will stop at menuRef
-  // and won't trigger the document click handler in AuthNav, allowing the menu actions to work
   
+  // Handle click events inside the menu to prevent propagation
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <div 
       ref={menuRef}
@@ -30,6 +32,7 @@ const AccountMenu: React.FC<AccountMenuProps> = ({
         "absolute right-0 top-full mt-2 w-56 rounded-md shadow-lg bg-popover border border-border z-50",
         "animate-in fade-in slide-in-from-top-5 duration-200"
       )}
+      onClick={handleMenuClick} // Stop click propagation
     >
       <div className="px-4 py-3 border-b border-border">
         <p className="text-sm font-medium">Account</p>

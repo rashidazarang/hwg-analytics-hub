@@ -37,22 +37,25 @@ const AuthNav = () => {
   }, []);
 
   useEffect(() => {
-    // Handle clicks outside both the button and menu
+    // Handle clicks outside the menu
     const handleClickOutside = (event: MouseEvent) => {
-      // Only close if the menu is open AND the click is outside both menu and button
       if (
-        menuOpen &&
+        menuOpen && 
+        buttonRef.current && 
+        !buttonRef.current.contains(event.target as Node) &&
         menuRef.current && 
-        buttonRef.current &&
-        !menuRef.current.contains(event.target as Node) &&
-        !buttonRef.current.contains(event.target as Node)
+        !menuRef.current.contains(event.target as Node)
       ) {
         setMenuOpen(false);
       }
     };
 
-    // Use mousedown instead of click to ensure it captures all click types
-    document.addEventListener('mousedown', handleClickOutside);
+    // Add the event listener only when the menu is open
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    // Clean up
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -65,7 +68,8 @@ const AuthNav = () => {
     setMenuOpen(false);
   };
 
-  const toggleMenu = () => {
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the click from immediately triggering the document event
     setMenuOpen(prevState => !prevState);
   };
 
