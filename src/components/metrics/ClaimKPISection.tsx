@@ -30,11 +30,6 @@ const ClaimKPISection: React.FC<ClaimKPISectionProps> = ({ dateRange, dealerFilt
         description="Claims currently open"
         icon={FileCheck}
         color="info"
-        trend={{
-          value: 2.5,
-          isPositive: false,
-          label: "from last period"
-        }}
       />
       <KPICard
         title="Pending Claims"
@@ -42,11 +37,6 @@ const ClaimKPISection: React.FC<ClaimKPISectionProps> = ({ dateRange, dealerFilt
         description="Claims in pending status"
         icon={Clock}
         color="warning"
-        trend={{
-          value: 1.7,
-          isPositive: true,
-          label: "from last period"
-        }}
       />
       <KPICard
         title="Closed Claims"
@@ -54,11 +44,6 @@ const ClaimKPISection: React.FC<ClaimKPISectionProps> = ({ dateRange, dealerFilt
         description="Claims that have been closed"
         icon={AlertTriangle}
         color="destructive"
-        trend={{
-          value: 3.2,
-          isPositive: true, 
-          label: "from last period"
-        }}
       />
     </div>
   );

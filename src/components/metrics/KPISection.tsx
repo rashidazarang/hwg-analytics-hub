@@ -29,11 +29,6 @@ const KPISection: React.FC<KPISectionProps> = ({ dateRange, dealerFilter = '' })
         description="Contracts in pending status"
         icon={Clock}
         color="warning"
-        trend={{
-          value: 2.3,
-          isPositive: true,
-          label: "from last period"
-        }}
       />
       <KPICard
         title="Newly Active Contracts"
@@ -41,11 +36,6 @@ const KPISection: React.FC<KPISectionProps> = ({ dateRange, dealerFilter = '' })
         description="Contracts activated in this period"
         icon={FileSignature}
         color="success"
-        trend={{
-          value: 4.1,
-          isPositive: true,
-          label: "from last period"
-        }}
       />
       <KPICard
         title="Cancelled Contracts"
@@ -53,11 +43,6 @@ const KPISection: React.FC<KPISectionProps> = ({ dateRange, dealerFilter = '' })
         description="Contracts cancelled in this period"
         icon={AlertTriangle}
         color="destructive"
-        trend={{
-          value: 1.8,
-          isPositive: false, 
-          label: "from last period"
-        }}
       />
       <KPICard
         title="Open Claims"
@@ -65,11 +50,6 @@ const KPISection: React.FC<KPISectionProps> = ({ dateRange, dealerFilter = '' })
         description="Claims currently open"
         icon={FileCheck}
         color="info"
-        trend={{
-          value: 2.5,
-          isPositive: false,
-          label: "from last period"
-        }}
       />
     </div>
   );

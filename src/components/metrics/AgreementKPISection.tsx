@@ -29,11 +29,6 @@ const AgreementKPISection: React.FC<AgreementKPISectionProps> = ({ dateRange, de
         description="Contracts in pending status"
         icon={Clock}
         color="warning"
-        trend={{
-          value: 2.3,
-          isPositive: true,
-          label: "from last period"
-        }}
       />
       <KPICard
         title="Newly Active Contracts"
@@ -41,11 +36,6 @@ const AgreementKPISection: React.FC<AgreementKPISectionProps> = ({ dateRange, de
         description="Contracts activated in this period"
         icon={FileSignature}
         color="success"
-        trend={{
-          value: 4.1,
-          isPositive: true,
-          label: "from last period"
-        }}
       />
       <KPICard
         title="Cancelled Contracts"
@@ -53,11 +43,6 @@ const AgreementKPISection: React.FC<AgreementKPISectionProps> = ({ dateRange, de
         description="Contracts cancelled in this period"
         icon={AlertTriangle}
         color="destructive"
-        trend={{
-          value: 1.8,
-          isPositive: false, 
-          label: "from last period"
-        }}
       />
     </div>
   );

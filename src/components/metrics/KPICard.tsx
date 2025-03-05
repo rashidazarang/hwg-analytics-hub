@@ -4,7 +4,7 @@ import {
   Card, 
   CardContent 
 } from '@/components/ui/card';
-import { LucideIcon, TrendingDown, TrendingUp } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 
 type KPICardProps = {
   title: string;
@@ -54,17 +54,6 @@ const KPICard: React.FC<KPICardProps> = ({
           <div>
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <h3 className="kpi-value mt-2">{value}</h3>
-            
-            {trend && (
-              <div className={trend.isPositive ? 'trend-up' : 'trend-down'}>
-                {trend.isPositive ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
-                <span className="text-xs font-medium">{trend.value}% {trend.label}</span>
-              </div>
-            )}
             
             {description && (
               <p className="text-xs text-muted-foreground mt-2">{description}</p>
