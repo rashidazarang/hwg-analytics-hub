@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
-import KPISection from '@/components/metrics/KPISection';
-import DashboardCharts from '@/components/charts/DashboardCharts';
+import TabSwitchedKPISection from '@/components/metrics/TabSwitchedKPISection';
+import TabSwitchedDashboardCharts from '@/components/charts/TabSwitchedDashboardCharts';
 import DashboardTables from '@/components/tables/DashboardTables';
 import DealershipSearch from '@/components/search/DealershipSearch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -115,10 +116,17 @@ const Index = () => {
       <main>
         <Dashboard 
           onDateRangeChange={handleDateRangeChange}
-          kpiSection={<KPISection dateRange={dateRange} dealerFilter={dealershipUUID} />}
+          kpiSection={
+            <TabSwitchedKPISection 
+              activeTab={activeTab} 
+              dateRange={dateRange} 
+              dealerFilter={dealershipUUID} 
+            />
+          }
           subnavbar={subnavbarContent}
         >
-          <DashboardCharts 
+          <TabSwitchedDashboardCharts 
+            activeTab={activeTab}
             dateRange={dateRange}
             dealershipFilter={dealershipUUID}
           />

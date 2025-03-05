@@ -105,6 +105,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           totalDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           averageClaimAmount,
           totalClaimsAmount,
+          statusBreakdown: claimsResult.statusBreakdown,
         };
       } catch (error) {
         console.error('[KPI_DATA] Error fetching KPIs:', error);
@@ -112,7 +113,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           pendingContracts: 0,
           newlyActiveContracts: 0,
           cancelledContracts: 0,
-          openClaims: 0, // Fixed typo here
+          openClaims: 0,
           activeAgreements: 0,
           totalAgreements: 0,
           totalClaims: 0,
@@ -120,6 +121,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           totalDealers: 0,
           averageClaimAmount: 0,
           totalClaimsAmount: 0,
+          statusBreakdown: { OPEN: 0, PENDING: 0, CLOSED: 0 },
         };
       }
     },

@@ -1,4 +1,3 @@
-
 export interface KPIData {
   activeAgreements: number;
   totalAgreements: number;
@@ -11,6 +10,11 @@ export interface KPIData {
   pendingContracts: number;
   newlyActiveContracts: number;
   cancelledContracts: number;
+  statusBreakdown?: {
+    OPEN: number;
+    PENDING: number;
+    CLOSED: number;
+  };
 }
 
 export interface Agreement {
