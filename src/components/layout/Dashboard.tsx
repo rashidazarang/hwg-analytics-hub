@@ -1,10 +1,12 @@
 
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DateRangeFilter from '../filters/DateRangeFilter';
 import { DateRange } from '@/lib/dateUtils';
 import AuthNav from '../navigation/AuthNav';
 import { Menu, X } from 'lucide-react';
 import { Button } from '../ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 type DashboardProps = {
   onDateRangeChange: (range: DateRange) => void;
@@ -20,10 +22,39 @@ const Dashboard: React.FC<DashboardProps> = ({
   subnavbar,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        navigate('/auth');
+      } else {
+        setIsAuthenticated(true);
+      }
+    };
+    
+    checkAuth();
+    
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate('/auth');
+      }
+    });
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
+
+  if (!isAuthenticated) {
+    return null; // Don't render anything if not authenticated
+  }
 
   return (
     <div className="min-h-screen bg-background">

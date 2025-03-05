@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
 import TabSwitchedKPISection from '@/components/metrics/TabSwitchedKPISection';
@@ -45,6 +46,7 @@ const fetchClaimsForCharts = async (dealerFilter?: string): Promise<Claim[]> => 
 };
 
 const Index = () => {
+  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(new Date().getFullYear(), 0, 1),
     to: new Date()
@@ -53,6 +55,18 @@ const Index = () => {
   const [dealershipName, setDealershipName] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('agreements');
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Check authentication
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        navigate('/auth');
+      }
+    };
+    
+    checkSession();
+  }, [navigate]);
 
   const handleDateRangeChange = (range: DateRange) => {
     console.log("📅 Date range changed in Index:", range);

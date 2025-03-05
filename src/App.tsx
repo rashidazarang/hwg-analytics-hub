@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Account from "./pages/Account";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient({
@@ -32,8 +33,13 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/" element={<Index />} />
+            
+            {/* Protected routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/account" element={<Account />} />
+            </Route>
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
