@@ -73,13 +73,14 @@ export async function fetchClaimsData({
     // Apply sorting - consistent across all components
     query = query.order('LastModified', { ascending: false });
 
-    // Apply pagination if needed
-    if (pagination) {
-      const { page, pageSize } = pagination;
-      const startRow = (page - 1) * pageSize;
-      const endRow = startRow + pageSize - 1;
-      query = query.range(startRow, endRow);
-    }
+// Apply pagination only if the pagination parameter is explicitly provided
+if (pagination !== undefined && pagination.pageSize !== undefined) {
+  const { page, pageSize } = pagination;
+  const startRow = (page - 1) * pageSize;
+  const endRow = startRow + pageSize - 1;
+  query = query.range(startRow, endRow);
+}
+// If pagination is not provided, do not apply any row limit
     // Important: No longer applying any limit here when pagination is not specified
     // This ensures that we fetch ALL claims that match the filter criteria
 
