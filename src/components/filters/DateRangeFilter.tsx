@@ -104,17 +104,19 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
               </div>
             </div>
           </div>
-          <CalendarComponent
-            mode="range"
-            selected={{
-              from: dateRange.from,
-              to: dateRange.to,
-            }}
-            onSelect={handleDateRangeChange as any}
-            numberOfMonths={1}
-            defaultMonth={dateRange.from}
-            initialFocus
-          />
+          <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+            <CalendarComponent
+              mode="range"
+              selected={{
+                from: dateRange.from,
+                to: dateRange.to,
+              }}
+              onSelect={handleDateRangeChange as any}
+              numberOfMonths={1}
+              defaultMonth={dateRange.from}
+              initialFocus
+            />
+          </div>
           <div className="p-3 border-t flex justify-end">
             <Button 
               variant="default" 
