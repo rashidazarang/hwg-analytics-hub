@@ -1,17 +1,18 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Mail, Lock, UserPlus, LogIn } from 'lucide-react';
+import { Loader2, Mail, Lock, UserPlus, LogIn, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Check if user is already logged in
@@ -39,9 +40,10 @@ const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     
     if (!email || !password) {
-      toast.error('Please fill in all fields');
+      setAuthError('Please fill in all fields');
       return;
     }
     
@@ -65,9 +67,12 @@ const Auth = () => {
       }
       
       if (result.error) {
+        setAuthError(result.error.message);
         toast.error(result.error.message);
       } else {
         if (isSignUp && !result.data?.session) {
+          // With email confirmation OFF, we should still have a session here
+          // But keeping this logic in case email confirmation is turned back ON
           toast.success('Registration successful! Please check your email to confirm your account.');
         } else {
           toast.success(isSignUp ? 'Registration successful!' : 'Login successful!');
@@ -76,6 +81,7 @@ const Auth = () => {
       }
     } catch (error) {
       console.error('Authentication error:', error);
+      setAuthError('An unexpected error occurred');
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -93,6 +99,13 @@ const Auth = () => {
               : 'Sign in to continue to your dashboard'}
           </p>
         </div>
+
+        {authError && (
+          <Alert variant="destructive" className="animate-in fade-in">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{authError}</AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleAuth} className="space-y-6">
           <div className="space-y-4">
@@ -169,7 +182,10 @@ const Auth = () => {
             {isSignUp ? 'Already have an account?' : "Don't have an account?"}
             <Button
               variant="link"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setAuthError(null);
+              }}
               disabled={isLoading}
               className="ml-1"
             >

@@ -22,39 +22,11 @@ const Dashboard: React.FC<DashboardProps> = ({
   subnavbar,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        navigate('/auth');
-      } else {
-        setIsAuthenticated(true);
-      }
-    };
-    
-    checkAuth();
-    
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate('/auth');
-      }
-    });
-    
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [navigate]);
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
-
-  if (!isAuthenticated) {
-    return null; // Don't render anything if not authenticated
-  }
 
   return (
     <div className="min-h-screen bg-background">

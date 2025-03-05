@@ -29,9 +29,10 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Sonner />
+        <Sonner position="top-right" closeButton expand={false} />
         <BrowserRouter>
           <Routes>
+            {/* Public routes */}
             <Route path="/auth" element={<Auth />} />
             
             {/* Protected routes */}
@@ -40,6 +41,7 @@ const App = () => {
               <Route path="/account" element={<Account />} />
             </Route>
             
+            {/* Not found route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

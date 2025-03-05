@@ -713,6 +713,10 @@ export type Database = {
       }
     }
     Functions: {
+      check_auth_setup: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       count_agreements_by_status: {
         Args: {
           from_date: string
