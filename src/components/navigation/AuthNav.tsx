@@ -41,17 +41,17 @@ const AuthNav = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         menuOpen && 
-        buttonRef.current && 
-        !buttonRef.current.contains(event.target as Node) &&
         menuRef.current && 
-        !menuRef.current.contains(event.target as Node)
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current && 
+        !buttonRef.current.contains(event.target as Node)
       ) {
         setMenuOpen(false);
       }
     };
 
-    // Add the event listener only when the menu is open
     if (menuOpen) {
+      // Add listener only when menu is open
       document.addEventListener('mousedown', handleClickOutside);
     }
     
@@ -69,8 +69,9 @@ const AuthNav = () => {
   };
 
   const toggleMenu = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent the click from immediately triggering the document event
-    setMenuOpen(prevState => !prevState);
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuOpen(!menuOpen);
   };
 
   const navigateToAccount = () => {

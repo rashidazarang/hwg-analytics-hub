@@ -10,7 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { DateRange, DateRangePreset, formatDateRange, getPresetDateRange } from '@/lib/dateUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetTrigger, 
+  SheetTitle,
+  SheetDescription 
+} from '@/components/ui/sheet';
 
 type DateRangeFilterProps = {
   onChange: (range: DateRange) => void;
@@ -139,6 +145,8 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="mobile-date-sheet pt-2 overflow-auto max-h-[90vh]">
+            <SheetTitle className="sr-only">Date Range Selection</SheetTitle>
+            <SheetDescription className="sr-only">Select a date range for filtering data</SheetDescription>
             <div className="rounded-t-xl bg-white date-range-mobile-wrapper">
               {CalendarContent}
             </div>
