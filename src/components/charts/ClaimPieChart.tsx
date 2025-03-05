@@ -42,6 +42,7 @@ const ClaimPieChart: React.FC<ClaimPieChartProps> = ({
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   
   // Use the shared claims data hook via useClaimsChartData
+  // This now retrieves ALL claims through the batched fetching logic
   const {
     data: claimsData,
     isLoading: isFetching,

@@ -12,7 +12,7 @@ type ClaimKPISectionProps = {
 
 const ClaimKPISection: React.FC<ClaimKPISectionProps> = ({ dateRange, dealerFilter = '' }) => {
   // Fetch KPI data based on date range and dealer filter
-  // This now gets ALL claims through the updated fetching logic
+  // This now gets ALL claims through the updated batched fetching logic
   const { data: kpis, isLoading, error } = useKPIData({ 
     dateRange, 
     dealerFilter 

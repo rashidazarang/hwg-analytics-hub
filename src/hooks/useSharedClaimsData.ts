@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -73,12 +74,104 @@ export async function fetchClaimsData({
     query = query.order('LastModified', { ascending: false });
 
     // Only apply pagination if explicitly requested
-    // Otherwise fetch ALL records without any limit
     if (pagination !== undefined && pagination.pageSize !== undefined) {
       const { page, pageSize } = pagination;
       const startRow = (page - 1) * pageSize;
       const endRow = startRow + pageSize - 1;
       query = query.range(startRow, endRow);
+    } else {
+      // CRITICAL FIX: We must override Supabase's default limit when no pagination is provided
+      // Fetch records in batches to get around Supabase's default limit
+      
+      // First, get the total count
+      const countQuery = supabase
+        .from("claims")
+        .select('id', { count: 'exact' })
+        .gte('LastModified', dateRange.from.toISOString())
+        .lte('LastModified', dateRange.to.toISOString());
+      
+      // Apply dealer filter to count query if provided
+      if (dealerFilter && dealerFilter.trim() !== '') {
+        countQuery.eq('agreements.DealerUUID', dealerFilter.trim());
+      }
+      
+      const { count: totalCount, error: countError } = await countQuery;
+      
+      if (countError) {
+        console.error('[SHARED_CLAIMS] Error getting total count:', countError);
+        throw countError;
+      }
+      
+      // If we have a large dataset, we need to fetch in batches
+      if (totalCount && totalCount > 1000) {
+        console.log(`[SHARED_CLAIMS] Total claims count is ${totalCount}, fetching in batches`);
+        
+        // Set up for batched fetching
+        const batchSize = 1000; // Supabase's max range size
+        const totalBatches = Math.ceil(totalCount / batchSize);
+        let allData: any[] = [];
+        
+        // Fetch data in parallel batches to improve performance
+        const batchPromises = Array.from({ length: totalBatches }, (_, i) => {
+          const start = i * batchSize;
+          const end = start + batchSize - 1;
+          
+          return supabase
+            .from("claims")
+            .select(`
+              id,
+              ClaimID, 
+              AgreementID,
+              ReportedDate, 
+              Closed,
+              Cause,
+              Correction,
+              Deductible,
+              LastModified,
+              agreements!inner(DealerUUID, dealers(Payee))
+            `)
+            .gte('LastModified', dateRange.from.toISOString())
+            .lte('LastModified', dateRange.to.toISOString())
+            .order('LastModified', { ascending: false })
+            .range(start, end)
+            .then(result => {
+              if (result.error) throw result.error;
+              console.log(`[SHARED_CLAIMS] Fetched batch ${i+1}/${totalBatches} with ${result.data.length} records`);
+              return result.data;
+            });
+        });
+        
+        // Collect all the batched data
+        const batchResults = await Promise.all(batchPromises);
+        allData = batchResults.flat();
+        
+        // Initialize status counters
+        const statusBreakdown = {
+          OPEN: 0,
+          PENDING: 0,
+          CLOSED: 0
+        };
+        
+        // Count claims by status
+        allData.forEach(claim => {
+          const status = getClaimStatus(claim);
+          if (status in statusBreakdown) {
+            statusBreakdown[status as keyof typeof statusBreakdown]++;
+          }
+        });
+        
+        console.log(`[SHARED_CLAIMS] Fetched all ${allData.length} claims in ${totalBatches} batches`);
+        console.log('[SHARED_CLAIMS] Status breakdown:', statusBreakdown);
+        
+        return {
+          data: allData,
+          count: totalCount,
+          statusBreakdown
+        };
+      }
+      
+      // If count is small enough, proceed with normal fetch
+      console.log(`[SHARED_CLAIMS] Total count (${totalCount}) is under 1000, fetching normally`);
     }
 
     const { data, error, count } = await query;
