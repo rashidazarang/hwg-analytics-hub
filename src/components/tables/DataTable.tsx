@@ -211,12 +211,12 @@ const DataTable = <T extends Record<string, any>>({
       <div className="rounded-lg border overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-gray-50">
               <TableRow>
                 {columns.map((column) => (
                   <TableHead 
                     key={column.key}
-                    className={column.sortable ? 'cursor-pointer' : ''}
+                    className={`${column.sortable ? 'cursor-pointer' : ''} sm:h-12 h-16`}
                     onClick={() => column.sortable && handleSort(column.key)}
                   >
                     <div className="flex items-center">
