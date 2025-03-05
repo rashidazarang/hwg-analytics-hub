@@ -92,6 +92,7 @@ export async function fetchClaimsData({
       
       // Apply dealer filter to count query if provided
       if (dealerFilter && dealerFilter.trim() !== '') {
+        // FIX: This line was missing the inner join needed for filtering
         countQuery.eq('agreements.DealerUUID', dealerFilter.trim());
       }
       
@@ -116,7 +117,7 @@ export async function fetchClaimsData({
           const start = i * batchSize;
           const end = start + batchSize - 1;
           
-          return supabase
+          let batchQuery = supabase
             .from("claims")
             .select(`
               id,
@@ -133,12 +134,18 @@ export async function fetchClaimsData({
             .gte('LastModified', dateRange.from.toISOString())
             .lte('LastModified', dateRange.to.toISOString())
             .order('LastModified', { ascending: false })
-            .range(start, end)
-            .then(result => {
-              if (result.error) throw result.error;
-              console.log(`[SHARED_CLAIMS] Fetched batch ${i+1}/${totalBatches} with ${result.data.length} records`);
-              return result.data;
-            });
+            .range(start, end);
+          
+          // FIX: Apply dealer filter to each batch query
+          if (dealerFilter && dealerFilter.trim() !== '') {
+            batchQuery = batchQuery.eq('agreements.DealerUUID', dealerFilter.trim());
+          }
+          
+          return batchQuery.then(result => {
+            if (result.error) throw result.error;
+            console.log(`[SHARED_CLAIMS] Fetched batch ${i+1}/${totalBatches} with ${result.data.length} records`);
+            return result.data;
+          });
         });
         
         // Collect all the batched data
