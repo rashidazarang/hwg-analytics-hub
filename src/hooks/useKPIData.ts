@@ -71,6 +71,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         });
 
         // Use the shared claims data fetching function for consistent filtering
+        // Important: NOT specifying any pagination to get ALL claims
         const claimsResult = await fetchClaimsData({
           dateRange,
           dealerFilter,

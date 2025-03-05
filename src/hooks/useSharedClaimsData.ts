@@ -80,6 +80,8 @@ export async function fetchClaimsData({
       const endRow = startRow + pageSize - 1;
       query = query.range(startRow, endRow);
     }
+    // Important: No longer applying any limit here when pagination is not specified
+    // This ensures that we fetch ALL claims that match the filter criteria
 
     const { data, error, count } = await query;
 
