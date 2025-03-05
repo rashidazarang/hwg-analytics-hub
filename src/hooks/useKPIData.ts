@@ -71,12 +71,16 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         });
 
         // Use the shared claims data fetching function for consistent filtering
-        // Important: NOT specifying any pagination to get ALL claims
+        // Get ALL claims without pagination limitation
         const claimsResult = await fetchClaimsData({
           dateRange,
           dealerFilter,
           includeCount: true
         });
+        
+        console.log('[KPI_DATA] Claims total count:', claimsResult.count);
+        console.log('[KPI_DATA] Claims fetched count:', claimsResult.data.length);
+        console.log('[KPI_DATA] Claims breakdown:', claimsResult.statusBreakdown);
         
         // Get total agreements count for this date range
         const { count: totalAgreementsCount } = await supabase

@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -73,17 +72,14 @@ export async function fetchClaimsData({
     // Apply sorting - consistent across all components
     query = query.order('LastModified', { ascending: false });
 
-if (pagination !== undefined && pagination.pageSize !== undefined) {
-  const { page, pageSize } = pagination;
-  const startRow = (page - 1) * pageSize;
-  const endRow = startRow + pageSize - 1;
-  query = query.range(startRow, endRow);
-} else {
-  // No pagination provided; override default limit by fetching a very large range.
-  query = query.range(0, 1000000);
-}
-    // Important: No longer applying any limit here when pagination is not specified
-    // This ensures that we fetch ALL claims that match the filter criteria
+    // Only apply pagination if explicitly requested
+    // Otherwise fetch ALL records without any limit
+    if (pagination !== undefined && pagination.pageSize !== undefined) {
+      const { page, pageSize } = pagination;
+      const startRow = (page - 1) * pageSize;
+      const endRow = startRow + pageSize - 1;
+      query = query.range(startRow, endRow);
+    }
 
     const { data, error, count } = await query;
 

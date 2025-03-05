@@ -18,7 +18,6 @@ const ClaimChart: React.FC<ClaimChartProps> = ({
   const [animatedData, setAnimatedData] = useState<any[]>([]);
   
   // Use the shared claims data hook via useClaimsChartData
-  // This now gets ALL claims through the updated fetching logic 
   const {
     data: claimsData,
     isLoading: isFetching,
