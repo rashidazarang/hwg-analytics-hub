@@ -32,9 +32,12 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     const searchValue = e.target.value;
     setSearchTerm(searchValue);
     setShowSuggestions(true); // Always show suggestions when typing
-    if (!searchValue.trim()) {
-      setShowSuggestions(false); // Hide suggestions if the search field is empty
+    
+    // On mobile, ensure suggestions are visible even if search field is empty
+    if (!searchValue.trim() && !isMobile) {
+      setShowSuggestions(false);
     }
+    
     console.log('🔍 Search Term:', searchValue);
   };
 
@@ -133,7 +136,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   // For mobile, ensure body scroll is disabled when suggestions are shown
   useEffect(() => {
     if (isMobile && showSuggestions) {
-      // Optional: prevent body scroll when suggestions are open on mobile
+      // Prevent body scroll when suggestions are open on mobile
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = '';
@@ -148,7 +151,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
           searchTerm={searchTerm}
           isLoading={isLoadingDealerships}
           onChange={handleSearchChange}
-          onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))}
+          onFocus={() => setShowSuggestions(true)}
           onClear={handleClearSearch}
           onSubmit={handleSearchSubmit}
         />

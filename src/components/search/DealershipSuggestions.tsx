@@ -26,10 +26,15 @@ const DealershipSuggestions: React.FC<DealershipSuggestionsProps> = ({
   if (!showSuggestions) return null;
 
   return (
-    <div className={cn(
-      "absolute mt-1 w-full rounded-md bg-white shadow-lg border border-border/20 z-50 max-h-60 overflow-auto animate-fade-in search-dropdown",
-      isMobile && "fixed left-4 right-4 top-auto w-auto mt-2"
-    )}>
+    <div 
+      className={cn(
+        "absolute mt-1 w-full bg-white shadow-lg border border-border/20 rounded-md z-[9999] max-h-60 overflow-auto animate-fade-in",
+        isMobile ? "fixed top-[65px] left-0 right-0 mx-4 w-auto" : ""
+      )}
+      style={{ 
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)"
+      }}
+    >
       {isLoading ? (
         <div className="px-4 py-3 text-sm text-muted-foreground flex items-center justify-center">
           <Loader2 className="mr-2 animate-spin h-4 w-4 text-primary/50" />
