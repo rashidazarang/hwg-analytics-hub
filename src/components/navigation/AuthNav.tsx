@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +12,8 @@ const AuthNav = () => {
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Get initial session
@@ -34,6 +36,31 @@ const AuthNav = () => {
     };
   }, []);
 
+  // Add global click handler
+  useEffect(() => {
+    const handleGlobalClick = (event: MouseEvent) => {
+      // Skip if menu is not open
+      if (!menuOpen) return;
+      
+      // Check if click is outside both the button and the menu
+      const isClickInside = 
+        (menuButtonRef.current && menuButtonRef.current.contains(event.target as Node)) ||
+        (menuRef.current && menuRef.current.contains(event.target as Node));
+      
+      if (!isClickInside) {
+        setMenuOpen(false);
+      }
+    };
+    
+    // Add event listener to document
+    document.addEventListener('mousedown', handleGlobalClick);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleGlobalClick);
+    };
+  }, [menuOpen]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast.success('You have been signed out');
@@ -42,7 +69,7 @@ const AuthNav = () => {
   };
 
   const toggleMenu = () => {
-    setMenuOpen(!menuOpen);
+    setMenuOpen(prevOpen => !prevOpen);
   };
 
   const navigateToAccount = () => {
@@ -66,16 +93,17 @@ const AuthNav = () => {
         onClick={toggleMenu}
         aria-label="Account menu"
         className="h-7 w-7 xs:h-8 xs:w-8 rounded-full bg-muted/50 hover:bg-muted transition-all duration-200"
+        ref={menuButtonRef}
       >
         <User className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
       </Button>
       
       <AccountMenu 
         isOpen={menuOpen} 
-        onClose={() => setMenuOpen(false)}
         onAccountClick={navigateToAccount}
         onLogoutClick={handleSignOut}
-        email={user.email} 
+        email={user.email}
+        menuRef={menuRef}
       />
     </div>
   ) : (

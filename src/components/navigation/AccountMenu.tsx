@@ -1,42 +1,23 @@
 
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { User, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AccountMenuProps {
   isOpen: boolean;
-  onClose: () => void;
   onAccountClick: () => void;
   onLogoutClick: () => void;
   email: string;
+  menuRef: React.RefObject<HTMLDivElement>;
 }
 
 const AccountMenu: React.FC<AccountMenuProps> = ({
   isOpen,
-  onClose,
   onAccountClick,
   onLogoutClick,
-  email
+  email,
+  menuRef
 }) => {
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Close menu when clicking outside
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   return (

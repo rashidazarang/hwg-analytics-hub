@@ -19,7 +19,9 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedDealershipId, setSelectedDealershipId] = useState<string>('');
+  const [inputRect, setInputRect] = useState<DOMRect | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -114,6 +116,13 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     });
   };
 
+  // Update input rect when showing suggestions
+  useEffect(() => {
+    if (showSuggestions && inputRef.current) {
+      setInputRect(inputRef.current.getBoundingClientRect());
+    }
+  }, [showSuggestions]);
+
   // Handle click outside to close suggestions
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -130,17 +139,6 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     };
   }, []);
 
-  // For mobile, ensure body scroll is disabled when suggestions are shown
-  useEffect(() => {
-    if (isMobile && showSuggestions) {
-      // Optional: prevent body scroll when suggestions are open on mobile
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = '';
-      };
-    }
-  }, [isMobile, showSuggestions]);
-
   return (
     <div ref={searchContainerRef} className="relative w-full">
       <form onSubmit={(e) => handleSearchSubmit(e)} className="relative">
@@ -151,6 +149,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
           onFocus={() => setShowSuggestions(Boolean(searchTerm.trim()))}
           onClear={handleClearSearch}
           onSubmit={handleSearchSubmit}
+          inputRef={inputRef}
         />
         
         <DealershipSuggestions
@@ -160,6 +159,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
           filteredDealerships={filteredDealerships}
           selectedDealershipId={selectedDealershipId}
           onDealershipClick={handleDealershipClick}
+          inputRect={inputRect}
         />
       </form>
     </div>
