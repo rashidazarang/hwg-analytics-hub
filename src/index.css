@@ -173,6 +173,22 @@
   .search-field {
     @apply bg-muted/20 border-border/30 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20;
   }
+  
+  .mobile-menu {
+    @apply rounded-md shadow-md border border-border/40 overflow-hidden;
+  }
+  
+  .mobile-toggle {
+    @apply bg-muted/30 hover:bg-muted transition-colors duration-200;
+  }
+  
+  .mobile-menu-header {
+    @apply flex items-center justify-between p-3 border-b border-border/30;
+  }
+  
+  .mobile-menu-body {
+    @apply p-3 space-y-3;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -233,8 +249,19 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
-.animate-slide-up {
-  animation: slideUp 0.4s ease-out forwards;
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out forwards;
 }
 
 @keyframes slideUp {
@@ -246,4 +273,8 @@
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out forwards;
 }
