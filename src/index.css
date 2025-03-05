@@ -225,6 +225,41 @@
   @apply border-primary/50;
 }
 
+.mobile-date-sheet {
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+  border-top: 1px solid hsl(var(--border));
+  padding: 16px 16px 0 16px;
+}
+
+.date-range-mobile-wrapper {
+  @apply shadow-sm overflow-hidden;
+}
+
+@media (max-width: 640px) {
+  .rdp-cell, .rdp-day {
+    @apply p-1;
+  }
+  
+  .rdp-button {
+    @apply h-10 w-10 text-base;
+  }
+  
+  .mobile-date-sheet .rdp-caption {
+    @apply py-2;
+  }
+  
+  .mobile-date-sheet .rdp-caption_label {
+    @apply text-base font-medium;
+  }
+  
+  .mobile-date-sheet [role="dialog"] {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+}
+
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
