@@ -2,6 +2,8 @@
 import React from 'react';
 import AgreementChart from '@/components/charts/AgreementChart';
 import ClaimChart from '@/components/charts/ClaimChart';
+import AgreementBarChart from '@/components/charts/AgreementBarChart';
+import ClaimPieChart from '@/components/charts/ClaimPieChart';
 import { DateRange } from '@/lib/dateUtils';
 
 type TabSwitchedDashboardChartsProps = {
@@ -20,17 +22,29 @@ const TabSwitchedDashboardCharts: React.FC<TabSwitchedDashboardChartsProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
       {activeTab === 'agreements' && (
-        <AgreementChart 
-          dateRange={dateRange} 
-          dealerFilter={dealershipFilter} 
-        />
+        <>
+          <AgreementChart 
+            dateRange={dateRange} 
+            dealerFilter={dealershipFilter} 
+          />
+          <AgreementBarChart
+            dateRange={dateRange}
+            dealerFilter={dealershipFilter}
+          />
+        </>
       )}
       
       {activeTab === 'claims' && (
-        <ClaimChart 
-          dateRange={dateRange} 
-          dealershipFilter={dealershipFilter} 
-        />
+        <>
+          <ClaimPieChart
+            dateRange={dateRange}
+            dealershipFilter={dealershipFilter}
+          />
+          <ClaimChart 
+            dateRange={dateRange} 
+            dealershipFilter={dealershipFilter} 
+          />
+        </>
       )}
     </div>
   );
