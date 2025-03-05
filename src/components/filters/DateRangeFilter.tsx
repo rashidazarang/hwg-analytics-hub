@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { DateRange, DateRangePreset, formatDateRange, getPresetDateRange } from '@/lib/dateUtils';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 type DateRangeFilterProps = {
@@ -21,7 +21,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   const [preset, setPreset] = useState<DateRangePreset>('ytd');
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
   const [isOpen, setIsOpen] = useState(false);
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   
   // Ensure the date range is applied on mount with a slight delay to ensure all components are ready
   useEffect(() => {
