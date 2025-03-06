@@ -86,25 +86,25 @@ const Index = () => {
 
   const subnavbarContent = (
     <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-      <div className="w-full sm:w-auto">
+      <div className="w-full">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="h-8 xs:h-9 p-0.5 bg-muted/70 w-full sm:w-auto">
+          <TabsList className="h-8 xs:h-9 p-0.5 bg-muted/70 w-full">
             <TabsTrigger 
               value="agreements" 
-              className="text-xs xs:text-sm w-1/2 sm:w-auto px-2 xs:px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="text-xs xs:text-sm w-1/2 px-2 xs:px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Agreements
             </TabsTrigger>
             <TabsTrigger 
               value="claims" 
-              className="text-xs xs:text-sm w-1/2 sm:w-auto px-2 xs:px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="text-xs xs:text-sm w-1/2 px-2 xs:px-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Claims
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
-      <div className="w-full sm:w-auto min-w-0 sm:min-w-[240px]">
+      <div className="w-full min-w-0">
         <DealershipSearch 
           onDealershipSelect={handleDealershipSelect}
           searchTerm={searchTerm}

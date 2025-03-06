@@ -48,21 +48,15 @@ const KPICard: React.FC<KPICardProps> = ({
   };
 
   return (
-    <Card className={`overflow-hidden card-hover-effect ${colorVariants[color]} ${className}`}>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <h3 className="kpi-value mt-2">{value}</h3>
-            
-            {description && (
-              <p className="text-xs text-muted-foreground mt-2">{description}</p>
-            )}
-          </div>
+    <Card className={`overflow-hidden ${colorVariants[color]} ${className}`}>
+      <CardContent className="p-4">
+        <div>
+          <p className="text-sm font-medium mb-1">{title}</p>
+          <h3 className="text-2xl sm:text-3xl font-semibold">{value}</h3>
           
-          <div className={`p-2 rounded-full ${colorVariants[color]} bg-opacity-20`}>
-            <Icon className={`h-5 w-5 ${iconColorVariants[color]}`} />
-          </div>
+          {description && (
+            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          )}
         </div>
       </CardContent>
     </Card>

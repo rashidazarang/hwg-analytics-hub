@@ -113,7 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:ml-64">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
-          <div className="px-4 sm:px-6 py-3">
+          <div className="px-2 sm:px-6 py-2">
             <div className="flex justify-between items-center">
               {/* Mobile Controls */}
               <div className="flex items-center md:hidden">
@@ -132,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h1 className="hidden md:block text-xl font-semibold tracking-tight">Dashboard</h1>
               
               {/* Controls - right side */}
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 {isMobile ? (
                   <Button 
                     variant="ghost" 
@@ -152,7 +152,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           
           {/* Mobile Filter Panel */}
           {mobileFiltersOpen && (
-            <div className="mobile-menu mt-1 p-4 bg-background border rounded-md shadow-md animate-slide-down mx-4 mb-3">
+            <div className="mobile-menu mt-1 p-3 bg-background border rounded-md shadow-md animate-slide-down mx-3 mb-2">
               <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
               <DateRangeFilter onChange={onDateRangeChange} />
             </div>
@@ -160,15 +160,15 @@ const Dashboard: React.FC<DashboardProps> = ({
           
           {/* Subnavbar for desktop - if provided */}
           {subnavbar && (
-            <div className="border-t border-border/30 bg-gray-100/10">
-              <div className="px-4 sm:px-6 py-2">
+            <div className="border-t border-border/30 bg-background">
+              <div className="px-2 sm:px-6 py-2">
                 {subnavbar}
               </div>
             </div>
           )}
         </header>
         
-        <main className="px-4 sm:px-6 py-4 md:py-6 space-y-6 md:space-y-8 animate-fade-in">
+        <main className="px-2 sm:px-6 py-3 md:py-6 space-y-4 md:space-y-8 animate-fade-in">
           {/* KPI Metrics Section */}
           <section className="animate-slide-up" style={{ animationDelay: '100ms' }}>
             {kpiSection}
