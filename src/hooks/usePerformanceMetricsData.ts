@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
@@ -53,19 +54,23 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // For 6 Months: Show exactly previous 6 months from today (e.g., Oct 2024 - Mar 2025)
-      const sixMonthsEnd = offsetPeriods === 0 ? now : addMonths(now, offsetPeriods * 6);
+      // For 6 Months: Show exactly previous 6 months (e.g., Oct 2024 - Mar 2025)
+      const currentMonthEnd = offsetPeriods === 0 ? now : addMonths(endOfMonth(now), offsetPeriods * 6);
+      const sixMonthsAgoStart = startOfMonth(subMonths(currentMonthEnd, 5)); // Go back 5 months from current month
+      
       return {
-        start: startOfMonth(subMonths(sixMonthsEnd, 5)), // Go back 5 months from the end month (total of 6 months including current)
-        end: offsetPeriods === 0 ? now : endOfMonth(sixMonthsEnd)
+        start: sixMonthsAgoStart,
+        end: offsetPeriods === 0 ? now : currentMonthEnd
       };
     
     case 'year':
       // For Year: Show exactly 12 months (e.g., Mar 2024 - Mar 2025)
-      const yearEnd = offsetPeriods === 0 ? now : addMonths(now, offsetPeriods * 12);
+      const currentYearEnd = offsetPeriods === 0 ? now : addMonths(endOfMonth(now), offsetPeriods * 12);
+      const oneYearAgoStart = startOfMonth(subMonths(currentYearEnd, 11)); // Go back 11 months from current month
+      
       return {
-        start: startOfMonth(subMonths(yearEnd, 11)), // Go back 11 months from the end month (total of 12 months including current)
-        end: offsetPeriods === 0 ? now : endOfMonth(yearEnd)
+        start: oneYearAgoStart,
+        end: offsetPeriods === 0 ? now : currentYearEnd
       };
       
     default:

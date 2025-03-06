@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { 
@@ -29,14 +28,11 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   
-  // Ensure the date range is applied on mount with a slight delay to ensure all components are ready
+  // Apply the date range only once on mount
   useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log("Initial DateRange applied:", dateRange);
-      onChange(dateRange);
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    console.log("Initial DateRange applied:", dateRange);
+    onChange(dateRange);
+    // Intentionally empty dependency array to run only on mount
   }, []);
 
   const handlePresetChange = (newPreset: DateRangePreset) => {
@@ -64,11 +60,6 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
     onChange({...dateRange});
     setIsOpen(false);
   };
-
-  // Add a forced refresh whenever dateRange changes
-  useEffect(() => {
-    console.log("DateRange updated:", dateRange);
-  }, [dateRange]);
 
   // Calendar content shared between mobile and desktop
   const CalendarContent = (
