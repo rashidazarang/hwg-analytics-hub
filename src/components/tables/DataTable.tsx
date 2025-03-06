@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export type Column<T> = {
   key: string;
   title: string;
-  render?: (row: T) => React.ReactNode;
+  render?: (row: T, index: number) => React.ReactNode;
   sortable?: boolean;
   searchable?: boolean;
 };
@@ -244,7 +244,7 @@ const DataTable = <T extends Record<string, any>>({
                   </TableCell>
                 </TableRow>
               ) : (
-                displayData.map((row) => (
+                displayData.map((row, rowIndex) => (
                   <TableRow 
                     key={rowKey(row)} 
                     className={onRowClick ? 'cursor-pointer hover:bg-accent/50' : ''}
@@ -252,7 +252,7 @@ const DataTable = <T extends Record<string, any>>({
                   >
                     {columns.map((column) => (
                       <TableCell key={`${rowKey(row)}-${column.key}`}>
-                        {column.render ? column.render(row) : row[column.key]}
+                        {column.render ? column.render(row, rowIndex) : row[column.key]}
                       </TableCell>
                     ))}
                   </TableRow>

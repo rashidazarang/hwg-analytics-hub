@@ -1,5 +1,5 @@
 
-import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from 'date-fns';
+import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format, subMonths } from 'date-fns';
 
 export type DateRange = {
   from: Date;
@@ -7,6 +7,16 @@ export type DateRange = {
 };
 
 export type DateRangePreset = 'wtd' | 'mtd' | 'ytd' | 'custom';
+
+// Function to get today's date
+export function today(): Date {
+  return new Date();
+}
+
+// Function to get date of 1 month ago
+export function lastMonth(): Date {
+  return subMonths(new Date(), 1);
+}
 
 export function getPresetDateRange(preset: DateRangePreset): DateRange {
   const today = new Date();

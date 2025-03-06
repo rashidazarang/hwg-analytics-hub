@@ -15,7 +15,7 @@ const TopAgentsTable: React.FC<TopAgentsTableProps> = ({ data, isLoading }) => {
     {
       key: 'rank',
       title: 'Rank',
-      render: (_, index) => (
+      render: (row, index) => (
         <div className="flex items-center">
           <span className="font-semibold text-lg">{index + 1}</span>
         </div>

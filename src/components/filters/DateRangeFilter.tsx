@@ -19,27 +19,27 @@ import {
 } from '@/components/ui/sheet';
 
 type DateRangeFilterProps = {
+  dateRange: DateRange;
   onChange: (range: DateRange) => void;
 };
 
-const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
+const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange }) => {
   // Set default preset to 'ytd' instead of 'mtd'
   const [preset, setPreset] = useState<DateRangePreset>('ytd');
-  const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
+  const [localDateRange, setLocalDateRange] = useState<DateRange>(dateRange);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   
-  // Apply the date range only once on initial mount
+  // Update local state when props change
   useEffect(() => {
-    console.log("Initial DateRange applied:", dateRange);
-    onChange(dateRange);
-  }, []); // Intentionally empty dependency array to run only once on mount
+    setLocalDateRange(dateRange);
+  }, [dateRange]);
 
   const handlePresetChange = useCallback((newPreset: DateRangePreset) => {
     setPreset(newPreset);
     const newRange = getPresetDateRange(newPreset);
     console.log(`Preset changed to ${newPreset}:`, newRange);
-    setDateRange(newRange);
+    setLocalDateRange(newRange);
     onChange(newRange);
     if (newPreset !== 'custom' && isMobile) {
       setIsOpen(false);
@@ -49,7 +49,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
     if (range?.from && range?.to) {
       console.log("Custom date range selected:", range);
-      setDateRange(range);
+      setLocalDateRange(range);
       setPreset('custom');
       onChange(range);
     }
@@ -57,9 +57,9 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
 
   const handleApply = useCallback(() => {
     // Force reapply the current dateRange to trigger a refetch
-    onChange({...dateRange});
+    onChange({...localDateRange});
     setIsOpen(false);
-  }, [dateRange, onChange]);
+  }, [localDateRange, onChange]);
 
   // Calendar content shared between mobile and desktop
   const CalendarContent = (
@@ -98,12 +98,12 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
       <CalendarComponent
         mode="range"
         selected={{
-          from: dateRange.from,
-          to: dateRange.to,
+          from: localDateRange.from,
+          to: localDateRange.to,
         }}
         onSelect={handleDateRangeChange as any}
         numberOfMonths={1}
-        defaultMonth={dateRange.from}
+        defaultMonth={localDateRange.from}
         initialFocus
         className="rounded-md shadow-sm"
       />
@@ -132,7 +132,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
               variant="ghost" 
               className="pl-1 xs:pl-2 pr-1 py-1 h-7 xs:h-8 hover:bg-accent date-range-selector text-xs xs:text-sm truncate flex-1 w-full justify-between"
             >
-              <span className="font-medium truncate">{formatDateRange(dateRange)}</span>
+              <span className="font-medium truncate">{formatDateRange(localDateRange)}</span>
               <ChevronDown className="ml-1 h-3 w-3 text-muted-foreground flex-shrink-0" />
             </Button>
           </SheetTrigger>
@@ -161,7 +161,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
             className="pl-1 xs:pl-2 pr-1 py-1 h-7 xs:h-8 hover:bg-accent date-range-selector text-xs xs:text-sm truncate flex-1 w-full justify-between"
             onClick={() => setIsOpen(true)}
           >
-            <span className="font-medium truncate">{formatDateRange(dateRange)}</span>
+            <span className="font-medium truncate">{formatDateRange(localDateRange)}</span>
             <ChevronDown className="ml-1 h-3 w-3 text-muted-foreground flex-shrink-0" />
           </Button>
         </PopoverTrigger>
