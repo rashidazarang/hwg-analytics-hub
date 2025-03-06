@@ -19,7 +19,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
       key: 'rank',
       title: 'Rank',
       render: (row, index) => {
-        // Calculate the correct rank based on the original index in the data array
+        // Calculate the actual rank based on original data (not paginated)
         const dataIndex = data.findIndex(item => item.dealer_name === row.dealer_name);
         return (
           <div className="flex items-center">
