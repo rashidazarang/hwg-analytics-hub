@@ -58,7 +58,12 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
 }) => {
   const [chartWidth, setChartWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [averageValue, setAverageValue] = useState<number>(0);
+  // Calculate average once when data changes
+  const averageValue = React.useMemo(() => {
+    if (!data || data.length === 0) return 0;
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    return Math.round(total / data.length);
+  }, [data]);
 
   const handlePrevious = useCallback(() => {
     onPeriodChange(currentOffset - 1);
@@ -69,17 +74,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
       onPeriodChange(currentOffset + 1);
     }
   }, [currentOffset, onPeriodChange]);
-
-  // Calculate the average value safely
-  useEffect(() => {
-    if (!data || data.length === 0) {
-      setAverageValue(0);
-      return;
-    }
-    
-    const total = data.reduce((sum, item) => sum + item.value, 0);
-    setAverageValue(Math.round(total / data.length));
-  }, [data]);
 
   // Handle resize for responsive chart
   useEffect(() => {

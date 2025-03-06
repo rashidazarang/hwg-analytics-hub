@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   startOfWeek, 
   endOfWeek, 
@@ -79,7 +79,7 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
 }
 
 // A more efficient function to fetch monthly counts directly from the database
-async function fetchMonthlyAgreementCounts(timeframe: TimeframeOption, startDate: Date, endDate: Date) {
+async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
   console.log(`Efficiently fetching monthly aggregated data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
   
   const { data, error } = await supabase
@@ -127,31 +127,39 @@ export function usePerformanceMetricsData(
   timeframe: TimeframeOption,
   offsetPeriods: number = 0
 ): PerformanceData {
-  const [timeframeData, setTimeframeData] = useState<PerformanceDataPoint[]>([]);
-  
   // Calculate the date range based on timeframe and offset
-  const { start: startDate, end: endDate } = getTimeframeDateRange(timeframe, offsetPeriods);
+  const { start: startDate, end: endDate } = useMemo(() => 
+    getTimeframeDateRange(timeframe, offsetPeriods), 
+    [timeframe, offsetPeriods]
+  );
   
-  // Format dates for Supabase query
-  const formattedStartDate = startDate.toISOString();
-  const formattedEndDate = endDate.toISOString();
+  // Format dates for Supabase query - use memo to prevent recalculation
+  const formattedDates = useMemo(() => ({
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString()
+  }), [startDate, endDate]);
   
-  // Use a more efficient query strategy based on timeframe
+  // Use a query key that doesn't change unless needed
+  const queryKey = useMemo(() => 
+    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate], 
+    [timeframe, formattedDates.startDate, formattedDates.endDate]
+  );
+  
+  // Define query function that's stable across renders
   const queryFn = useCallback(async () => {
-    // Only log once per fetch to reduce console noise
-    console.log(`Fetching data for ${timeframe} from ${formattedStartDate} to ${formattedEndDate}`);
+    console.log(`Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}`);
     
     // For 6months and year, use the optimized monthly fetching
     if (timeframe === '6months' || timeframe === 'year') {
-      return await fetchMonthlyAgreementCounts(timeframe, startDate, endDate);
+      return await fetchMonthlyAgreementCounts(startDate, endDate);
     }
     
     // For week and month, fetch raw data and process on the client
     const { data, error } = await supabase
       .from('agreements')
       .select('EffectiveDate')
-      .gte('EffectiveDate', formattedStartDate)
-      .lte('EffectiveDate', formattedEndDate);
+      .gte('EffectiveDate', formattedDates.startDate)
+      .lte('EffectiveDate', formattedDates.endDate);
     
     if (error) {
       console.error("Error fetching agreement data:", error);
@@ -159,23 +167,24 @@ export function usePerformanceMetricsData(
     }
     
     return data || [];
-  }, [timeframe, formattedStartDate, formattedEndDate, startDate, endDate]);
+  }, [timeframe, formattedDates, startDate, endDate]);
   
-  // Query to fetch agreement counts with better caching and fewer fetches
+  // Query to fetch agreement counts with better caching
   const { data, isLoading, error } = useQuery({
-    queryKey: ['performance-metrics', timeframe, formattedStartDate, formattedEndDate],
+    queryKey: queryKey,
     queryFn: queryFn,
     staleTime: 5 * 60 * 1000, // Cache data for 5 minutes
-    refetchOnWindowFocus: false // Don't refetch when window gets focus
+    refetchOnWindowFocus: false, // Don't refetch when window gets focus
+    refetchOnMount: false, // Don't refetch when component mounts
   });
   
-  useEffect(() => {
-    if (isLoading || !data) return;
+  // Process data using useMemo to prevent unnecessary processing
+  const processedData = useMemo(() => {
+    if (isLoading || !data) return [];
     
     // If we already have formatted data from the optimized query
     if (Array.isArray(data) && data.length > 0 && 'label' in data[0]) {
-      setTimeframeData(data as PerformanceDataPoint[]);
-      return;
+      return data as PerformanceDataPoint[];
     }
     
     // For week and month views, process the raw data
@@ -218,11 +227,11 @@ export function usePerformanceMetricsData(
         break;
     }
     
-    setTimeframeData(formattedData);
+    return formattedData;
   }, [data, isLoading, timeframe, startDate, endDate]);
   
   return {
-    data: timeframeData,
+    data: processedData,
     startDate,
     endDate,
     loading: isLoading,

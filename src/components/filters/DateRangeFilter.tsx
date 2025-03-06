@@ -33,7 +33,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   useEffect(() => {
     console.log("Initial DateRange applied:", dateRange);
     onChange(dateRange);
-  }, []);  // Intentionally empty dependency array to run only once on mount
+  }, []); // Intentionally empty dependency array to run only once on mount
 
   const handlePresetChange = useCallback((newPreset: DateRangePreset) => {
     setPreset(newPreset);
