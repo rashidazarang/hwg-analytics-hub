@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Account from "./pages/Account";
+import PerformanceMetrics from "./pages/PerformanceMetrics";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 const App = () => {
@@ -36,6 +37,7 @@ const App = () => {
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
+              <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/account" element={<Account />} />
             </Route>
             

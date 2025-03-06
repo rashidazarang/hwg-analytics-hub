@@ -1,12 +1,11 @@
 
 import React, { ReactNode, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import DateRangeFilter from '../filters/DateRangeFilter';
 import { DateRange } from '@/lib/dateUtils';
 import AuthNav from '../navigation/AuthNav';
-import { Menu, X, Calendar, User } from 'lucide-react';
+import { Menu, X, Calendar, BarChart } from 'lucide-react';
 import { Button } from '../ui/button';
-import { supabase } from '@/integrations/supabase/client';
 
 type DashboardProps = {
   onDateRangeChange: (range: DateRange) => void;
@@ -66,6 +65,27 @@ const Dashboard: React.FC<DashboardProps> = ({
             
             {/* Desktop controls - only visible on larger screens */}
             <div className="hidden sm:flex sm:items-center sm:space-x-3">
+              <nav className="mr-4">
+                <ul className="flex space-x-4">
+                  <li>
+                    <Link 
+                      to="/" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Overview
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      to="/performance" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center"
+                    >
+                      <BarChart className="mr-1 h-3.5 w-3.5" />
+                      Performance
+                    </Link>
+                  </li>
+                </ul>
+              </nav>
               <DateRangeFilter onChange={onDateRangeChange} />
               <AuthNav />
             </div>
@@ -113,6 +133,29 @@ const Dashboard: React.FC<DashboardProps> = ({
             {/* Mobile menu panel */}
             {mobileMenuOpen && (
               <div className="mobile-menu mt-3 bg-background border rounded-md shadow-md overflow-hidden animate-slide-down">
+                <nav className="p-3 border-b border-border/30">
+                  <ul className="space-y-2">
+                    <li>
+                      <Link 
+                        to="/" 
+                        className="block px-2 py-1.5 rounded-md text-sm font-medium hover:bg-muted/50 transition-colors"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Overview
+                      </Link>
+                    </li>
+                    <li>
+                      <Link 
+                        to="/performance" 
+                        className="block px-2 py-1.5 rounded-md text-sm font-medium hover:bg-muted/50 transition-colors flex items-center"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <BarChart className="mr-1 h-3.5 w-3.5" />
+                        Performance
+                      </Link>
+                    </li>
+                  </ul>
+                </nav>
                 {subnavbar && (
                   <div className="p-3 border-b border-border/30 bg-muted/20">
                     {subnavbar}
