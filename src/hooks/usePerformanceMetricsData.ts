@@ -78,45 +78,49 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
   
   const { data, error } = await supabase
     .from('agreements')
-    .select('EffectiveDate')
+    .select('EffectiveDate', { count: 'exact' }) // Fetch count directly from Supabase
     .gte('EffectiveDate', startDate.toISOString())
     .lte('EffectiveDate', endDate.toISOString());
-  
+
   if (error) {
     console.error("Error fetching agreement data:", error);
     throw new Error(error.message);
   }
-  
-  // Process the data by month
-  const monthlyData: Record<string, number> = {};
+
+  // Ensure data is in the correct format
+  if (!data || !Array.isArray(data)) {
+    return [];
+  }
+
+  // Group and count agreements per month
+  const monthlyCounts: Record<string, number> = {};
   const months = eachMonthOfInterval({ start: startDate, end: endDate });
-  
-  // Initialize all months with zero to ensure we have entries for months with no data
+
+  // Initialize each month with 0
   months.forEach(month => {
     const monthKey = format(month, 'yyyy-MM');
-    monthlyData[monthKey] = 0;
+    monthlyCounts[monthKey] = 0;
   });
-  
-  // Count agreements by month
-  if (data) {
-    data.forEach(agreement => {
-      const date = new Date(agreement.EffectiveDate);
-      const monthKey = format(date, 'yyyy-MM');
-      monthlyData[monthKey] = (monthlyData[monthKey] || 0) + 1;
-    });
-  }
-  
-  // Convert to array format for the chart
+
+  // Aggregate agreements per month
+  data.forEach(({ EffectiveDate }) => {
+    const date = new Date(EffectiveDate);
+    const monthKey = format(date, 'yyyy-MM');
+    if (monthlyCounts[monthKey] !== undefined) {
+      monthlyCounts[monthKey] += 1;
+    }
+  });
+
+  // Convert object to array for the chart
   return months.map(month => {
     const monthKey = format(month, 'yyyy-MM');
     return {
-      label: format(month, 'MMM').toLowerCase(),
-      value: monthlyData[monthKey] || 0,
+      label: format(month, 'MMM').toLowerCase(), // Display as 'jan', 'feb', etc.
+      value: monthlyCounts[monthKey] || 0, // Ensure at least 0 if no data
       rawDate: month
     };
   });
 }
-
 export function usePerformanceMetricsData(
   timeframe: TimeframeOption,
   offsetPeriods: number = 0
