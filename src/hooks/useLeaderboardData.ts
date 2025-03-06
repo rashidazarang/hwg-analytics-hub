@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -34,12 +33,12 @@ export function useTopAgentsData({ dateRange }: { dateRange: DateRange }) {
   });
 }
 
-// Hook to fetch top dealers data
+// Hook to fetch all dealers data (removed limit)
 export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['topDealers', dateRange.from, dateRange.to],
     queryFn: async (): Promise<TopDealer[]> => {
-      console.log('[LEADERBOARD] Fetching top dealers with date range:', {
+      console.log('[LEADERBOARD] Fetching all dealers with date range:', {
         from: dateRange.from.toISOString(),
         to: dateRange.to.toISOString()
       });
@@ -49,12 +48,12 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         {
           start_date: dateRange.from.toISOString(),
           end_date: dateRange.to.toISOString(),
-          limit_count: 10
+          // Removed limit_count parameter to fetch all dealers
         }
       );
 
       if (error) {
-        console.error('[LEADERBOARD] Error fetching top dealers:', error);
+        console.error('[LEADERBOARD] Error fetching dealers:', error);
         throw error;
       }
 
