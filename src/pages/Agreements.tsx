@@ -4,8 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
 import AgreementKPISection from '@/components/metrics/AgreementKPISection';
-import AgreementChart from '@/components/charts/AgreementChart';
-import AgreementBarChart from '@/components/charts/AgreementBarChart';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import DealershipSearch from '@/components/search/DealershipSearch';
 import { supabase } from '@/integrations/supabase/client';
@@ -76,20 +74,6 @@ const Agreements = () => {
       pageTitle="Agreements Dashboard"
     >
       <div className="w-full overflow-x-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 xs:gap-4 sm:gap-6 mb-4 sm:mb-6 lg:mb-8 w-full overflow-hidden">
-          <div className="w-full min-w-0 overflow-hidden">
-            <AgreementChart 
-              dateRange={dateRange} 
-              dealerFilter={dealershipUUID} 
-            />
-          </div>
-          <div className="w-full min-w-0 overflow-hidden">
-            <AgreementBarChart
-              dateRange={dateRange}
-              dealerFilter={dealershipUUID}
-            />
-          </div>
-        </div>
         <AgreementsTable
           dateRange={dateRange}
           dealerFilter={dealershipUUID}
