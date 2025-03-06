@@ -115,7 +115,7 @@ const Sidebar: React.FC = () => {
         className={cn(
           "bg-white shadow-sm transition-all duration-300 ease-in-out z-40",
           isMobile 
-            ? "fixed inset-y-0 left-0 w-64 transform"
+            ? "fixed inset-y-0 left-0 w-64 transform" 
             : "flex w-64 flex-col fixed inset-y-0 z-30",
           isMobile && !isOpen ? "-translate-x-full" : "translate-x-0"
         )}

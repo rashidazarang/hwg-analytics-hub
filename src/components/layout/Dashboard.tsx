@@ -8,6 +8,7 @@ import { Calendar } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import Sidebar from '../navigation/Sidebar';
 
 type DashboardProps = {
   onDateRangeChange: (range: DateRange) => void;
@@ -38,9 +39,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen dashboard-content flex">
-      {/* Main Content - adjusted to work with new sidebar */}
-      <div className="flex-1 flex flex-col w-full max-w-full md:ml-64">
+    <div className="min-h-screen dashboard-content sidebar-layout">
+      {/* Sidebar Component */}
+      <Sidebar />
+      
+      {/* Main Content - adjusted to work with sidebar */}
+      <div className="sidebar-layout-content">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
           <div className="px-2 xs:px-3 sm:px-6 py-2 sm:py-3">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
