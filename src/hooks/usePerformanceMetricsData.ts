@@ -91,10 +91,11 @@ export function usePerformanceMetricsData(
   const formattedStartDate = startDate.toISOString();
   const formattedEndDate = endDate.toISOString();
   
-  // Query to fetch agreement counts
+  // Query to fetch agreement counts - optimize with better caching and fewer fetches
   const { data, isLoading, error } = useQuery({
-    queryKey: ['performance-metrics', timeframe, offsetPeriods, formattedStartDate, formattedEndDate],
+    queryKey: ['performance-metrics', timeframe, offsetPeriods],
     queryFn: async () => {
+      // Only log once per fetch to reduce console noise
       console.log(`Fetching data for ${timeframe} from ${formattedStartDate} to ${formattedEndDate}`);
       
       // Fetch agreement data from Supabase
@@ -110,7 +111,9 @@ export function usePerformanceMetricsData(
       }
       
       return data || [];
-    }
+    },
+    staleTime: 5 * 60 * 1000, // Cache data for 5 minutes
+    refetchOnWindowFocus: false // Don't refetch when window gets focus
   });
   
   useEffect(() => {
@@ -156,31 +159,10 @@ export function usePerformanceMetricsData(
         break;
         
       case '6months':
-        // Group by days for 6 months
+      case 'year':
+        // Group by months for both 6 months and year views
         const months = eachMonthOfInterval({ start: startDate, end: endDate });
         formattedData = months.map(month => {
-          const monthEnd = endOfMonth(month);
-          
-          const monthAgreements = agreements.filter(agreement => {
-            const effectiveDate = new Date(agreement.EffectiveDate);
-            return (
-              effectiveDate >= month && 
-              effectiveDate <= monthEnd
-            );
-          });
-          
-          return {
-            label: format(month, 'MMM').toLowerCase(),
-            value: monthAgreements.length,
-            rawDate: month
-          };
-        });
-        break;
-        
-      case 'year':
-        // Group by months for year
-        const yearMonths = eachMonthOfInterval({ start: startDate, end: endDate });
-        formattedData = yearMonths.map(month => {
           const monthEnd = endOfMonth(month);
           
           const monthAgreements = agreements.filter(agreement => {

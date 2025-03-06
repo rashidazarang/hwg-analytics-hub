@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { 
   Popover, 
@@ -35,7 +36,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
     // Intentionally empty dependency array to run only on mount
   }, []);
 
-  const handlePresetChange = (newPreset: DateRangePreset) => {
+  const handlePresetChange = useCallback((newPreset: DateRangePreset) => {
     setPreset(newPreset);
     const newRange = getPresetDateRange(newPreset);
     console.log(`Preset changed to ${newPreset}:`, newRange);
@@ -44,22 +45,22 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
     if (newPreset !== 'custom' && isMobile) {
       setIsOpen(false);
     }
-  };
+  }, [onChange, isMobile]);
 
-  const handleDateRangeChange = (range: DateRange | undefined) => {
+  const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
     if (range?.from && range?.to) {
       console.log("Custom date range selected:", range);
       setDateRange(range);
       setPreset('custom');
       onChange(range);
     }
-  };
+  }, [onChange]);
 
-  const handleApply = () => {
+  const handleApply = useCallback(() => {
     // Force reapply the current dateRange to trigger a refetch
     onChange({...dateRange});
     setIsOpen(false);
-  };
+  }, [dateRange, onChange]);
 
   // Calendar content shared between mobile and desktop
   const CalendarContent = (
