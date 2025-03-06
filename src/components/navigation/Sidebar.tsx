@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart, Home, Trophy, User, Settings, FileSignature, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SidebarItemProps = {
@@ -55,16 +55,6 @@ const sidebarItems = [
     name: "Leaderboard",
     path: "/leaderboard",
     icon: Trophy
-  },
-  {
-    name: "Account",
-    path: "/account",
-    icon: User
-  },
-  {
-    name: "Settings",
-    path: "/settings",
-    icon: Settings
   }
 ];
 

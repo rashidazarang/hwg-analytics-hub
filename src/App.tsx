@@ -14,20 +14,7 @@ import Agreements from "./pages/Agreements";
 import Claims from "./pages/Claims";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
-// Add Settings page with fixed sidebar
-const Settings = () => (
-  <div className="min-h-screen flex">
-    <Sidebar />
-    <div className="ml-64 flex-1 p-6">
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
-      <div className="bg-white shadow rounded-lg p-6">
-        <p className="text-muted-foreground">Settings page content will be available soon.</p>
-      </div>
-    </div>
-  </div>
-);
-
-// Import Sidebar for Settings page
+// Import Sidebar for reference
 import Sidebar from "./components/navigation/Sidebar";
 
 const App = () => {
@@ -60,8 +47,6 @@ const App = () => {
               <Route path="/claims" element={<Claims />} />
               <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/account" element={<Account />} />
-              <Route path="/settings" element={<Settings />} />
             </Route>
             
             {/* Not found route */}
