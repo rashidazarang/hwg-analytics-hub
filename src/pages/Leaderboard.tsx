@@ -25,9 +25,9 @@ const Leaderboard: React.FC = () => {
   };
   return <div className="min-h-screen flex">
       <Sidebar />
-      <div className="ml-64 flex-1 p-6">
+      <div className="ml-64 flex-1 p-6 py-[12px]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-          <h1 className="font-bold mb-4 sm:mb-0 text-xl">Performance Leaderboard</h1>
+          <h1 className="font-bold mb-4 sm:mb-0 text-2xl">Performance Leaderboard</h1>
           <DateRangeFilter dateRange={dateRange} onChange={handleDateRangeChange} />
         </div>
 
