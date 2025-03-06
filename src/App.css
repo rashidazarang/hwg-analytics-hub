@@ -91,15 +91,15 @@
 
 /* Status color indicators for charts */
 .status-pending {
-  background-color: #E9A33B;
+  background-color: #F8D66D;
 }
 
 .status-active {
-  background-color: #4CA154;
+  background-color: #7ABD7E;
 }
 
 .status-cancelled {
-  background-color: #DD524C;
+  background-color: #FF6961;
 }
 
 @media (min-width: 640px) {
