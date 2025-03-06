@@ -11,7 +11,8 @@ import {
   endOfYear, 
   addDays, 
   addMonths, 
-  addWeeks, 
+  addWeeks,
+  addYears,
   format, 
   eachDayOfInterval, 
   eachWeekOfInterval, 
@@ -41,10 +42,9 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
   
   switch (timeframe) {
     case 'week':
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Start on Monday
       return {
-        start: addDays(weekStart, offsetPeriods * 7),
-        end: addDays(endOfWeek(now, { weekStartsOn: 1 }), offsetPeriods * 7)
+        start: addWeeks(startOfWeek(now, { weekStartsOn: 1 }), offsetPeriods),
+        end: addWeeks(endOfWeek(now, { weekStartsOn: 1 }), offsetPeriods)
       };
     
     case 'month':
@@ -54,23 +54,17 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // For 6 Months: Show exactly previous 6 months (e.g., Oct 2024 - Mar 2025)
-      const currentMonthEnd = offsetPeriods === 0 ? now : addMonths(endOfMonth(now), offsetPeriods * 6);
-      const sixMonthsAgoStart = startOfMonth(subMonths(currentMonthEnd, 5)); // Go back 5 months from current month
-      
+      // For 6 Months: Correctly handle offset periods in 6-month increments
       return {
-        start: sixMonthsAgoStart,
-        end: offsetPeriods === 0 ? now : currentMonthEnd
+        start: startOfMonth(addMonths(now, offsetPeriods * 6)),  // Move in 6-month increments
+        end: endOfMonth(addMonths(now, (offsetPeriods * 6) + 5)) // End date is 5 months after start
       };
     
     case 'year':
-      // For Year: Show exactly 12 months (e.g., Mar 2024 - Mar 2025)
-      const currentYearEnd = offsetPeriods === 0 ? now : addMonths(endOfMonth(now), offsetPeriods * 12);
-      const oneYearAgoStart = startOfMonth(subMonths(currentYearEnd, 11)); // Go back 11 months from current month
-      
+      // For Year: Correctly handle offset periods in 1-year increments
       return {
-        start: oneYearAgoStart,
-        end: offsetPeriods === 0 ? now : currentYearEnd
+        start: startOfYear(addYears(now, offsetPeriods)),  // Move in 1-year increments
+        end: endOfYear(addYears(now, offsetPeriods))
       };
       
     default:
@@ -80,7 +74,7 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
 
 // A more efficient function to fetch monthly counts directly from the database
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
-  console.log(`Efficiently fetching monthly aggregated data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  console.log(`Fetching monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
   
   const { data, error } = await supabase
     .from('agreements')

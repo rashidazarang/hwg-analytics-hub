@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -28,7 +28,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
     const isMonthView = format(dataPoint.rawDate, 'd') === '1';
     
     if (isMonthView) {
-      // For monthly data, show the month and year
+      // For monthly data, show the month and year with the total value
       formattedDate = format(dataPoint.rawDate, 'MMMM yyyy');
       tooltipContent = `Total Agreements: ${dataPoint.value.toLocaleString()}`;
     } else {
@@ -56,10 +56,11 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   currentOffset,
   className = '',
 }) => {
-  const [chartWidth, setChartWidth] = useState<number>(0);
+  const [chartWidth, setChartWidth] = React.useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  // Calculate average once when data changes
-  const averageValue = React.useMemo(() => {
+  
+  // Calculate average once when data changes using useMemo instead of useState+useEffect
+  const averageValue = useMemo(() => {
     if (!data || data.length === 0) return 0;
     const total = data.reduce((sum, item) => sum + item.value, 0);
     return Math.round(total / data.length);
@@ -70,9 +71,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   }, [currentOffset, onPeriodChange]);
 
   const handleNext = useCallback(() => {
-    if (currentOffset < 0) {
-      onPeriodChange(currentOffset + 1);
-    }
+    // Allow moving forward in time for all timeframes
+    onPeriodChange(currentOffset + 1);
   }, [currentOffset, onPeriodChange]);
 
   // Handle resize for responsive chart
@@ -116,12 +116,12 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         dateRange = `${format(firstDate, 'd')} de ${format(firstDate, 'MMM').toLowerCase()}–${format(lastDate, 'd')} de ${format(lastDate, 'MMM').toLowerCase()} ${format(lastDate, 'yyyy')}`;
         break;
       case '6months':
-        title = "PROMEDIO DIARIO";
+        title = "PROMEDIO MENSUAL";
         // Format: "Oct de 2024 - Mar de 2025"
         dateRange = `${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}–${format(lastDate, 'MMM').toLowerCase()} de ${format(lastDate, 'yyyy')}`;
         break;
       case 'year':
-        title = "PROMEDIO DIARIO";
+        title = "PROMEDIO MENSUAL";
         // Format: "Mar de 2024 - Mar de 2025"
         dateRange = `${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}–${format(lastDate, 'MMM').toLowerCase()} de ${format(lastDate, 'yyyy')}`;
         break;
@@ -208,7 +208,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
           variant="outline" 
           size="sm" 
           onClick={handleNext}
-          disabled={isLoading || currentOffset >= 0}
+          disabled={isLoading || (currentOffset >= 1)} // Only limit to 1 period forward
           className="border-gray-200"
         >
           <ChevronRight className="h-4 w-4" />
