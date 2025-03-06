@@ -11,7 +11,7 @@ import { useKPIData } from '@/hooks/useKPIData';
 import KPICard from '@/components/metrics/KPICard';
 import { BarChart, PieChart, FileSignature, Clock, AlertTriangle as AlertIcon } from 'lucide-react';
 import { useLeaderboardSummary } from '@/hooks/useLeaderboardData';
-import AgreementPieChart from '@/components/charts/AgreementPieChart';
+import { AgreementPieChart } from '@/components/charts/AgreementPieChart';
 import ClaimPieChart from '@/components/charts/ClaimPieChart';
 import { useTopDealersData, useTopAgentsData } from '@/hooks/useLeaderboardData';
 import DashboardSummaryKPIs from '@/components/metrics/DashboardSummaryKPIs';
