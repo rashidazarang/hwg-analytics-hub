@@ -10,6 +10,8 @@ import Auth from "./pages/Auth";
 import Account from "./pages/Account";
 import PerformanceMetrics from "./pages/PerformanceMetrics";
 import Leaderboard from "./pages/Leaderboard";
+import Agreements from "./pages/Agreements";
+import Claims from "./pages/Claims";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 // Add Settings page with fixed sidebar
@@ -54,6 +56,8 @@ const App = () => {
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
+              <Route path="/agreements" element={<Agreements />} />
+              <Route path="/claims" element={<Claims />} />
               <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/account" element={<Account />} />
