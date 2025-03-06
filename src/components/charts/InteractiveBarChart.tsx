@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+
+import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps, Legend } from 'recharts';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -70,6 +71,9 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   className = '',
 }) => {
   const [chartWidth, setChartWidth] = React.useState<number>(0);
+  const [animationKey, setAnimationKey] = useState<string>(`${timeframe}-${currentOffset}`);
+  const [prevData, setPrevData] = useState<PerformanceDataPoint[]>([]);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
   const averageValue = useMemo(() => {
@@ -85,6 +89,25 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const handleNext = useCallback(() => {
     onPeriodChange(currentOffset + 1);
   }, [currentOffset, onPeriodChange]);
+
+  // Effect to trigger animation on timeframe or data change
+  useEffect(() => {
+    if (data && data.length > 0) {
+      setIsTransitioning(true);
+      setPrevData(data);
+      
+      // Generate a unique key for the animation to reset it
+      const newKey = `${timeframe}-${currentOffset}-${Date.now()}`;
+      setAnimationKey(newKey);
+      
+      // Reset the transition flag after animation completes
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+      }, 700); // Slightly longer than animation duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, [timeframe, currentOffset, data]);
 
   useEffect(() => {
     const updateWidth = () => {
@@ -168,7 +191,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : data.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" key={animationKey}>
             <BarChart
               data={data}
               margin={{
@@ -177,7 +200,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 left: 10,
                 bottom: 20,
               }}
-              className="animate-fade-in"
+              className={cn("animate-fade-in", isTransitioning ? "opacity-100" : "")}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis 
@@ -206,6 +229,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
                 animationBegin={0}
+                animationEasing="ease-in-out"
               />
               <Bar 
                 dataKey="active" 
@@ -216,6 +240,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
                 animationBegin={100}
+                animationEasing="ease-in-out"
               />
               <Bar 
                 dataKey="cancelled" 
@@ -226,6 +251,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
                 animationBegin={200}
+                animationEasing="ease-in-out"
               />
             </BarChart>
           </ResponsiveContainer>
