@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import TimeframeFilter, { TimeframeOption } from '@/components/filters/TimeframeFilter';
 import InteractiveBarChart from '@/components/charts/InteractiveBarChart';
@@ -178,25 +179,24 @@ const PerformanceMetrics: React.FC = () => {
     <div className="min-h-screen flex">
       <Sidebar />
       <div className="ml-64 flex-1">
-        <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
-          <div className="px-6 py-3">
-            <div className="flex justify-between items-center">
-              <h1 className="text-xl font-semibold tracking-tight">Performance Metrics</h1>
-              <DateRangeFilter 
-                dateRange={dateRange}
-                onChange={handleDateRangeChange}
-              />
-            </div>
+        <main className="px-6 py-6 space-y-8">
+          {/* Header section with consistent styling */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+            <h1 className="text-2xl font-bold mb-4 sm:mb-0">Performance Metrics</h1>
+            <DateRangeFilter 
+              dateRange={dateRange}
+              onChange={handleDateRangeChange}
+            />
           </div>
           
-          <div className="border-t border-border/30 bg-gray-50">
-            <div className="px-6 py-2">
-              {metricsNavigation}
-            </div>
+          {/* TimeframeFilter with consistent styling */}
+          <div className="flex justify-center items-center w-full mb-6">
+            <TimeframeFilter 
+              selected={timeframe} 
+              onChange={handleTimeframeChange}
+            />
           </div>
-        </header>
-        
-        <main className="px-6 py-6 space-y-8">
+          
           {/* KPI Metrics Section */}
           <section className="animate-slide-up">
             <KPISection />

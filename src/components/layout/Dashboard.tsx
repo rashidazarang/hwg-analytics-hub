@@ -1,4 +1,3 @@
-
 import React, { ReactNode, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import DateRangeFilter from '../filters/DateRangeFilter';
@@ -15,6 +14,7 @@ type DashboardProps = {
   kpiSection: ReactNode;
   children: ReactNode;
   subnavbar?: ReactNode; // Prop for the subnavbar content
+  pageTitle?: string; // Added page title prop
 };
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -22,6 +22,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   kpiSection,
   children,
   subnavbar,
+  pageTitle = "Dashboard", // Default title
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -64,7 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <SheetContent side="left" className="p-0 sm:max-w-xs w-[80vw]">
           <div className="h-full flex flex-col">
             <div className="px-4 py-3 border-b">
-              <span className="text-lg font-semibold">Analytics Dashboard</span>
+              <span className="text-lg font-semibold">{pageTitle}</span>
             </div>
             <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
               <div>
@@ -120,11 +121,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-                <h1 className="text-base xs:text-lg font-semibold tracking-tight">Analytics Dashboard</h1>
+                <h1 className="text-base xs:text-lg font-semibold tracking-tight">{pageTitle}</h1>
               </div>
               
               {/* Desktop Page Title - hidden on mobile */}
-              <h1 className="hidden md:block text-xl font-semibold tracking-tight">Dashboard</h1>
+              <h1 className="hidden md:block text-2xl font-bold tracking-tight">{pageTitle}</h1>
               
               {/* Controls - right side */}
               <div className="flex items-center space-x-1 sm:space-x-3">

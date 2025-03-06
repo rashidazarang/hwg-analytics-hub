@@ -139,6 +139,7 @@ const Index = () => {
         />
       }
       subnavbar={subnavbarContent}
+      pageTitle="Analytics Dashboard" // Adding consistent page title
     >
       <div className="w-full overflow-x-hidden">
         <TabSwitchedDashboardCharts 
