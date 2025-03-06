@@ -1,29 +1,60 @@
 
 import React from 'react';
-import AgreementChart from '@/components/charts/AgreementChart';
-import ClaimChart from '@/components/charts/ClaimChart';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRange } from '@/lib/dateUtils';
+import AgreementPieChart from '@/components/charts/AgreementPieChart';
+import ClaimPieChart from '@/components/charts/ClaimPieChart';
+import { useAgreementStatusData } from '@/hooks/useAgreementStatusData';
+import { useClaimsChartData } from '@/hooks/useClaimsChartData';
 
-type DashboardChartsProps = {
+interface DashboardChartsProps {
   dateRange: DateRange;
-  dealershipFilter: string;
-};
+  dealerFilter: string;
+}
 
-const DashboardCharts: React.FC<DashboardChartsProps> = ({ 
-  dateRange, 
-  dealershipFilter
-}) => {
-  console.log('[DASHBOARD_CHARTS] Rendering with filters:', {
-    dateRange,
-    dealershipFilter
-  });
-  
+const DashboardCharts: React.FC<DashboardChartsProps> = ({ dateRange, dealerFilter }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-      <AgreementChart dateRange={dateRange} dealerFilter={dealershipFilter} />
-      <ClaimChart dateRange={dateRange} dealershipFilter={dealershipFilter} />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <Card className="card-hover-effect">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium">Agreements Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AgreementPieChart 
+            dateRange={dateRange} 
+            dealershipFilter={dealerFilter} 
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="card-hover-effect">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium">Claims Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ClaimPieChart 
+            dateRange={dateRange} 
+            dealershipFilter={dealerFilter} 
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="card-hover-effect">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium">Monthly Agreement Growth</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InteractiveBarChart 
+            dateRange={dateRange} 
+            dealerFilter={dealerFilter} 
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 };
+
+// Import the InteractiveBarChart component from the pre-existing components
+import InteractiveBarChart from '@/components/charts/InteractiveBarChart';
 
 export default DashboardCharts;
