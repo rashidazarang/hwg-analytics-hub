@@ -12,15 +12,21 @@ import PerformanceMetrics from "./pages/PerformanceMetrics";
 import Leaderboard from "./pages/Leaderboard";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
-// Add Settings page
+// Add Settings page with fixed sidebar
 const Settings = () => (
-  <div className="container mx-auto p-6">
-    <h1 className="text-2xl font-bold mb-6">Settings</h1>
-    <div className="bg-white shadow rounded-lg p-6">
-      <p className="text-muted-foreground">Settings page content will be available soon.</p>
+  <div className="min-h-screen flex">
+    <Sidebar />
+    <div className="ml-64 flex-1 p-6">
+      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+      <div className="bg-white shadow rounded-lg p-6">
+        <p className="text-muted-foreground">Settings page content will be available soon.</p>
+      </div>
     </div>
   </div>
 );
+
+// Import Sidebar for Settings page
+import Sidebar from "./components/navigation/Sidebar";
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient({

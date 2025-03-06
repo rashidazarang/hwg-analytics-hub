@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart, Home, Trophy, User, Settings } from 'lucide-react';
@@ -62,7 +63,7 @@ const Sidebar: React.FC = () => {
   const currentPath = location.pathname;
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
+    <aside className="flex w-64 flex-col fixed inset-y-0 z-30">
       <div className="flex-1 flex flex-col min-h-0 border-r bg-white shadow-sm">
         <div className="flex items-center h-16 px-4 border-b">
           <Link to="/" className="flex items-center">

@@ -3,23 +3,19 @@ import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { DateRange } from '@/lib/dateUtils';
 import DateRangeFilter from '@/components/filters/DateRangeFilter';
-import LeaderboardSummaryCards from '@/components/leaderboard/LeaderboardSummaryCards';
 import TopAgentsTable from '@/components/leaderboard/TopAgentsTable';
 import TopDealersTable from '@/components/leaderboard/TopDealersTable';
-import LeaderboardCharts from '@/components/leaderboard/LeaderboardCharts';
 import { 
   useTopAgentsData, 
-  useTopDealersData, 
-  useRevenueGrowthData,
-  useLeaderboardSummary
+  useTopDealersData 
 } from '@/hooks/useLeaderboardData';
-import { today, lastMonth } from '@/lib/dateUtils';
+import Sidebar from '@/components/navigation/Sidebar';
 
 const Leaderboard: React.FC = () => {
   // State for date range filter
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: lastMonth(),
-    to: today()
+    from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+    to: new Date()
   });
 
   // State for active tab
@@ -36,16 +32,6 @@ const Leaderboard: React.FC = () => {
     isLoading: isLoadingDealers 
   } = useTopDealersData({ dateRange });
 
-  const {
-    data: revenueGrowth,
-    isLoading: isLoadingGrowth
-  } = useRevenueGrowthData({ dateRange });
-
-  const {
-    data: summary,
-    isLoading: isLoadingSummary
-  } = useLeaderboardSummary({ dateRange });
-
   // Handle date range change
   const handleDateRangeChange = (range: DateRange) => {
     setDateRange(range);
@@ -57,61 +43,44 @@ const Leaderboard: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h1 className="text-2xl font-bold mb-4 sm:mb-0">Performance Leaderboard</h1>
-        <DateRangeFilter 
-          dateRange={dateRange}
-          onChange={handleDateRangeChange}
-        />
+    <div className="min-h-screen flex">
+      <Sidebar />
+      <div className="ml-64 flex-1 p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+          <h1 className="text-2xl font-bold mb-4 sm:mb-0">Performance Leaderboard</h1>
+          <DateRangeFilter 
+            dateRange={dateRange}
+            onChange={handleDateRangeChange}
+          />
+        </div>
+
+        {/* Tabbed Tables */}
+        <Tabs 
+          defaultValue={activeTab} 
+          value={activeTab} 
+          onValueChange={handleTabChange}
+          className="space-y-4"
+        >
+          <TabsList className="mb-4">
+            <TabsTrigger value="dealers">Dealers</TabsTrigger>
+            <TabsTrigger value="agents">Agents</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dealers" className="space-y-4">
+            <TopDealersTable 
+              data={topDealers || []}
+              isLoading={isLoadingDealers}
+            />
+          </TabsContent>
+
+          <TabsContent value="agents" className="space-y-4">
+            <TopAgentsTable 
+              data={topAgents || []}
+              isLoading={isLoadingAgents}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* Summary Cards */}
-      <LeaderboardSummaryCards 
-        data={summary || {
-          active_contracts: 0,
-          total_revenue: 0,
-          cancellation_rate: 0,
-          top_dealer: 'N/A',
-          top_agent: 'N/A'
-        }}
-        isLoading={isLoadingSummary}
-        growthRate={revenueGrowth?.growth_rate}
-      />
-
-      {/* Performance Charts */}
-      <LeaderboardCharts 
-        topAgents={topAgents || []}
-        topDealers={topDealers || []}
-        isLoading={isLoadingAgents || isLoadingDealers}
-      />
-
-      {/* Tabbed Tables */}
-      <Tabs 
-        defaultValue={activeTab} 
-        value={activeTab} 
-        onValueChange={handleTabChange}
-        className="space-y-4"
-      >
-        <TabsList className="mb-4">
-          <TabsTrigger value="dealers">Dealers</TabsTrigger>
-          <TabsTrigger value="agents">Agents</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="dealers" className="space-y-4">
-          <TopDealersTable 
-            data={topDealers || []}
-            isLoading={isLoadingDealers}
-          />
-        </TabsContent>
-
-        <TabsContent value="agents" className="space-y-4">
-          <TopAgentsTable 
-            data={topAgents || []}
-            isLoading={isLoadingAgents}
-          />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 };
