@@ -5,7 +5,6 @@ import {
   CardContent 
 } from '@/components/ui/card';
 import { LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 type KPICardProps = {
   title: string;
@@ -49,31 +48,20 @@ const KPICard: React.FC<KPICardProps> = ({
   };
 
   return (
-    <Card className={cn(
-      "overflow-hidden card-hover-effect border border-gray-100",
-      colorVariants[color],
-      className
-    )}>
-      <CardContent className="p-4 sm:p-6 md:p-8">
+    <Card className={`overflow-hidden card-hover-effect ${colorVariants[color]} ${className} border border-gray-100`}>
+      <CardContent className="p-6 sm:p-8">
         <div className="flex justify-between items-start">
           <div className="text-left">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <h3 className="kpi-value mt-2 sm:mt-3 font-bold text-xl sm:text-2xl md:text-3xl tracking-tight">{value}</h3>
+            <h3 className="kpi-value mt-3 font-bold text-2xl sm:text-3xl tracking-tight">{value}</h3>
             
             {description && (
-              <p className="text-xs text-muted-foreground mt-1 sm:mt-2">{description}</p>
+              <p className="text-xs text-muted-foreground mt-2">{description}</p>
             )}
           </div>
           
-          <div className={cn(
-            "p-2 sm:p-3 rounded-full",
-            colorVariants[color],
-            "bg-opacity-30"
-          )}>
-            <Icon className={cn(
-              "h-5 w-5 sm:h-6 sm:w-6",
-              iconColorVariants[color]
-            )} />
+          <div className={`p-3 rounded-full ${colorVariants[color]} bg-opacity-30`}>
+            <Icon className={`h-6 w-6 ${iconColorVariants[color]}`} />
           </div>
         </div>
       </CardContent>
