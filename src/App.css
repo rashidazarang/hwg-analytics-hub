@@ -1,3 +1,4 @@
+
 #root {
   max-width: 100%;
   margin: 0 auto;
@@ -91,7 +92,7 @@
 
 @media (min-width: 640px) {
   .chart-container {
-    height: 400px;  /* Increased height for larger screens */
+    height: 500px;  /* Increased height from 400px to 500px for larger screens */
   }
 }
 
