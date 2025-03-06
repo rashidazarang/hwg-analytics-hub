@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps, Legend } from 'recharts';
 import { format } from 'date-fns';
@@ -31,21 +30,20 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
       formattedDate = format(dataPoint.rawDate, 'MMM d, yyyy');
     }
     
-    // Create detailed breakdown for tooltip
     tooltipContent = (
       <>
         <p className="text-primary font-medium">Total Agreements: {dataPoint.value.toLocaleString()}</p>
         <div className="mt-2 text-sm space-y-1">
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#FEF7CD] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 bg-[#FDE1D3] mr-2 rounded-sm"></span>
             Pending: {dataPoint.pending.toLocaleString()}
           </p>
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#F2FCE2] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 bg-[#D3E4FD] mr-2 rounded-sm"></span>
             Active: {dataPoint.active.toLocaleString()}
           </p>
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#ea384c] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 bg-[#FFDEE2] mr-2 rounded-sm"></span>
             Cancelled: {dataPoint.cancelled.toLocaleString()}
           </p>
         </div>
@@ -139,19 +137,18 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
 
   const { dateRange } = getDateRange();
 
-  // Define custom legend for the chart with corrected colors
   const CustomLegend = () => (
     <div className="flex flex-wrap justify-center items-center gap-4 mt-2 mb-4">
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#FEF7CD] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 bg-[#FDE1D3] mr-2 rounded-sm"></span>
         <span className="text-sm text-gray-600">Pending</span>
       </div>
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#F2FCE2] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 bg-[#D3E4FD] mr-2 rounded-sm"></span>
         <span className="text-sm text-gray-600">Active</span>
       </div>
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#ea384c] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 bg-[#FFDEE2] mr-2 rounded-sm"></span>
         <span className="text-sm text-gray-600">Cancelled</span>
       </div>
     </div>
@@ -200,12 +197,11 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
               
-              {/* Stacked bars with correct colors */}
               <Bar 
                 dataKey="pending" 
                 name="Pending" 
                 stackId="a"
-                fill="#FEF7CD"  
+                fill="#FDE1D3"  
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
@@ -215,7 +211,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="active" 
                 name="Active" 
                 stackId="a" 
-                fill="#F2FCE2"
+                fill="#D3E4FD"
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
@@ -225,8 +221,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="cancelled" 
                 name="Cancelled" 
                 stackId="a" 
-                fill="#ea384c"
-                radius={[6, 6, 0, 0]}  // Only top corners rounded
+                fill="#FFDEE2"
+                radius={[6, 6, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
                 animationBegin={200}
