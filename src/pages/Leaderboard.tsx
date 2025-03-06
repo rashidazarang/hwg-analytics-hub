@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { DateRange } from '@/lib/dateUtils';
 import DateRangeFilter from '@/components/filters/DateRangeFilter';
 import TopDealersTable from '@/components/leaderboard/TopDealersTable';
-import { useTopDealersData } from '@/hooks/useLeaderboardData';
+import { useTopDealersData } from '@/hooks/leaderboard/useTopDealersData';
 import Sidebar from '@/components/navigation/Sidebar';
+
 const Leaderboard: React.FC = () => {
   // State for date range filter
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -23,6 +25,7 @@ const Leaderboard: React.FC = () => {
   const handleDateRangeChange = (range: DateRange) => {
     setDateRange(range);
   };
+
   return <div className="min-h-screen flex">
       <Sidebar />
       <div className="ml-64 flex-1 p-6 py-[12px]">
@@ -37,4 +40,5 @@ const Leaderboard: React.FC = () => {
       </div>
     </div>;
 };
+
 export default Leaderboard;
