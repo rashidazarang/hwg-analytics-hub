@@ -1,14 +1,9 @@
 
 import React, { useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { DateRange } from '@/lib/dateUtils';
 import DateRangeFilter from '@/components/filters/DateRangeFilter';
-import TopAgentsTable from '@/components/leaderboard/TopAgentsTable';
 import TopDealersTable from '@/components/leaderboard/TopDealersTable';
-import { 
-  useTopAgentsData, 
-  useTopDealersData 
-} from '@/hooks/useLeaderboardData';
+import { useTopDealersData } from '@/hooks/useLeaderboardData';
 import Sidebar from '@/components/navigation/Sidebar';
 
 const Leaderboard: React.FC = () => {
@@ -18,15 +13,7 @@ const Leaderboard: React.FC = () => {
     to: new Date()
   });
 
-  // State for active tab
-  const [activeTab, setActiveTab] = useState<string>('dealers');
-
   // Fetch data using our hooks
-  const { 
-    data: topAgents, 
-    isLoading: isLoadingAgents 
-  } = useTopAgentsData({ dateRange });
-
   const { 
     data: topDealers, 
     isLoading: isLoadingDealers 
@@ -35,11 +22,6 @@ const Leaderboard: React.FC = () => {
   // Handle date range change
   const handleDateRangeChange = (range: DateRange) => {
     setDateRange(range);
-  };
-
-  // Handle tab change
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
   };
 
   return (
@@ -54,32 +36,12 @@ const Leaderboard: React.FC = () => {
           />
         </div>
 
-        {/* Tabbed Tables */}
-        <Tabs 
-          defaultValue={activeTab} 
-          value={activeTab} 
-          onValueChange={handleTabChange}
-          className="space-y-4"
-        >
-          <TabsList className="mb-4">
-            <TabsTrigger value="dealers">Dealers</TabsTrigger>
-            <TabsTrigger value="agents">Agents</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dealers" className="space-y-4">
-            <TopDealersTable 
-              data={topDealers || []}
-              isLoading={isLoadingDealers}
-            />
-          </TabsContent>
-
-          <TabsContent value="agents" className="space-y-4">
-            <TopAgentsTable 
-              data={topAgents || []}
-              isLoading={isLoadingAgents}
-            />
-          </TabsContent>
-        </Tabs>
+        <div className="space-y-4">
+          <TopDealersTable 
+            data={topDealers || []}
+            isLoading={isLoadingDealers}
+          />
+        </div>
       </div>
     </div>
   );
