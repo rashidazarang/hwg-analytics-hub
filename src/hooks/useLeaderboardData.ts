@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
@@ -33,7 +34,7 @@ export function useTopAgentsData({ dateRange }: { dateRange: DateRange }) {
   });
 }
 
-// Hook to fetch all dealers data (removed limit)
+// Hook to fetch all dealers data with at least one contract
 export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['topDealers', dateRange.from, dateRange.to],
@@ -43,12 +44,12 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         to: dateRange.to.toISOString()
       });
 
+      // Use the version of the function without the limit_count parameter
       const { data, error } = await supabase.rpc(
         'get_top_dealers_by_revenue',
         {
           start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString(),
-          // Removed limit_count parameter to fetch all dealers
+          end_date: dateRange.to.toISOString()
         }
       );
 
