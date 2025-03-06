@@ -22,7 +22,7 @@ const AgreementKPISection: React.FC<AgreementKPISectionProps> = ({ dateRange, de
   }
   
   return (
-    <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-3 gap-2 xs:gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <KPICard
         title="Pending Contracts"
         value={isLoading ? "..." : kpis?.pendingContracts.toLocaleString() || "0"}
