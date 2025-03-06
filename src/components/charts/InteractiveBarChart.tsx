@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
-import { format, isThisMonth, isThisYear } from 'date-fns';
+import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PerformanceDataPoint } from '@/hooks/usePerformanceMetricsData';
@@ -21,19 +22,19 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
     const dataPoint = payload[0].payload as PerformanceDataPoint;
     
     // Format the tooltip differently based on the datapoint type
-    let formattedDate = format(dataPoint.rawDate, 'MMM d, yyyy');
-    let tooltipContent;
+    let formattedDate, tooltipContent;
     
     // Check if this is a month datapoint (for 6-month and year views)
-    const isMonthDatapoint = format(dataPoint.rawDate, 'd') === '1';
+    const isMonthView = format(dataPoint.rawDate, 'd') === '1';
     
-    if (isMonthDatapoint) {
-      // For monthly data, just show the month and year
-      formattedDate = format(dataPoint.rawDate, 'MMM yyyy');
-      tooltipContent = `Total Agreements: ${dataPoint.value}`;
+    if (isMonthView) {
+      // For monthly data, show the month and year
+      formattedDate = format(dataPoint.rawDate, 'MMMM yyyy');
+      tooltipContent = `Total Agreements: ${dataPoint.value.toLocaleString()}`;
     } else {
       // For daily data, show the specific date
-      tooltipContent = `Total Agreements: ${dataPoint.value}`;
+      formattedDate = format(dataPoint.rawDate, 'MMM d, yyyy');
+      tooltipContent = `Total Agreements: ${dataPoint.value.toLocaleString()}`;
     }
     
     return (
@@ -59,25 +60,28 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [averageValue, setAverageValue] = useState<number>(0);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     onPeriodChange(currentOffset - 1);
-  };
+  }, [currentOffset, onPeriodChange]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentOffset < 0) {
       onPeriodChange(currentOffset + 1);
     }
-  };
+  }, [currentOffset, onPeriodChange]);
 
+  // Calculate the average value safely
   useEffect(() => {
-    if (data.length > 0) {
-      const total = data.reduce((sum, item) => sum + item.value, 0);
-      setAverageValue(Math.round(total / data.length));
-    } else {
+    if (!data || data.length === 0) {
       setAverageValue(0);
+      return;
     }
+    
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    setAverageValue(Math.round(total / data.length));
   }, [data]);
 
+  // Handle resize for responsive chart
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
@@ -86,13 +90,20 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     };
 
     updateWidth();
-    window.addEventListener('resize', updateWidth);
+    const resizeObserver = new ResizeObserver(updateWidth);
+    
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    
     return () => {
-      window.removeEventListener('resize', updateWidth);
+      if (containerRef.current) {
+        resizeObserver.disconnect();
+      }
     };
   }, []);
 
-  const getTitleAndDateRange = () => {
+  const getTitleAndDateRange = useCallback(() => {
     if (data.length === 0) return { title: "No data available", dateRange: "" };
     
     const firstDate = data[0].rawDate;
@@ -126,7 +137,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     }
     
     return { title, dateRange };
-  };
+  }, [data, timeframe]);
 
   const { title, dateRange } = getTitleAndDateRange();
 

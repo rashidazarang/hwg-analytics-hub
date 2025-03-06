@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   startOfWeek, 
   endOfWeek, 
@@ -78,6 +78,51 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
   }
 }
 
+// A more efficient function to fetch monthly counts directly from the database
+async function fetchMonthlyAgreementCounts(timeframe: TimeframeOption, startDate: Date, endDate: Date) {
+  console.log(`Efficiently fetching monthly aggregated data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  
+  const { data, error } = await supabase
+    .from('agreements')
+    .select('EffectiveDate')
+    .gte('EffectiveDate', startDate.toISOString())
+    .lte('EffectiveDate', endDate.toISOString());
+  
+  if (error) {
+    console.error("Error fetching agreement data:", error);
+    throw new Error(error.message);
+  }
+  
+  // Process the data by month
+  const monthlyData: Record<string, number> = {};
+  const months = eachMonthOfInterval({ start: startDate, end: endDate });
+  
+  // Initialize all months with zero to ensure we have entries for months with no data
+  months.forEach(month => {
+    const monthKey = format(month, 'yyyy-MM');
+    monthlyData[monthKey] = 0;
+  });
+  
+  // Count agreements by month
+  if (data) {
+    data.forEach(agreement => {
+      const date = new Date(agreement.EffectiveDate);
+      const monthKey = format(date, 'yyyy-MM');
+      monthlyData[monthKey] = (monthlyData[monthKey] || 0) + 1;
+    });
+  }
+  
+  // Convert to array format for the chart
+  return months.map(month => {
+    const monthKey = format(month, 'yyyy-MM');
+    return {
+      label: format(month, 'MMM').toLowerCase(),
+      value: monthlyData[monthKey] || 0,
+      rawDate: month
+    };
+  });
+}
+
 export function usePerformanceMetricsData(
   timeframe: TimeframeOption,
   offsetPeriods: number = 0
@@ -91,36 +136,50 @@ export function usePerformanceMetricsData(
   const formattedStartDate = startDate.toISOString();
   const formattedEndDate = endDate.toISOString();
   
-  // Query to fetch agreement counts - optimize with better caching and fewer fetches
+  // Use a more efficient query strategy based on timeframe
+  const queryFn = useCallback(async () => {
+    // Only log once per fetch to reduce console noise
+    console.log(`Fetching data for ${timeframe} from ${formattedStartDate} to ${formattedEndDate}`);
+    
+    // For 6months and year, use the optimized monthly fetching
+    if (timeframe === '6months' || timeframe === 'year') {
+      return await fetchMonthlyAgreementCounts(timeframe, startDate, endDate);
+    }
+    
+    // For week and month, fetch raw data and process on the client
+    const { data, error } = await supabase
+      .from('agreements')
+      .select('EffectiveDate')
+      .gte('EffectiveDate', formattedStartDate)
+      .lte('EffectiveDate', formattedEndDate);
+    
+    if (error) {
+      console.error("Error fetching agreement data:", error);
+      throw new Error(error.message);
+    }
+    
+    return data || [];
+  }, [timeframe, formattedStartDate, formattedEndDate, startDate, endDate]);
+  
+  // Query to fetch agreement counts with better caching and fewer fetches
   const { data, isLoading, error } = useQuery({
-    queryKey: ['performance-metrics', timeframe, offsetPeriods],
-    queryFn: async () => {
-      // Only log once per fetch to reduce console noise
-      console.log(`Fetching data for ${timeframe} from ${formattedStartDate} to ${formattedEndDate}`);
-      
-      // Fetch agreement data from Supabase
-      const { data, error } = await supabase
-        .from('agreements')
-        .select('EffectiveDate')
-        .gte('EffectiveDate', formattedStartDate)
-        .lte('EffectiveDate', formattedEndDate);
-      
-      if (error) {
-        console.error("Error fetching agreement data:", error);
-        throw new Error(error.message);
-      }
-      
-      return data || [];
-    },
+    queryKey: ['performance-metrics', timeframe, formattedStartDate, formattedEndDate],
+    queryFn: queryFn,
     staleTime: 5 * 60 * 1000, // Cache data for 5 minutes
     refetchOnWindowFocus: false // Don't refetch when window gets focus
   });
   
   useEffect(() => {
-    if (!data || isLoading) return;
+    if (isLoading || !data) return;
     
-    // Group and format data based on the timeframe
-    const agreements = data || [];
+    // If we already have formatted data from the optimized query
+    if (Array.isArray(data) && data.length > 0 && 'label' in data[0]) {
+      setTimeframeData(data as PerformanceDataPoint[]);
+      return;
+    }
+    
+    // For week and month views, process the raw data
+    const agreements = data as any[] || [];
     let formattedData: PerformanceDataPoint[] = [];
     
     switch (timeframe) {
@@ -154,34 +213,6 @@ export function usePerformanceMetricsData(
             label: format(day, 'd'),
             value: dayAgreements.length,
             rawDate: day
-          };
-        });
-        break;
-        
-      case '6months':
-      case 'year':
-        // Group by months for both 6 months and year views
-        const months = eachMonthOfInterval({ start: startDate, end: endDate });
-        formattedData = months.map(month => {
-          const monthStart = startOfMonth(month);
-          const monthEnd = endOfMonth(month);
-          
-          // Count all agreements within this month (from start to end of month)
-          const monthAgreements = agreements.filter(agreement => {
-            const effectiveDate = new Date(agreement.EffectiveDate);
-            return (
-              effectiveDate >= monthStart && 
-              effectiveDate <= monthEnd
-            );
-          });
-          
-          // Log each month's data to help with debugging
-          console.log(`Month: ${format(month, 'MMM yyyy')}, Count: ${monthAgreements.length}`);
-          
-          return {
-            label: format(month, 'MMM').toLowerCase(),
-            value: monthAgreements.length,
-            rawDate: month
           };
         });
         break;
