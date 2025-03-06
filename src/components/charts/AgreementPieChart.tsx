@@ -1,12 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { AgreementChartData, STATUS_COLORS } from '@/hooks/useAgreementStatusData';
+import { AgreementChartData } from '@/hooks/useAgreementStatusData';
 import { ChartLegend } from './ChartLegend';
 
 type AgreementPieChartProps = {
   data: AgreementChartData[];
   isLoading: boolean;
+};
+
+// Define colors for the agreement statuses to match the image
+export const AGREEMENT_STATUS_COLORS = {
+  'ACTIVE': '#0ea5e9',    // Blue
+  'PENDING': '#3b82f6',   // Light blue
+  'CANCELLED': '#ef4444', // Red
+  'OTHER': '#6b7280',     // Gray
 };
 
 export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLoading }) => {
@@ -56,7 +64,7 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
       
       // Regular tooltip for non-grouped statuses
       return (
-        <div className="bg-white p-2 rounded-md shadow-md border border-gray-100">
+        <div className="bg-white p-3 rounded-md shadow-md border border-gray-100">
           <p className="text-sm font-medium">
             {item.name}: {item.value.toLocaleString()} Agreements
           </p>
@@ -82,14 +90,6 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
     );
   }
 
-  // Define predefined colors for each category
-  const pieColors = {
-    'ACTIVE': '#00B179', // Green
-    'PENDING': '#0079EE', // Blue
-    'CANCELLED': '#FC912A', // Yellow
-    'OTHER': '#F6383F', // Red
-  };
-
   return (
     <div className="flex flex-col h-[240px]">
       <ResponsiveContainer width="100%" height="85%">
@@ -100,26 +100,25 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
             cy="50%"
             labelLine={false}
             outerRadius={80}
-            innerRadius={40}
+            innerRadius={45}
             fill="#8884d8"
             dataKey="value"
             onMouseEnter={onPieEnter}
             onMouseLeave={onPieLeave}
-            animationDuration={500}
+            animationDuration={800}
             animationBegin={0}
           >
             {animatedData.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
-                fill={entry.color || pieColors[entry.name as keyof typeof pieColors] || '#8884d8'} 
+                fill={entry.color || AGREEMENT_STATUS_COLORS[entry.name as keyof typeof AGREEMENT_STATUS_COLORS] || '#8884d8'} 
                 stroke={activeIndex === index ? '#fff' : 'transparent'}
                 strokeWidth={activeIndex === index ? 2 : 0}
-                className="transition-all duration-200"
                 style={{
-                  filter: activeIndex === index ? 'drop-shadow(0 0 4px rgba(0,0,0,0.2))' : 'none',
+                  filter: activeIndex === index ? 'drop-shadow(0 0 6px rgba(0,0,0,0.2))' : 'none',
                   transform: activeIndex === index ? 'scale(1.05)' : 'scale(1)',
                   transformOrigin: 'center',
-                  transition: 'transform 0.2s, filter 0.2s',
+                  transition: 'transform 0.3s, filter 0.3s',
                 }}
               />
             ))}
@@ -128,8 +127,9 @@ export const AgreementPieChart: React.FC<AgreementPieChartProps> = ({ data, isLo
         </PieChart>
       </ResponsiveContainer>
       
-      {/* Use the updated ChartLegend component */}
-      <ChartLegend statusColors={pieColors} />
+      <div className="mt-2">
+        <ChartLegend statusColors={AGREEMENT_STATUS_COLORS} />
+      </div>
     </div>
   );
 };

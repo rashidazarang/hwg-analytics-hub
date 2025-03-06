@@ -17,7 +17,7 @@ interface InteractiveBarChartProps {
   className?: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
     const dataPoint = payload[0].payload as PerformanceDataPoint;
     
@@ -34,9 +34,9 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
     }
     
     return (
-      <div className="bg-white p-4 shadow-md rounded-md border border-gray-100">
-        <p className="font-semibold">{formattedDate}</p>
-        <p className="text-primary font-medium">{tooltipContent}</p>
+      <div className="bg-white p-3 shadow-md rounded-md border border-gray-100">
+        <p className="font-medium text-sm text-gray-800">{formattedDate}</p>
+        <p className="text-primary font-medium text-sm mt-1">{tooltipContent}</p>
       </div>
     );
   }
@@ -121,12 +121,12 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const { dateRange } = getDateRange();
 
   return (
-    <div className={cn("bg-white p-5 rounded-xl shadow-sm border border-gray-100 chart-container", className)} ref={containerRef}>
-      <div className="flex flex-col mb-6">
-        <p className="text-lg text-gray-500 mt-1 font-medium">{dateRange}</p>
+    <div className="h-full flex flex-col" ref={containerRef}>
+      <div className="mb-2">
+        <p className="text-sm text-gray-500 font-medium">{dateRange}</p>
       </div>
       
-      <div className="h-[300px] w-full">
+      <div className="flex-1 min-h-[180px]">
         {isLoading ? (
           <div className="h-full w-full flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -137,15 +137,15 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               data={data}
               margin={{
                 top: 5,
-                right: 10,
-                left: 10,
+                right: 5,
+                left: 0,
                 bottom: 20,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis 
                 dataKey="label" 
-                tick={{ fontSize: 12, fill: '#8E9196' }}
+                tick={{ fontSize: 10, fill: '#8E9196' }}
                 axisLine={false}
                 tickLine={false}
                 padding={{ left: 5, right: 5 }}
@@ -153,18 +153,18 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               <YAxis 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#8E9196' }}
-                tickFormatter={(value) => value === 0 ? '0' : value.toLocaleString()}
+                tick={{ fontSize: 10, fill: '#8E9196' }}
+                tickFormatter={(value) => value === 0 ? '0' : value.toString()}
                 domain={[0, 'auto']}
-                width={30}
+                width={25}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
               <Bar 
                 dataKey="value" 
                 name="Agreements" 
                 fill="#F97316"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={timeframe === 'week' ? 40 : timeframe === 'month' ? 15 : 25}
                 animationDuration={1000}
               />
             </BarChart>
@@ -176,13 +176,13 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         )}
       </div>
       
-      <div className="flex justify-end space-x-2 mt-4">
+      <div className="flex justify-end space-x-2 mt-3">
         <Button 
           variant="outline" 
           size="sm" 
           onClick={handlePrevious}
           disabled={isLoading}
-          className="border-gray-200 hover:bg-gray-50"
+          className="border-gray-200 hover:bg-gray-50 h-8 w-8 p-0"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -191,7 +191,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
           size="sm" 
           onClick={handleNext}
           disabled={isLoading || (currentOffset >= 1)}
-          className="border-gray-200 hover:bg-gray-50"
+          className="border-gray-200 hover:bg-gray-50 h-8 w-8 p-0"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
