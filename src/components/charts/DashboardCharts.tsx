@@ -26,7 +26,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({ dateRange, dealerFilt
   const timeframe: TimeframeOption = 'month';
   const [currentOffset, setCurrentOffset] = React.useState(0);
   
-  // Get performance metrics data for the bar chart
+  // Get performance metrics data for the bar chart - Fixing parameter passing
   const { data: performanceData, loading: isPerformanceLoading } = usePerformanceMetricsData(
     timeframe,
     currentOffset
@@ -37,12 +37,12 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({ dateRange, dealerFilt
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-      <Card className="overflow-hidden border border-gray-100 shadow-sm rounded-xl bg-white hover:shadow-md transition-all duration-200">
-        <CardHeader className="pb-2 border-b bg-gray-50/50">
-          <CardTitle className="text-lg font-semibold text-gray-800">Agreements Status</CardTitle>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <Card className="card-hover-effect">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium">Agreements Status</CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent>
           <AgreementPieChart 
             data={agreementData || []} 
             isLoading={isAgreementLoading} 
@@ -50,11 +50,11 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({ dateRange, dealerFilt
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border border-gray-100 shadow-sm rounded-xl bg-white hover:shadow-md transition-all duration-200">
-        <CardHeader className="pb-2 border-b bg-gray-50/50">
-          <CardTitle className="text-lg font-semibold text-gray-800">Claims Status</CardTitle>
+      <Card className="card-hover-effect">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium">Claims Status</CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent>
           <ClaimPieChart 
             dateRange={dateRange} 
             dealershipFilter={dealerFilter} 
@@ -62,11 +62,11 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({ dateRange, dealerFilt
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border border-gray-100 shadow-sm rounded-xl bg-white hover:shadow-md transition-all duration-200">
-        <CardHeader className="pb-2 border-b bg-gray-50/50">
-          <CardTitle className="text-lg font-semibold text-gray-800">Monthly Agreement Growth</CardTitle>
+      <Card className="card-hover-effect">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-medium">Monthly Agreement Growth</CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent>
           <InteractiveBarChart 
             data={performanceData} 
             timeframe={timeframe}
