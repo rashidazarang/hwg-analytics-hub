@@ -176,14 +176,14 @@ const Dashboard: React.FC<DashboardProps> = ({
           )}
         </header>
         
-        <main className="px-2 xs:px-3 sm:px-6 py-3 sm:py-4 md:py-6 space-y-4 sm:space-y-6 md:space-y-8 animate-fade-in w-full max-w-full overflow-hidden">
+        <main className="px-2 xs:px-3 sm:px-6 py-3 sm:py-4 md:py-6 space-y-4 sm:space-y-6 md:space-y-8 animate-fade-in w-full overflow-hidden">
           {/* KPI Metrics Section */}
-          <section className="animate-slide-up w-full" style={{ animationDelay: '100ms' }}>
+          <section className="animate-slide-up w-full max-w-7xl mx-auto" style={{ animationDelay: '100ms' }}>
             {kpiSection}
           </section>
           
           {/* Dashboard Content */}
-          <section className="animate-slide-up w-full" style={{ animationDelay: '200ms' }}>
+          <section className="animate-slide-up w-full max-w-7xl mx-auto" style={{ animationDelay: '200ms' }}>
             {children}
           </section>
         </main>

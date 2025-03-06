@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import TimeframeFilter, { TimeframeOption } from '@/components/filters/TimeframeFilter';
 import InteractiveBarChart from '@/components/charts/InteractiveBarChart';
@@ -19,49 +18,39 @@ const PerformanceMetrics: React.FC = () => {
     to: new Date(),
   });
   
-  // Get shared performance data hook
   const { updatePerformanceData } = useSharedPerformanceData();
 
-  // Handle timeframe change
   const handleTimeframeChange = useCallback((newTimeframe: TimeframeOption) => {
     setTimeframe(newTimeframe);
-    setPeriodOffset(0); // Reset period offset when timeframe changes
+    setPeriodOffset(0);
   }, []);
 
-  // Handle period change (prev/next)
   const handlePeriodChange = useCallback((newOffset: number) => {
     setPeriodOffset(newOffset);
   }, []);
 
-  // Handle date range change
   const handleDateRangeChange = useCallback((range: DateRange) => {
     setDateRange(range);
   }, []);
 
-  // Fetch performance metrics data
   const { data, loading, error, startDate, endDate } = usePerformanceMetricsData(timeframe, periodOffset);
 
-  // Create a memoized key for the status fetching effect to avoid unnecessary triggers
   const statusFetchKey = useMemo(() => 
     `${timeframe}-${periodOffset}-${data.length}`,
     [timeframe, periodOffset, data.length]
   );
 
-  // Fetch status averages whenever data, timeframe, or periodOffset changes
   useEffect(() => {
-    // Skip if loading or no data
     if (loading || data.length === 0) {
       return;
     }
 
     async function fetchStatusAverages() {
-      // Calculate date range for supabase query
       const fromDate = startDate.toISOString();
       const toDate = endDate.toISOString();
       
       console.log(`[PERFORMANCE_METRICS] Fetching agreement status counts from ${fromDate} to ${toDate}`);
       
-      // Fetch all agreements with pagination to handle large datasets
       let allAgreements: any[] = [];
       let hasMore = true;
       let offset = 0;
@@ -86,14 +75,12 @@ const PerformanceMetrics: React.FC = () => {
           allAgreements = [...allAgreements, ...pageData];
           offset += pageData.length;
           
-          // If we got back fewer than the limit, we've reached the end
           if (pageData.length < limit) {
             hasMore = false;
           }
         }
       }
       
-      // Count agreements by status
       const statusCounts = {
         'PENDING': 0,
         'ACTIVE': 0,
@@ -112,17 +99,13 @@ const PerformanceMetrics: React.FC = () => {
       console.log("[PERFORMANCE_METRICS] Total agreements fetched:", allAgreements?.length || 0);
       console.log("[PERFORMANCE_METRICS] Status breakdown:", statusCounts);
 
-      // Calculate division factor based on actual displayed data points
-      // For each timeframe, count the number of intervals that actually contain data
       let nonZeroDataPoints = data.filter(point => point.value > 0).length;
       
-      // Ensure we have at least 1 data point to avoid division by zero
       const divisionFactor = Math.max(nonZeroDataPoints, 1);
       
       console.log("[PERFORMANCE_METRICS] Non-zero data points:", nonZeroDataPoints);
       console.log("[PERFORMANCE_METRICS] Division factor:", divisionFactor);
       
-      // Calculate averages based on actual displayed intervals - round to nearest integer
       const pendingAvg = Math.round(statusCounts.PENDING / divisionFactor);
       const activeAvg = Math.round(statusCounts.ACTIVE / divisionFactor);
       const cancelledAvg = Math.round(statusCounts.CANCELLED / divisionFactor);
@@ -134,24 +117,21 @@ const PerformanceMetrics: React.FC = () => {
         timeframe
       });
       
-      // Verify sum matches
       const totalAvg = pendingAvg + activeAvg + cancelledAvg;
       const totalDataPointsSum = data.reduce((sum, point) => sum + point.value, 0);
       console.log("[PERFORMANCE_METRICS] Total average:", totalAvg);
       console.log("[PERFORMANCE_METRICS] Sum of data points:", totalDataPointsSum);
       
-      // Create date range based on startDate and endDate from performance metrics
       const dateRangeForKPI = {
         from: startDate,
         to: endDate
       };
       
-      // Update shared state with dateRange and dealerFilter
       updatePerformanceData(
         data, 
         timeframe, 
         dateRangeForKPI, 
-        '', // Empty dealerFilter for performance metrics page
+        '',
         {
           pending: pendingAvg,
           active: activeAvg,
@@ -161,12 +141,9 @@ const PerformanceMetrics: React.FC = () => {
       
     }
     
-    // Run the effect
     fetchStatusAverages();
-    
-  }, [statusFetchKey, startDate, endDate, updatePerformanceData]); 
+  }, [statusFetchKey, startDate, endDate, updatePerformanceData]);
 
-  // Custom subnavbar for the timeframe filter
   const timeframeSubnavbar = (
     <div className="flex justify-center items-center w-full">
       <TimeframeFilter 
@@ -183,7 +160,7 @@ const PerformanceMetrics: React.FC = () => {
       pageTitle="Performance Metrics"
       subnavbar={timeframeSubnavbar}
     >
-      <div className="w-full max-w-5xl mx-auto">
+      <div className="w-full">
         <InteractiveBarChart 
           data={data}
           timeframe={timeframe}
