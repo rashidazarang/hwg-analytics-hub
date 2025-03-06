@@ -80,7 +80,7 @@ const Sidebar: React.FC = () => {
               alt="HWG Logo"
               className="h-[46px]"
               loading="eager"
-              fetchpriority="high"
+              fetchPriority="high"
             />
           </Link>
         </div>
