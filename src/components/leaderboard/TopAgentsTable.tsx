@@ -4,15 +4,13 @@ import { User, TrendingUp, AlertTriangle } from 'lucide-react';
 import { TopAgent } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import DataTable, { Column } from '@/components/tables/DataTable';
-import { DateRange } from '@/lib/dateUtils';
 
 interface TopAgentsTableProps {
   data: TopAgent[];
   isLoading: boolean;
-  dateRange?: DateRange;
 }
 
-const TopAgentsTable: React.FC<TopAgentsTableProps> = ({ data, isLoading, dateRange }) => {
+const TopAgentsTable: React.FC<TopAgentsTableProps> = ({ data, isLoading }) => {
   const columns: Column<TopAgent>[] = [
     {
       key: 'rank',
@@ -71,13 +69,6 @@ const TopAgentsTable: React.FC<TopAgentsTableProps> = ({ data, isLoading, dateRa
   return (
     <div className="bg-card rounded-lg border shadow-sm p-4">
       <h2 className="text-lg font-semibold mb-4">Top Performing Agents</h2>
-      {dateRange && (
-        <div className="mb-4 text-xs text-muted-foreground bg-slate-50 p-2 rounded">
-          <p><span className="font-medium">Query Information:</span></p>
-          <p>Date Range: {dateRange.from.toISOString()} to {dateRange.to.toISOString()}</p>
-          <p>Showing exact date range used in Supabase query. If this doesn't match expected range, check date formatting.</p>
-        </div>
-      )}
       <DataTable
         data={data || []}
         columns={columns}

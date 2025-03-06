@@ -10,7 +10,6 @@ import {
   useTopDealersData 
 } from '@/hooks/useLeaderboardData';
 import Sidebar from '@/components/navigation/Sidebar';
-import { toast } from "sonner";
 
 const Leaderboard: React.FC = () => {
   // State for date range filter
@@ -35,14 +34,7 @@ const Leaderboard: React.FC = () => {
 
   // Handle date range change
   const handleDateRangeChange = (range: DateRange) => {
-    // Log date range for debugging
-    console.log('Custom date range selected:', {
-      from: range.from,
-      to: range.to
-    });
-    
     setDateRange(range);
-    toast.info(`Date range updated: ${range.from.toLocaleDateString()} to ${range.to.toLocaleDateString()}`);
   };
 
   // Handle tab change
@@ -62,14 +54,6 @@ const Leaderboard: React.FC = () => {
           />
         </div>
 
-        {/* Add date range indicator */}
-        <div className="mb-4 text-sm text-muted-foreground bg-muted p-2 rounded flex items-center justify-between">
-          <div>
-            <span className="font-medium">Date Range: </span>
-            <span>{dateRange.from.toISOString()} to {dateRange.to.toISOString()}</span>
-          </div>
-        </div>
-
         {/* Tabbed Tables */}
         <Tabs 
           defaultValue={activeTab} 
@@ -86,7 +70,6 @@ const Leaderboard: React.FC = () => {
             <TopDealersTable 
               data={topDealers || []}
               isLoading={isLoadingDealers}
-              dateRange={dateRange}
             />
           </TabsContent>
 
@@ -94,7 +77,6 @@ const Leaderboard: React.FC = () => {
             <TopAgentsTable 
               data={topAgents || []}
               isLoading={isLoadingAgents}
-              dateRange={dateRange}
             />
           </TabsContent>
         </Tabs>
