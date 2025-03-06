@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
@@ -75,7 +74,6 @@ const Sidebar: React.FC = () => {
         <div className="flex-1 flex flex-col overflow-y-auto pt-5 pb-4">
           <nav className="flex-1 px-3 space-y-8">
             <div>
-              <div className="h-px bg-gray-200 mb-3"></div>
               <ul className="space-y-1">
                 {sidebarItems.map((item) => (
                   <SidebarItem 
