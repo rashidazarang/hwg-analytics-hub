@@ -60,3 +60,31 @@ export interface Claim {
     } | null;
   } | null;
 }
+
+export interface TopAgent {
+  agent_name: string;
+  contracts_closed: number;
+  total_revenue: number;
+  cancelled_contracts: number;
+}
+
+export interface TopDealer {
+  dealer_name: string;
+  total_contracts: number;
+  total_revenue: number;
+  cancelled_contracts: number;
+}
+
+export interface RevenueGrowth {
+  current_revenue: number;
+  previous_revenue: number;
+  growth_rate: number;
+}
+
+export interface LeaderboardSummary {
+  active_contracts: number;
+  total_revenue: number;
+  cancellation_rate: number;
+  top_dealer: string;
+  top_agent: string;
+}

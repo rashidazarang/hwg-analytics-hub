@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart } from 'lucide-react';
+import { LayoutDashboard, BarChart, Home, Trophy, User, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SidebarItemProps = {
@@ -30,22 +29,37 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, to, isActi
   );
 };
 
+const sidebarItems = [
+  {
+    name: "Dashboard",
+    path: "/",
+    icon: Home
+  },
+  {
+    name: "Performance",
+    path: "/performance",
+    icon: BarChart
+  },
+  {
+    name: "Leaderboard",
+    path: "/leaderboard",
+    icon: Trophy
+  },
+  {
+    name: "Account",
+    path: "/account",
+    icon: User
+  },
+  {
+    name: "Settings",
+    path: "/settings",
+    icon: Settings
+  }
+];
+
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const currentPath = location.pathname;
-
-  const mainNavItems = [
-    {
-      icon: LayoutDashboard,
-      label: 'Overview',
-      to: '/',
-    },
-    {
-      icon: BarChart,
-      label: 'Performance',
-      to: '/performance',
-    },
-  ];
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
@@ -65,16 +79,16 @@ const Sidebar: React.FC = () => {
               </h3>
               <div className="h-px bg-gray-200 mb-3"></div>
               <ul className="space-y-1">
-                {mainNavItems.map((item) => (
+                {sidebarItems.map((item) => (
                   <SidebarItem 
-                    key={item.to}
+                    key={item.path}
                     icon={item.icon}
-                    label={item.label}
-                    to={item.to}
+                    label={item.name}
+                    to={item.path}
                     isActive={
-                      item.to === '/' 
+                      item.path === '/' 
                         ? currentPath === '/' 
-                        : currentPath.startsWith(item.to)
+                        : currentPath.startsWith(item.path)
                     }
                   />
                 ))}

@@ -713,6 +713,19 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_revenue_growth: {
+        Args: {
+          current_start_date: string
+          current_end_date: string
+          previous_start_date: string
+          previous_end_date: string
+        }
+        Returns: {
+          current_revenue: number
+          previous_revenue: number
+          growth_rate: number
+        }[]
+      }
       check_auth_setup: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -741,6 +754,19 @@ export type Database = {
           total: number
         }[]
       }
+      get_leaderboard_summary: {
+        Args: {
+          start_date: string
+          end_date: string
+        }
+        Returns: {
+          active_contracts: number
+          total_revenue: number
+          cancellation_rate: number
+          top_dealer: string
+          top_agent: string
+        }[]
+      }
       get_top_agents_by_contracts: {
         Args: {
           start_date: string
@@ -750,6 +776,19 @@ export type Database = {
         Returns: {
           agent_name: string
           contracts_closed: number
+          total_revenue: number
+          cancelled_contracts: number
+        }[]
+      }
+      get_top_dealers_by_revenue: {
+        Args: {
+          start_date: string
+          end_date: string
+          limit_count?: number
+        }
+        Returns: {
+          dealer_name: string
+          total_contracts: number
           total_revenue: number
           cancelled_contracts: number
         }[]
