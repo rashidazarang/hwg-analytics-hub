@@ -4,7 +4,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import DateRangeFilter from '../filters/DateRangeFilter';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
 import AuthNav from '../navigation/AuthNav';
-import Sidebar from '../navigation/Sidebar';
 import { Menu, X, Calendar, BarChart } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -58,54 +57,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="min-h-screen dashboard-content flex">
-      {/* Desktop Sidebar */}
-      <Sidebar />
-      
-      {/* Mobile Sidebar (using Sheet) */}
-      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="p-0 sm:max-w-xs w-[80vw]">
-          <div className="h-full flex flex-col">
-            <div className="px-4 py-3 border-b">
-              <span className="text-lg font-semibold">{pageTitle}</span>
-            </div>
-            <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
-              <div>
-                <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Dashboard
-                </h3>
-                <ul className="mt-3 space-y-1">
-                  <li>
-                    <Link 
-                      to="/" 
-                      className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <BarChart className="h-5 w-5" />
-                      <span>Overview</span>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      to="/performance" 
-                      className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <BarChart className="h-5 w-5" />
-                      <span>Performance</span>
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              {subnavbar && (
-                <div className="border-t pt-4">
-                  {subnavbar}
-                </div>
-              )}
-            </nav>
-          </div>
-        </SheetContent>
-      </Sheet>
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:ml-64 w-full max-w-full">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
@@ -191,8 +142,53 @@ const Dashboard: React.FC<DashboardProps> = ({
           </section>
         </main>
       </div>
+      
+      {/* Mobile Sidebar (using Sheet) */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="p-0 sm:max-w-xs w-[80vw]">
+          <div className="h-full flex flex-col">
+            <div className="px-4 py-3 border-b">
+              <span className="text-lg font-semibold">{pageTitle}</span>
+            </div>
+            <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+              <div>
+                <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Dashboard
+                </h3>
+                <ul className="mt-3 space-y-1">
+                  <li>
+                    <Link 
+                      to="/" 
+                      className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <BarChart className="h-5 w-5" />
+                      <span>Overview</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      to="/performance" 
+                      className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <BarChart className="h-5 w-5" />
+                      <span>Performance</span>
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+              {subnavbar && (
+                <div className="border-t pt-4">
+                  {subnavbar}
+                </div>
+              )}
+            </nav>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
 
-export default Dashboard;
+export default React.memo(Dashboard);

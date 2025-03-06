@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -52,9 +53,21 @@ const sidebarItems = [
   }
 ];
 
+// Preload the logo image to ensure it's cached
+const preloadLogo = () => {
+  const img = new Image();
+  img.src = "/lovable-uploads/eb0ad36a-388f-454c-aaa9-4ba36c462126.png";
+};
+
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const currentPath = location.pathname;
+  const logoRef = useRef<HTMLImageElement>(null);
+  
+  // Preload the logo on component mount
+  useEffect(() => {
+    preloadLogo();
+  }, []);
 
   return (
     <aside className="flex w-64 flex-col fixed inset-y-0 z-30">
@@ -62,9 +75,12 @@ const Sidebar: React.FC = () => {
         <div className="flex items-center h-[57px] px-4 border-b">
           <Link to="/" className="flex items-center">
             <img 
+              ref={logoRef}
               src="/lovable-uploads/eb0ad36a-388f-454c-aaa9-4ba36c462126.png"
               alt="HWG Logo"
               className="h-[46px]"
+              loading="eager"
+              fetchpriority="high"
             />
           </Link>
         </div>
@@ -82,4 +98,4 @@ const Sidebar: React.FC = () => {
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);
