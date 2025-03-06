@@ -44,21 +44,83 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         to: dateRange.to.toISOString()
       });
 
-      const { data, error } = await supabase.rpc(
-        'get_top_dealers_by_revenue',
-        {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString(),
-          limit_count: 10
-        }
-      );
+      // Fetch all agreements with dealer information for the date range
+      const { data: agreements, error } = await supabase
+        .from('agreements')
+        .select(`
+          AgreementID,
+          AgreementStatus,
+          Total,
+          DealerUUID,
+          dealers(
+            Payee
+          )
+        `)
+        .gte('EffectiveDate', dateRange.from.toISOString())
+        .lte('EffectiveDate', dateRange.to.toISOString());
 
       if (error) {
-        console.error('[LEADERBOARD] Error fetching top dealers:', error);
+        console.error('[LEADERBOARD] Error fetching agreements:', error);
         throw error;
       }
 
-      return data;
+      // Process agreements by dealer
+      const dealerMap = new Map<string, {
+        dealer_name: string;
+        total_contracts: number;
+        total_revenue: number;
+        cancelled_contracts: number;
+        pending_contracts: number;
+        active_contracts: number;
+        expected_revenue: number; // Revenue from pending agreements
+        funded_revenue: number;   // Revenue from active agreements
+      }>();
+
+      agreements.forEach(agreement => {
+        const dealerName = agreement.dealers?.Payee || 'Unknown Dealer';
+        const dealerUUID = agreement.DealerUUID;
+        
+        if (!dealerUUID) return;
+        
+        // Initialize dealer in map if not exists
+        if (!dealerMap.has(dealerUUID)) {
+          dealerMap.set(dealerUUID, {
+            dealer_name: dealerName,
+            total_contracts: 0,
+            total_revenue: 0,
+            cancelled_contracts: 0,
+            pending_contracts: 0,
+            active_contracts: 0,
+            expected_revenue: 0,
+            funded_revenue: 0
+          });
+        }
+        
+        const dealer = dealerMap.get(dealerUUID)!;
+        const agreementTotal = agreement.Total || 0;
+        
+        // Increment counters based on agreement status
+        dealer.total_contracts++;
+        dealer.total_revenue += agreementTotal;
+        
+        if (agreement.AgreementStatus === 'PENDING') {
+          dealer.pending_contracts++;
+          dealer.expected_revenue += agreementTotal;
+        } else if (agreement.AgreementStatus === 'ACTIVE') {
+          dealer.active_contracts++;
+          dealer.funded_revenue += agreementTotal;
+        } else if (agreement.AgreementStatus === 'CANCELLED') {
+          dealer.cancelled_contracts++;
+        }
+      });
+
+      // Convert the map to an array and sort by total contracts
+      const topDealers = Array.from(dealerMap.values())
+        .sort((a, b) => b.total_contracts - a.total_contracts)
+        .slice(0, 10);  // Limit to top 10 dealers
+
+      console.log('[LEADERBOARD] Processed dealers:', topDealers.length);
+      return topDealers;
     },
     staleTime: 5 * 60 * 1000,
   });

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Building2, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Building2, TrendingUp, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import { TopDealer } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import DataTable, { Column } from '@/components/tables/DataTable';
@@ -43,11 +43,33 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
       sortable: true,
     },
     {
+      key: 'expected_revenue',
+      title: 'Expected Revenue',
+      render: (row) => (
+        <div className="flex items-center">
+          <Clock className="h-4 w-4 mr-1 text-amber-500" />
+          <span className="font-medium">{formatCurrency(row.expected_revenue || 0)}</span>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: 'funded_revenue',
+      title: 'Funded',
+      render: (row) => (
+        <div className="flex items-center">
+          <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
+          <span className="font-medium">{formatCurrency(row.funded_revenue || 0)}</span>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
       key: 'total_revenue',
       title: 'Revenue',
       render: (row) => (
         <div className="flex items-center">
-          <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
+          <TrendingUp className="h-4 w-4 mr-1 text-blue-500" />
           <span className="font-medium">{formatCurrency(row.total_revenue)}</span>
         </div>
       ),
@@ -58,7 +80,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
       title: 'Cancellations',
       render: (row) => (
         <div className="flex items-center">
-          <AlertTriangle className={`h-4 w-4 mr-1 ${row.cancelled_contracts > 0 ? 'text-amber-500' : 'text-gray-400'}`} />
+          <AlertTriangle className={`h-4 w-4 mr-1 ${row.cancelled_contracts > 0 ? 'text-red-500' : 'text-gray-400'}`} />
           <span className="font-medium">{row.cancelled_contracts.toLocaleString()}</span>
         </div>
       ),

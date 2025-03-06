@@ -76,6 +76,8 @@ export interface TopDealer {
   cancelled_contracts: number;
   pending_contracts?: number;
   active_contracts?: number;
+  expected_revenue?: number; // Revenue from pending agreements
+  funded_revenue?: number;   // Revenue from active agreements
 }
 
 export interface TopDealerClaims {
