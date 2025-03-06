@@ -5,9 +5,8 @@ import DateRangeFilter from '../filters/DateRangeFilter';
 import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
 import AuthNav from '../navigation/AuthNav';
 import Sidebar from '../navigation/Sidebar';
-import { Menu, X, Calendar, BarChart } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type DashboardProps = {
@@ -23,30 +22,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   children,
   subnavbar,
 }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const isMobile = useIsMobile();
-  const navigate = useNavigate();
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
-  const mobileFilterRef = useRef<HTMLDivElement>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileFilterRef = useRef<HTMLDivElement>(null);
   const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
-
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-    // Close filters drawer if menu is being opened
-    if (!mobileMenuOpen) {
-      setMobileFiltersOpen(false);
-    }
-  };
 
   const toggleMobileFilters = () => {
     setMobileFiltersOpen(!mobileFiltersOpen);
-    // Close menu drawer if filters is being opened
-    if (!mobileFiltersOpen) {
-      setMobileMenuOpen(false);
-    }
   };
 
   const handleDateChange = (range: DateRange) => {
@@ -56,75 +39,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="min-h-screen dashboard-content flex">
-      {/* Desktop Sidebar */}
-      <Sidebar />
+      {/* Sidebar is now handled directly in App.tsx */}
       
-      {/* Mobile Sidebar (using Sheet) */}
-      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="p-0 sm:max-w-xs w-[80vw]">
-          <div className="h-full flex flex-col">
-            <div className="px-4 py-3 border-b">
-              <span className="text-lg font-semibold">Analytics Dashboard</span>
-            </div>
-            <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
-              <div>
-                <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Dashboard
-                </h3>
-                <ul className="mt-3 space-y-1">
-                  <li>
-                    <Link 
-                      to="/" 
-                      className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <BarChart className="h-5 w-5" />
-                      <span>Overview</span>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      to="/performance" 
-                      className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <BarChart className="h-5 w-5" />
-                      <span>Performance</span>
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              {subnavbar && (
-                <div className="border-t pt-4">
-                  {subnavbar}
-                </div>
-              )}
-            </nav>
-          </div>
-        </SheetContent>
-      </Sheet>
-
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-64 w-full max-w-full">
+      <div className="flex-1 flex flex-col ml-64 w-full max-w-full">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
           <div className="px-2 xs:px-3 sm:px-6 py-2 sm:py-3">
             <div className="flex justify-between items-center">
-              {/* Mobile Controls */}
-              <div className="flex items-center md:hidden">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 mobile-toggle mr-1 xs:mr-2" 
-                  onClick={toggleMobileMenu}
-                  ref={menuButtonRef}
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-                <h1 className="text-base xs:text-lg font-semibold tracking-tight">Analytics Dashboard</h1>
-              </div>
-              
-              {/* Desktop Page Title - hidden on mobile */}
-              <h1 className="hidden md:block text-xl font-semibold tracking-tight">Dashboard</h1>
+              {/* Desktop Page Title */}
+              <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
               
               {/* Controls - right side */}
               <div className="flex items-center space-x-1 sm:space-x-3">
