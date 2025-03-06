@@ -22,7 +22,7 @@ const ClaimKPISection: React.FC<ClaimKPISectionProps> = ({ dateRange, dealerFilt
   }
   
   return (
-    <div className="grid grid-cols-1 gap-3">
+    <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-3 gap-2 xs:gap-3">
       <KPICard
         title="Open Claims"
         value={isLoading ? "..." : kpis?.openClaims.toLocaleString() || "0"}

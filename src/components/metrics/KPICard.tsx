@@ -49,13 +49,13 @@ const KPICard: React.FC<KPICardProps> = ({
 
   return (
     <Card className={`overflow-hidden ${colorVariants[color]} ${className}`}>
-      <CardContent className="p-4">
+      <CardContent className="p-2.5 xs:p-3 sm:p-4">
         <div>
-          <p className="text-sm font-medium mb-1">{title}</p>
-          <h3 className="text-2xl sm:text-3xl font-semibold">{value}</h3>
+          <p className="text-xs xs:text-sm font-medium mb-0.5 xs:mb-1">{title}</p>
+          <h3 className="text-xl xs:text-2xl sm:text-3xl font-semibold">{value}</h3>
           
           {description && (
-            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 xs:mt-1 line-clamp-1">{description}</p>
           )}
         </div>
       </CardContent>

@@ -28,7 +28,7 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
   }, [dealerFilter, dealerName, dateRange]);
 
   return (
-    <div className="space-y-4 mt-4">
+    <div className="space-y-2 xs:space-y-4 mt-2 xs:mt-4">
       <Tabs value={activeTab} defaultValue={activeTab}>
         <TabsContent value="agreements" className="mt-0">
           <AgreementsTable 

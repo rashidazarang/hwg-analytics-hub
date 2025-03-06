@@ -67,7 +67,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       {/* Mobile Sidebar (using Sheet) */}
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="p-0 sm:max-w-xs w-[80vw]">
+        <SheetContent side="left" className="p-0 sm:max-w-xs w-[85vw]">
           <div className="h-full flex flex-col">
             <div className="px-4 py-3 border-b">
               <span className="text-lg font-semibold">Analytics Dashboard</span>
@@ -125,14 +125,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-                <h1 className="text-lg font-semibold tracking-tight">Analytics Dashboard</h1>
+                <h1 className="text-base xs:text-lg font-semibold tracking-tight truncate">Analytics Dashboard</h1>
               </div>
               
               {/* Desktop Page Title - hidden on mobile */}
               <h1 className="hidden md:block text-xl font-semibold tracking-tight">Dashboard</h1>
               
               {/* Controls - right side */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 xs:space-x-2">
                 {isMobile ? (
                   <Button 
                     variant="ghost" 
@@ -152,8 +152,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           
           {/* Mobile Filter Panel */}
           {mobileFiltersOpen && (
-            <div className="mobile-menu mt-1 p-3 bg-background border rounded-md shadow-md animate-slide-down mx-3 mb-2">
-              <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
+            <div className="mobile-menu mt-1 p-2 xs:p-3 bg-background border rounded-md shadow-md animate-slide-down mx-2 mb-2">
+              <h3 className="text-xs xs:text-sm font-medium mb-1.5 xs:mb-2">Select Date Range</h3>
               <DateRangeFilter onChange={onDateRangeChange} />
             </div>
           )}
@@ -161,14 +161,14 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* Subnavbar for desktop - if provided */}
           {subnavbar && (
             <div className="border-t border-border/30 bg-background">
-              <div className="px-2 sm:px-6 py-2">
+              <div className="px-1 xs:px-2 sm:px-6 py-1 xs:py-2">
                 {subnavbar}
               </div>
             </div>
           )}
         </header>
         
-        <main className="px-2 sm:px-6 py-3 md:py-6 space-y-4 md:space-y-8 animate-fade-in">
+        <main className="px-1 xs:px-2 sm:px-6 py-2 xs:py-3 md:py-6 space-y-2 xs:space-y-3 md:space-y-8 animate-fade-in">
           {/* KPI Metrics Section */}
           <section className="animate-slide-up" style={{ animationDelay: '100ms' }}>
             {kpiSection}

@@ -20,7 +20,7 @@ const TabSwitchedDashboardCharts: React.FC<TabSwitchedDashboardChartsProps> = ({
   console.log('[DASHBOARD_CHARTS] Rendering charts for active tab:', activeTab);
   
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div className="grid grid-cols-1 gap-3 xs:gap-4 lg:grid-cols-2 lg:gap-6 mb-4 lg:mb-8">
       {activeTab === 'agreements' && (
         <>
           <AgreementChart 

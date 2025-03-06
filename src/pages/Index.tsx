@@ -85,7 +85,7 @@ const Index = () => {
   };
 
   const subnavbarContent = (
-    <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+    <div className="flex flex-col space-y-2 xs:space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
       <div className="w-full">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="h-8 xs:h-9 p-0.5 bg-muted/70 w-full">
