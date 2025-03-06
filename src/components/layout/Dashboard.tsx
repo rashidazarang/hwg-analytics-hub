@@ -4,8 +4,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import DateRangeFilter from '../filters/DateRangeFilter';
 import { DateRange } from '@/lib/dateUtils';
 import AuthNav from '../navigation/AuthNav';
+import Sidebar from '../navigation/Sidebar';
 import { Menu, X, Calendar, BarChart } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type DashboardProps = {
   onDateRangeChange: (range: DateRange) => void;
@@ -22,6 +25,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
 
   const toggleMobileMenu = () => {
@@ -57,136 +61,125 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
-        <div className="dashboard-container py-3">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-semibold tracking-tight pl-1 sm:pl-0">Analytics Dashboard</h1>
-            
-            {/* Desktop controls - only visible on larger screens */}
-            <div className="hidden sm:flex sm:items-center sm:space-x-3">
-              <nav className="mr-4">
-                <ul className="flex space-x-4">
+    <div className="min-h-screen bg-background flex">
+      {/* Desktop Sidebar */}
+      <Sidebar />
+      
+      {/* Mobile Sidebar (using Sheet) */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="p-0 sm:max-w-xs w-[80vw]">
+          <div className="h-full flex flex-col">
+            <div className="px-4 py-3 border-b">
+              <span className="text-lg font-semibold">Analytics Dashboard</span>
+            </div>
+            <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+              <div>
+                <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Dashboard
+                </h3>
+                <ul className="mt-2 space-y-2">
                   <li>
                     <Link 
                       to="/" 
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
+                      onClick={() => setMobileMenuOpen(false)}
                     >
-                      Overview
+                      <BarChart className="h-5 w-5" />
+                      <span>Overview</span>
                     </Link>
                   </li>
                   <li>
                     <Link 
                       to="/performance" 
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center"
+                      className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
+                      onClick={() => setMobileMenuOpen(false)}
                     >
-                      <BarChart className="mr-1 h-3.5 w-3.5" />
-                      Performance
+                      <BarChart className="h-5 w-5" />
+                      <span>Performance</span>
                     </Link>
                   </li>
                 </ul>
-              </nav>
-              <DateRangeFilter onChange={onDateRangeChange} />
-              <AuthNav />
-            </div>
-            
-            {/* Mobile controls - only visible on small screens */}
-            <div className="flex items-center space-x-1 sm:hidden">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 mobile-toggle" 
-                onClick={toggleMobileFilters}
-                aria-label="Date Filter"
-              >
-                <Calendar className="h-5 w-5" />
-              </Button>
-              
-              <AuthNav />
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 mobile-toggle" 
-                onClick={toggleMobileMenu}
-                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-              >
-                {mobileMenuOpen ? (
-                  <X className="h-5 w-5" />
-                ) : (
+              </div>
+              {subnavbar && (
+                <div className="border-t pt-4">
+                  {subnavbar}
+                </div>
+              )}
+            </nav>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col md:ml-64">
+        <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
+          <div className="px-4 sm:px-6 py-3">
+            <div className="flex justify-between items-center">
+              {/* Mobile Controls */}
+              <div className="flex items-center md:hidden">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 mobile-toggle mr-2" 
+                  onClick={toggleMobileMenu}
+                >
                   <Menu className="h-5 w-5" />
+                </Button>
+                <h1 className="text-lg font-semibold tracking-tight">Analytics Dashboard</h1>
+              </div>
+              
+              {/* Desktop Page Title - hidden on mobile */}
+              <h1 className="hidden md:block text-xl font-semibold tracking-tight">Dashboard</h1>
+              
+              {/* Controls - right side */}
+              <div className="flex items-center space-x-3">
+                {isMobile ? (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 mobile-toggle" 
+                    onClick={toggleMobileFilters}
+                  >
+                    <Calendar className="h-5 w-5" />
+                  </Button>
+                ) : (
+                  <DateRangeFilter onChange={onDateRangeChange} />
                 )}
-              </Button>
+                <AuthNav />
+              </div>
             </div>
           </div>
           
-          {/* Mobile menus - slide down animations */}
-          <div className="sm:hidden">
-            {/* Mobile date filter panel */}
-            {mobileFiltersOpen && (
-              <div className="mobile-menu mt-3 p-4 bg-background border rounded-md shadow-md animate-slide-down">
-                <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
-                <DateRangeFilter onChange={onDateRangeChange} />
-              </div>
-            )}
-            
-            {/* Mobile menu panel */}
-            {mobileMenuOpen && (
-              <div className="mobile-menu mt-3 bg-background border rounded-md shadow-md overflow-hidden animate-slide-down">
-                <nav className="p-3 border-b border-border/30">
-                  <ul className="space-y-2">
-                    <li>
-                      <Link 
-                        to="/" 
-                        className="block px-2 py-1.5 rounded-md text-sm font-medium hover:bg-muted/50 transition-colors"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Overview
-                      </Link>
-                    </li>
-                    <li>
-                      <Link 
-                        to="/performance" 
-                        className="block px-2 py-1.5 rounded-md text-sm font-medium hover:bg-muted/50 transition-colors flex items-center"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <BarChart className="mr-1 h-3.5 w-3.5" />
-                        Performance
-                      </Link>
-                    </li>
-                  </ul>
-                </nav>
-                {subnavbar && (
-                  <div className="p-3 border-b border-border/30 bg-muted/20">
-                    {subnavbar}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Subnavbar for desktop - if provided */}
-        {subnavbar && (
-          <div className="border-t border-border/30 bg-gray-100/10 hidden sm:block">
-            <div className="dashboard-container py-2">
-              {subnavbar}
+          {/* Mobile Filter Panel */}
+          {mobileFiltersOpen && (
+            <div className="mobile-menu mt-1 p-4 bg-background border rounded-md shadow-md animate-slide-down mx-4 mb-3">
+              <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
+              <DateRangeFilter onChange={onDateRangeChange} />
             </div>
-          </div>
-        )}
-      </header>
-      
-      <main className="dashboard-container py-4 md:py-6 space-y-6 md:space-y-8 animate-fade-in">
-        {/* KPI Metrics Section */}
-        <section className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-          {kpiSection}
-        </section>
+          )}
+          
+          {/* Subnavbar for desktop - if provided */}
+          {subnavbar && (
+            <div className="border-t border-border/30 bg-gray-100/10">
+              <div className="px-4 sm:px-6 py-2">
+                {subnavbar}
+              </div>
+            </div>
+          )}
+        </header>
         
-        {/* Dashboard Content */}
-        <section className="animate-slide-up" style={{ animationDelay: '200ms' }}>
-          {children}
-        </section>
-      </main>
+        <main className="px-4 sm:px-6 py-4 md:py-6 space-y-6 md:space-y-8 animate-fade-in">
+          {/* KPI Metrics Section */}
+          <section className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+            {kpiSection}
+          </section>
+          
+          {/* Dashboard Content */}
+          <section className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+            {children}
+          </section>
+        </main>
+      </div>
     </div>
   );
 };

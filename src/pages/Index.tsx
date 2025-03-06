@@ -126,34 +126,30 @@ const Index = () => {
   }, [dealershipUUID, dealershipName, dateRange]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <main>
-        <Dashboard 
-          onDateRangeChange={handleDateRangeChange}
-          kpiSection={
-            <TabSwitchedKPISection 
-              activeTab={activeTab} 
-              dateRange={dateRange} 
-              dealerFilter={dealershipUUID} 
-            />
-          }
-          subnavbar={subnavbarContent}
-        >
-          <TabSwitchedDashboardCharts 
-            activeTab={activeTab}
-            dateRange={dateRange}
-            dealershipFilter={dealershipUUID}
-          />
-          <DashboardTables
-            activeTab={activeTab}
-            dateRange={dateRange}
-            dealerFilter={dealershipUUID}
-            dealerName={dealershipName}
-            searchQuery={searchTerm}
-          />
-        </Dashboard>
-      </main>
-    </div>
+    <Dashboard 
+      onDateRangeChange={handleDateRangeChange}
+      kpiSection={
+        <TabSwitchedKPISection 
+          activeTab={activeTab} 
+          dateRange={dateRange} 
+          dealerFilter={dealershipUUID} 
+        />
+      }
+      subnavbar={subnavbarContent}
+    >
+      <TabSwitchedDashboardCharts 
+        activeTab={activeTab}
+        dateRange={dateRange}
+        dealershipFilter={dealershipUUID}
+      />
+      <DashboardTables
+        activeTab={activeTab}
+        dateRange={dateRange}
+        dealerFilter={dealershipUUID}
+        dealerName={dealershipName}
+        searchQuery={searchTerm}
+      />
+    </Dashboard>
   );
 };
 

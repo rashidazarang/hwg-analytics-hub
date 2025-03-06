@@ -158,11 +158,10 @@ const PerformanceMetrics: React.FC = () => {
 
   // Custom navigation for the performance metrics page
   const metricsNavigation = (
-    <div className="flex justify-between items-center w-full">
+    <div className="flex justify-center items-center w-full">
       <TimeframeFilter 
         selected={timeframe} 
-        onChange={handleTimeframeChange} 
-        className="mx-auto"
+        onChange={handleTimeframeChange}
       />
     </div>
   );
@@ -170,12 +169,10 @@ const PerformanceMetrics: React.FC = () => {
   return (
     <Dashboard
       onDateRangeChange={handleDateRangeChange}
-      kpiSection={null}
+      kpiSection={<KPISection />}
       subnavbar={metricsNavigation}
     >
       <div className="space-y-6 max-w-5xl mx-auto">
-        <KPISection />
-        
         <div className="grid grid-cols-1 gap-6">
           <InteractiveBarChart 
             data={data}

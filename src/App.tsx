@@ -11,6 +11,16 @@ import Account from "./pages/Account";
 import PerformanceMetrics from "./pages/PerformanceMetrics";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
+// Add Settings page
+const Settings = () => (
+  <div className="container mx-auto p-6">
+    <h1 className="text-2xl font-bold mb-6">Settings</h1>
+    <div className="bg-white shadow rounded-lg p-6">
+      <p className="text-muted-foreground">Settings page content will be available soon.</p>
+    </div>
+  </div>
+);
+
 const App = () => {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
@@ -39,6 +49,7 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/account" element={<Account />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
             
             {/* Not found route */}
