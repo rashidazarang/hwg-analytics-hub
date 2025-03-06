@@ -741,6 +741,19 @@ export type Database = {
           total: number
         }[]
       }
+      get_top_agents_by_contracts: {
+        Args: {
+          start_date: string
+          end_date: string
+          limit_count?: number
+        }
+        Returns: {
+          agent_name: string
+          contracts_closed: number
+          total_revenue: number
+          cancelled_contracts: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

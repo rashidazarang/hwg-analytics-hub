@@ -1,13 +1,21 @@
 
 import React from 'react';
 import KPICard from '@/components/metrics/KPICard';
-import { FileSignature, AlertTriangle, Clock } from 'lucide-react';
+import { FileSignature, AlertTriangle, Clock, BarChart } from 'lucide-react';
 import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
+import { useKPIData } from '@/hooks/useKPIData';
+import { useParams } from 'react-router-dom';
 
 const KPISection: React.FC = () => {
   // Get shared performance data
   const { performanceData } = useSharedPerformanceData();
-  const { averages, timeframe } = performanceData;
+  const { averages, timeframe, dateRange, dealerFilter = '' } = performanceData;
+  
+  // Fetch KPI data with consistent filtering
+  const { data: kpiData, isLoading } = useKPIData({ 
+    dateRange,
+    dealerFilter
+  });
   
   // Determine description based on timeframe
   let periodDescription = "average per interval";
@@ -29,23 +37,29 @@ const KPISection: React.FC = () => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto mb-6 animate-fade-in">
       <KPICard
-        title="Avg Pending Contracts"
-        value={averages.pending.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-        description={`Pending contracts ${periodDescription}`}
+        title="Pending Contracts"
+        value={isLoading 
+          ? "..." 
+          : kpiData?.pendingContracts.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "0"}
+        description={`Pending contracts in selected date range`}
         icon={Clock}
         color="warning"
       />
       <KPICard
-        title="Avg Active Contracts"
-        value={averages.active.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-        description={`Active contracts ${periodDescription}`}
+        title="Active Contracts"
+        value={isLoading 
+          ? "..." 
+          : kpiData?.activeAgreements.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "0"}
+        description={`Active contracts in selected date range`}
         icon={FileSignature}
         color="success"
       />
       <KPICard
-        title="Avg Cancelled Contracts"
-        value={averages.cancelled.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-        description={`Cancelled contracts ${periodDescription}`}
+        title="Cancelled Contracts"
+        value={isLoading 
+          ? "..." 
+          : kpiData?.cancelledContracts.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "0"}
+        description={`Cancelled contracts in selected date range`}
         icon={AlertTriangle}
         color="destructive"
       />
