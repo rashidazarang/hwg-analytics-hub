@@ -74,42 +74,38 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
 
 // A more efficient function to fetch monthly counts directly from the database
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
-  console.log(`Fetching monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  console.log(`Fetching aggregated monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
   
   const { data, error } = await supabase
     .from('agreements')
-    .select('EffectiveDate', { count: 'exact' }) // Fetch count directly from Supabase
+    .select('COUNT(*) as total, DATE_TRUNC(\'month\', "EffectiveDate") as month', { head: false })
     .gte('EffectiveDate', startDate.toISOString())
-    .lte('EffectiveDate', endDate.toISOString());
+    .lte('EffectiveDate', endDate.toISOString())
+    .group('month')
+    .order('month');
 
   if (error) {
-    console.error("Error fetching agreement data:", error);
+    console.error("Error fetching aggregated agreement data:", error);
     throw new Error(error.message);
   }
 
-  // Ensure data is in the correct format
-  if (!data || !Array.isArray(data)) {
-    return [];
-  }
-
-  // Group and count agreements per month
+  // Ensure that all months in the range are initialized with zero
   const monthlyCounts: Record<string, number> = {};
   const months = eachMonthOfInterval({ start: startDate, end: endDate });
 
-  // Initialize each month with 0
+  // Initialize each month with 0 agreements
   months.forEach(month => {
     const monthKey = format(month, 'yyyy-MM');
     monthlyCounts[monthKey] = 0;
   });
 
-  // Aggregate agreements per month
-  data.forEach(({ EffectiveDate }) => {
-    const date = new Date(EffectiveDate);
-    const monthKey = format(date, 'yyyy-MM');
-    if (monthlyCounts[monthKey] !== undefined) {
-      monthlyCounts[monthKey] += 1;
-    }
-  });
+  // Populate actual counts from database query
+  if (data) {
+    data.forEach(({ month, total }) => {
+      const monthKey = format(new Date(month), 'yyyy-MM'); // Convert timestamp to correct format
+      monthlyCounts[monthKey] = total;
+    });
+  }
 
   // Convert object to array for the chart
   return months.map(month => {
@@ -121,6 +117,7 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
     };
   });
 }
+
 export function usePerformanceMetricsData(
   timeframe: TimeframeOption,
   offsetPeriods: number = 0
