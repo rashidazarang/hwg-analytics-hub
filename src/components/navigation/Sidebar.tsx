@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
@@ -64,7 +65,7 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="flex w-64 flex-col fixed inset-y-0 z-30">
       <div className="flex-1 flex flex-col min-h-0 border-r bg-white shadow-sm">
-        <div className="flex items-center h-16 px-4 border-b">
+        <div className="flex items-center h-[57px] px-4 border-b">
           <Link to="/" className="flex items-center">
             <span className="text-xl font-semibold tracking-tight">
               Analytics Dashboard
