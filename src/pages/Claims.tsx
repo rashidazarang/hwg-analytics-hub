@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dashboard from '@/components/layout/Dashboard';
@@ -44,7 +45,7 @@ const Claims = () => {
       className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="w-full sm:w-auto min-w-0 sm:min-w-[240px]">
+      <div className="w-full sm:w-auto max-w-xs">
         <DealershipSearch 
           onDealershipSelect={handleDealershipSelect}
           searchTerm={searchTerm}

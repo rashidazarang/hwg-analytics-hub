@@ -18,7 +18,6 @@ const Agreements = () => {
   const [dealershipName, setDealershipName] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Check authentication
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -46,7 +45,7 @@ const Agreements = () => {
       className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="w-full sm:w-auto min-w-0 sm:min-w-[240px]">
+      <div className="w-full sm:w-auto max-w-xs">
         <DealershipSearch 
           onDealershipSelect={handleDealershipSelect}
           searchTerm={searchTerm}

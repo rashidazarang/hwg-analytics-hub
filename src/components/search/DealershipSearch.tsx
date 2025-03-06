@@ -143,7 +143,7 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   return (
     <div 
       ref={searchContainerRef} 
-      className="relative w-full"
+      className="relative w-full max-w-xs"
       onClick={handleContainerClick}
     >
       <form 
