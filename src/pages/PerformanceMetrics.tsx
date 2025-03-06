@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import TimeframeFilter, { TimeframeOption } from '@/components/filters/TimeframeFilter';
 import InteractiveBarChart from '@/components/charts/InteractiveBarChart';
 import { usePerformanceMetricsData } from '@/hooks/usePerformanceMetricsData';
@@ -39,8 +39,19 @@ const PerformanceMetrics: React.FC = () => {
   // Fetch performance metrics data
   const { data, loading, error, startDate, endDate } = usePerformanceMetricsData(timeframe, periodOffset);
 
-  // Fetch status averages whenever timeframe or periodOffset changes
+  // Create a memoized key for the status fetching effect to avoid unnecessary triggers
+  const statusFetchKey = useMemo(() => 
+    `${timeframe}-${periodOffset}-${data.length}`,
+    [timeframe, periodOffset, data.length]
+  );
+
+  // Fetch status averages whenever data, timeframe, or periodOffset changes
   useEffect(() => {
+    // Skip if loading or no data
+    if (loading || data.length === 0) {
+      return;
+    }
+
     async function fetchStatusAverages() {
       try {
         // Calculate date range for supabase query
@@ -49,17 +60,36 @@ const PerformanceMetrics: React.FC = () => {
         
         console.log(`[PERFORMANCE_METRICS] Fetching agreement status counts from ${fromDate} to ${toDate}`);
         
-        // IMPORTANT: Fetch all agreements in one query rather than separate queries for each status
-        // This ensures we're using the same dataset for calculating all averages
-        const { data: agreementData, error: countError } = await supabase
-          .from('agreements')
-          .select('AgreementStatus')
-          .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate);
+        // Fetch all agreements with pagination to handle large datasets
+        let allAgreements: any[] = [];
+        let hasMore = true;
+        let offset = 0;
+        const limit = 1000;
         
-        if (countError) {
-          console.error("[PERFORMANCE_METRICS] Error fetching agreement status counts:", countError);
-          return;
+        while (hasMore) {
+          const { data: pageData, error: pageError } = await supabase
+            .from('agreements')
+            .select('AgreementStatus')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate)
+            .range(offset, offset + limit - 1);
+          
+          if (pageError) {
+            console.error("[PERFORMANCE_METRICS] Error fetching agreement page data:", pageError);
+            break;
+          }
+          
+          if (!pageData || pageData.length === 0) {
+            hasMore = false;
+          } else {
+            allAgreements = [...allAgreements, ...pageData];
+            offset += pageData.length;
+            
+            // If we got back fewer than the limit, we've reached the end
+            if (pageData.length < limit) {
+              hasMore = false;
+            }
+          }
         }
         
         // Count agreements by status
@@ -69,8 +99,8 @@ const PerformanceMetrics: React.FC = () => {
           'CANCELLED': 0
         };
         
-        if (agreementData && agreementData.length > 0) {
-          agreementData.forEach(agreement => {
+        if (allAgreements && allAgreements.length > 0) {
+          allAgreements.forEach(agreement => {
             const status = agreement.AgreementStatus?.toUpperCase() || 'UNKNOWN';
             if (status === 'PENDING') statusCounts.PENDING++;
             else if (status === 'ACTIVE') statusCounts.ACTIVE++;
@@ -78,14 +108,14 @@ const PerformanceMetrics: React.FC = () => {
           });
         }
         
-        console.log("[PERFORMANCE_METRICS] Total agreements fetched:", agreementData?.length || 0);
+        console.log("[PERFORMANCE_METRICS] Total agreements fetched:", allAgreements?.length || 0);
         console.log("[PERFORMANCE_METRICS] Status breakdown:", statusCounts);
 
-        // Calculate division factor based on data points actually displayed
-        // Instead of using a fixed timeframe-based divisor, use the actual number of intervals with data
-        const nonZeroDataPoints = data.filter(point => point.value > 0).length;
+        // Calculate division factor based on actual displayed data points
+        // For each timeframe, count the number of intervals that actually contain data
+        let nonZeroDataPoints = data.filter(point => point.value > 0).length;
         
-        // Use at least 1 as divisor to avoid division by zero
+        // Ensure we have at least 1 data point to avoid division by zero
         const divisionFactor = Math.max(nonZeroDataPoints, 1);
         
         console.log("[PERFORMANCE_METRICS] Non-zero data points:", nonZeroDataPoints);
@@ -121,10 +151,10 @@ const PerformanceMetrics: React.FC = () => {
       }
     }
     
-    if (!loading && data.length > 0) {
-      fetchStatusAverages();
-    }
-  }, [data, loading, timeframe, startDate, endDate, updatePerformanceData, periodOffset]);
+    // Run the effect
+    fetchStatusAverages();
+    
+  }, [statusFetchKey, startDate, endDate, updatePerformanceData]); // Depend on the memoized key
 
   // Custom navigation for the performance metrics page
   const metricsNavigation = (

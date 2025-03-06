@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -54,16 +53,14 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // For 6 Months: Correctly handle offset periods in 6-month increments
       return {
-        start: startOfMonth(addMonths(now, offsetPeriods * 6)),  // Move in 6-month increments
-        end: endOfMonth(addMonths(now, (offsetPeriods * 6) + 5)) // End date is 5 months after start
+        start: startOfMonth(addMonths(now, offsetPeriods * 6)),
+        end: endOfMonth(addMonths(now, (offsetPeriods * 6) + 5))
       };
     
     case 'year':
-      // For Year: Correctly handle offset periods in 1-year increments
       return {
-        start: startOfYear(addYears(now, offsetPeriods)),  // Move in 1-year increments
+        start: startOfYear(addYears(now, offsetPeriods)),
         end: endOfYear(addYears(now, offsetPeriods))
       };
       
@@ -72,7 +69,6 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
   }
 }
 
-// A more efficient function to fetch monthly counts directly from the database
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
   console.log(`Fetching aggregated monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
@@ -86,66 +82,93 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
     throw new Error(error.message);
   }
 
-  // Ensure all months in the range are initialized with zero
   const monthlyCounts: Record<string, number> = {};
   const months = eachMonthOfInterval({ start: startDate, end: endDate });
 
-  // Initialize each month with 0 agreements
   months.forEach(month => {
     const monthKey = format(month, 'yyyy-MM');
     monthlyCounts[monthKey] = 0;
   });
 
-  // Populate actual counts from database query
   if (data) {
     data.forEach(({ month, total }) => {
-      monthlyCounts[month] = total; // Month is correctly formatted as 'YYYY-MM'
+      monthlyCounts[month] = total;
     });
   }
 
-  // Convert object to array for the chart
   return months.map(month => {
     const monthKey = format(month, 'yyyy-MM');
     return {
-      label: format(month, 'MMM').toLowerCase(), // Display as 'jan', 'feb', etc.
-      value: monthlyCounts[monthKey] || 0, // Ensure at least 0 if no data
+      label: format(month, 'MMM').toLowerCase(),
+      value: monthlyCounts[monthKey] || 0,
       rawDate: month
     };
   });
+}
+
+async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date) {
+  console.log(`Fetching all agreements by status from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  
+  let allAgreements: any[] = [];
+  let offset = 0;
+  const limit = 1000;
+  let hasMore = true;
+  
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('agreements')
+      .select('AgreementStatus')
+      .gte('EffectiveDate', startDate.toISOString())
+      .lte('EffectiveDate', endDate.toISOString())
+      .range(offset, offset + limit - 1);
+    
+    if (error) {
+      console.error("Error fetching agreement data with pagination:", error);
+      throw new Error(error.message);
+    }
+    
+    if (!data || data.length === 0) {
+      hasMore = false;
+    } else {
+      allAgreements = [...allAgreements, ...data];
+      offset += data.length;
+      
+      if (data.length < limit) {
+        hasMore = false;
+      }
+    }
+  }
+  
+  console.log(`Total agreements fetched with pagination: ${allAgreements.length}`);
+  return allAgreements;
 }
 
 export function usePerformanceMetricsData(
   timeframe: TimeframeOption,
   offsetPeriods: number = 0
 ): PerformanceData {
-  // Calculate the date range based on timeframe and offset
   const { start: startDate, end: endDate } = useMemo(() => 
     getTimeframeDateRange(timeframe, offsetPeriods), 
     [timeframe, offsetPeriods]
   );
   
-  // Format dates for Supabase query - use memo to prevent recalculation
   const formattedDates = useMemo(() => ({
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString()
   }), [startDate, endDate]);
   
-  // Use a query key that doesn't change unless needed
   const queryKey = useMemo(() => 
     ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate], 
     [timeframe, formattedDates.startDate, formattedDates.endDate]
   );
   
-  // Define query function that's stable across renders
   const queryFn = useCallback(async () => {
     console.log(`Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}`);
     
-    // For 6months and year, use the optimized monthly fetching
     if (timeframe === '6months' || timeframe === 'year') {
       return await fetchMonthlyAgreementCounts(startDate, endDate);
     }
     
-    // For week and month, fetch raw data and process on the client
     const { data, error } = await supabase
       .from('agreements')
       .select('EffectiveDate')
@@ -160,31 +183,26 @@ export function usePerformanceMetricsData(
     return data || [];
   }, [timeframe, formattedDates, startDate, endDate]);
   
-  // Query to fetch agreement counts with better caching
   const { data, isLoading, error } = useQuery({
     queryKey: queryKey,
     queryFn: queryFn,
-    staleTime: 5 * 60 * 1000, // Cache data for 5 minutes
-    refetchOnWindowFocus: false, // Don't refetch when window gets focus
-    refetchOnMount: false, // Don't refetch when component mounts
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
   
-  // Process data using useMemo to prevent unnecessary processing
   const processedData = useMemo(() => {
     if (isLoading || !data) return [];
     
-    // If we already have formatted data from the optimized query
     if (Array.isArray(data) && data.length > 0 && 'label' in data[0]) {
       return data as PerformanceDataPoint[];
     }
     
-    // For week and month views, process the raw data
     const agreements = data as any[] || [];
     let formattedData: PerformanceDataPoint[] = [];
     
     switch (timeframe) {
       case 'week':
-        // Group by days of week
         const weekDays = eachDayOfInterval({ start: startDate, end: endDate });
         formattedData = weekDays.map(day => {
           const dayAgreements = agreements.filter(agreement => {
@@ -201,7 +219,6 @@ export function usePerformanceMetricsData(
         break;
         
       case 'month':
-        // Group by days for the month
         const monthDays = eachDayOfInterval({ start: startDate, end: endDate });
         formattedData = monthDays.map(day => {
           const dayAgreements = agreements.filter(agreement => {
