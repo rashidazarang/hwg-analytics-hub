@@ -2,34 +2,24 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, FileSignature, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { TopDealer, TopAgent } from '@/lib/types';
+import { TopDealer, TopDealerClaims } from '@/lib/types';
 
 interface DashboardLeaderboardProps {
   topDealers?: TopDealer[];
-  topAgents?: TopAgent[];
+  topDealerClaims?: TopDealerClaims[];
   isTopDealersLoading: boolean;
-  isTopAgentsLoading: boolean;
+  isTopDealerClaimsLoading: boolean;
 }
 
 const DashboardLeaderboard: React.FC<DashboardLeaderboardProps> = ({
   topDealers,
-  topAgents,
+  topDealerClaims,
   isTopDealersLoading,
-  isTopAgentsLoading
+  isTopDealerClaimsLoading
 }) => {
   const navigate = useNavigate();
-
-  const formatCurrency = (value?: number) => {
-    if (value === undefined) return 'N/A';
-    return value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    });
-  };
 
   return (
     <div className="space-y-4">
@@ -37,7 +27,7 @@ const DashboardLeaderboard: React.FC<DashboardLeaderboardProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="card-hover-effect">
           <CardHeader>
-            <CardTitle className="text-lg font-medium">Top Dealers by Revenue</CardTitle>
+            <CardTitle className="text-lg font-medium">Top Dealers</CardTitle>
           </CardHeader>
           <CardContent>
             {isTopDealersLoading ? (
@@ -52,10 +42,17 @@ const DashboardLeaderboard: React.FC<DashboardLeaderboardProps> = ({
                   <div key={index} className="flex justify-between items-center border-b pb-2 last:border-0 last:pb-0">
                     <div>
                       <div className="font-medium">{dealer.dealer_name}</div>
-                      <div className="text-sm text-muted-foreground">{dealer.total_contracts} contracts</div>
+                      <div className="text-sm text-muted-foreground">{dealer.total_contracts} total contracts</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-primary">{formatCurrency(dealer.total_revenue)}</div>
+                      <div className="flex items-center text-sm">
+                        <Clock className="mr-1 h-3 w-3 text-amber-500" />
+                        <span>{dealer.pending_contracts || 0}</span>
+                        <FileSignature className="ml-2 mr-1 h-3 w-3 text-blue-500" />
+                        <span>{dealer.active_contracts || 0}</span>
+                        <AlertTriangle className="ml-2 mr-1 h-3 w-3 text-red-500" />
+                        <span>{dealer.cancelled_contracts}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -77,40 +74,47 @@ const DashboardLeaderboard: React.FC<DashboardLeaderboardProps> = ({
 
         <Card className="card-hover-effect">
           <CardHeader>
-            <CardTitle className="text-lg font-medium">Top Agents by Performance</CardTitle>
+            <CardTitle className="text-lg font-medium">Dealer Claims</CardTitle>
           </CardHeader>
           <CardContent>
-            {isTopAgentsLoading ? (
+            {isTopDealerClaimsLoading ? (
               <div className="space-y-2">
                 <div className="h-14 bg-gray-100 animate-pulse rounded"></div>
                 <div className="h-14 bg-gray-100 animate-pulse rounded"></div>
                 <div className="h-14 bg-gray-100 animate-pulse rounded"></div>
               </div>
-            ) : topAgents && topAgents.length > 0 ? (
+            ) : topDealerClaims && topDealerClaims.length > 0 ? (
               <div className="space-y-3">
-                {topAgents.map((agent, index) => (
+                {topDealerClaims.map((dealer, index) => (
                   <div key={index} className="flex justify-between items-center border-b pb-2 last:border-0 last:pb-0">
                     <div>
-                      <div className="font-medium">{agent.agent_name}</div>
-                      <div className="text-sm text-muted-foreground">{agent.contracts_closed} contracts closed</div>
+                      <div className="font-medium">{dealer.dealer_name}</div>
+                      <div className="text-sm text-muted-foreground">{dealer.total_claims} total claims</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-primary">{formatCurrency(agent.total_revenue)}</div>
+                      <div className="flex items-center text-sm">
+                        <FileSignature className="mr-1 h-3 w-3 text-blue-500" />
+                        <span>{dealer.open_claims}</span>
+                        <Clock className="ml-2 mr-1 h-3 w-3 text-amber-500" />
+                        <span>{dealer.pending_claims}</span>
+                        <CheckCircle className="ml-2 mr-1 h-3 w-3 text-green-500" />
+                        <span>{dealer.closed_claims}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6 text-muted-foreground">No agent data available</div>
+              <div className="text-center py-6 text-muted-foreground">No claim data available</div>
             )}
           </CardContent>
           <CardFooter>
             <Button 
               variant="link" 
               className="flex items-center ml-auto" 
-              onClick={() => navigate('/leaderboard')}
+              onClick={() => navigate('/claims')}
             >
-              View full leaderboard <ArrowRight className="ml-1 h-4 w-4" />
+              View all claims <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </CardFooter>
         </Card>

@@ -1,3 +1,4 @@
+
 export interface KPIData {
   activeAgreements: number;
   totalAgreements: number;
@@ -73,6 +74,16 @@ export interface TopDealer {
   total_contracts: number;
   total_revenue: number;
   cancelled_contracts: number;
+  pending_contracts?: number;
+  active_contracts?: number;
+}
+
+export interface TopDealerClaims {
+  dealer_name: string;
+  open_claims: number;
+  pending_claims: number;
+  closed_claims: number;
+  total_claims: number;
 }
 
 export interface RevenueGrowth {

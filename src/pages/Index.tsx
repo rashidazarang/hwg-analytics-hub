@@ -6,7 +6,8 @@ import { DateRange } from '@/lib/dateUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { useKPIData } from '@/hooks/useKPIData';
 import { useLeaderboardSummary } from '@/hooks/useLeaderboardData';
-import { useTopDealersData, useTopAgentsData } from '@/hooks/useLeaderboardData';
+import { useTopDealersContractData } from '@/hooks/useTopDealersContractData';
+import { useTopDealerClaimsData } from '@/hooks/useDealerClaimsData';
 import DashboardSummaryKPIs from '@/components/metrics/DashboardSummaryKPIs';
 import DashboardLeaderboard from '@/components/dashboard/DashboardLeaderboard';
 import DashboardAlerts from '@/components/dashboard/DashboardAlerts';
@@ -47,13 +48,13 @@ const Index = () => {
     dateRange 
   });
 
-  // Fetch top dealers data (for leaderboard highlights)
-  const { data: topDealers, isLoading: isTopDealersLoading } = useTopDealersData({ 
+  // Fetch top dealers data (contracts breakdown)
+  const { data: topDealers, isLoading: isTopDealersLoading } = useTopDealersContractData({ 
     dateRange 
   });
 
-  // Fetch top agents data (for leaderboard highlights)
-  const { data: topAgents, isLoading: isTopAgentsLoading } = useTopAgentsData({ 
+  // Fetch dealer claims data
+  const { data: topDealerClaims, isLoading: isTopDealerClaimsLoading } = useTopDealerClaimsData({ 
     dateRange 
   });
 
@@ -74,9 +75,9 @@ const Index = () => {
         {/* Leaderboard Highlights Section */}
         <DashboardLeaderboard 
           topDealers={topDealers?.slice(0, 3)} 
-          topAgents={topAgents?.slice(0, 3)}
+          topDealerClaims={topDealerClaims?.slice(0, 3)}
           isTopDealersLoading={isTopDealersLoading}
-          isTopAgentsLoading={isTopAgentsLoading}
+          isTopDealerClaimsLoading={isTopDealerClaimsLoading}
         />
 
         {/* Alerts & Actionable Insights Section */}
