@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Building2, TrendingUp, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
+import { Building2, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { TopDealer } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import DataTable, { Column } from '@/components/tables/DataTable';
@@ -16,10 +16,13 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
       key: 'rank',
       title: 'Rank',
       render: (row, index) => (
-        <div className="flex items-center">
-          <span className="font-semibold text-lg">{index + 1}</span>
+        <div className="flex items-center justify-center">
+          <span className="font-bold text-lg bg-primary/10 rounded-full w-8 h-8 flex items-center justify-center text-primary">
+            {index + 1}
+          </span>
         </div>
       ),
+      sortable: true,
     },
     {
       key: 'dealer_name',
@@ -40,7 +43,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
       render: (row) => (
         <div className="font-medium">{row.total_contracts.toLocaleString()}</div>
       ),
-      sortable: true,
+      sortable: false,
     },
     {
       key: 'expected_revenue',
@@ -51,7 +54,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
           <span className="font-medium">{formatCurrency(row.expected_revenue || 0)}</span>
         </div>
       ),
-      sortable: true,
+      sortable: false,
     },
     {
       key: 'funded_revenue',
@@ -62,18 +65,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
           <span className="font-medium">{formatCurrency(row.funded_revenue || 0)}</span>
         </div>
       ),
-      sortable: true,
-    },
-    {
-      key: 'total_revenue',
-      title: 'Revenue',
-      render: (row) => (
-        <div className="flex items-center">
-          <TrendingUp className="h-4 w-4 mr-1 text-blue-500" />
-          <span className="font-medium">{formatCurrency(row.total_revenue)}</span>
-        </div>
-      ),
-      sortable: true,
+      sortable: false,
     },
     {
       key: 'cancelled_contracts',
@@ -84,7 +76,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
           <span className="font-medium">{row.cancelled_contracts.toLocaleString()}</span>
         </div>
       ),
-      sortable: true,
+      sortable: false,
     },
   ];
 
