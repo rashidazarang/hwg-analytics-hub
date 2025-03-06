@@ -158,11 +158,11 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 domain={[0, 'auto']}
                 width={25}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 112, 240, 0.1)' }} />
               <Bar 
                 dataKey="value" 
                 name="Agreements" 
-                fill="#F97316"
+                fill="#0070F0"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 40 : timeframe === 'month' ? 15 : 25}
                 animationDuration={1000}

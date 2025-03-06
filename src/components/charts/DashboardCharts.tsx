@@ -26,7 +26,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({ dateRange, dealerFilt
   const timeframe: TimeframeOption = 'month';
   const [currentOffset, setCurrentOffset] = React.useState(0);
   
-  // Get performance metrics data for the bar chart - Fixing parameter passing
+  // Get performance metrics data for the bar chart
   const { data: performanceData, loading: isPerformanceLoading } = usePerformanceMetricsData(
     timeframe,
     currentOffset
