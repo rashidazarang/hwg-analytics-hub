@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
-import { format } from 'date-fns';
+import { format, isThisMonth, isThisYear } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PerformanceDataPoint } from '@/hooks/usePerformanceMetricsData';
@@ -41,14 +41,27 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
 }) => {
   const [chartWidth, setChartWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [averageValue, setAverageValue] = useState<number>(0);
 
   const handlePrevious = () => {
     onPeriodChange(currentOffset - 1);
   };
 
   const handleNext = () => {
-    onPeriodChange(currentOffset + 1);
+    if (currentOffset < 0) {
+      onPeriodChange(currentOffset + 1);
+    }
   };
+
+  // Calculate average value
+  useEffect(() => {
+    if (data.length > 0) {
+      const total = data.reduce((sum, item) => sum + item.value, 0);
+      setAverageValue(Math.round(total / data.length));
+    } else {
+      setAverageValue(0);
+    }
+  }, [data]);
 
   // Update chart width on resize
   useEffect(() => {
@@ -65,49 +78,52 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     };
   }, []);
 
-  // Generate chart title based on timeframe
-  const getChartTitle = () => {
-    if (data.length === 0) return "No data available";
+  // Generate title and date range text
+  const getTitleAndDateRange = () => {
+    if (data.length === 0) return { title: "No data available", dateRange: "" };
     
     const firstDate = data[0].rawDate;
     const lastDate = data[data.length - 1].rawDate;
     
+    let title = "PROMEDIO";
+    let dateRange = "";
+    
     switch (timeframe) {
       case 'week':
-        return `Week of ${format(firstDate, 'MMM d, yyyy')}`;
+        title = "PROMEDIO";
+        dateRange = `${format(firstDate, 'd')}–${format(lastDate, 'd')} de ${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}`;
+        break;
       case 'month':
-        return format(firstDate, 'MMMM yyyy');
+        title = "PROMEDIO";
+        dateRange = `${format(firstDate, 'd')} de ${format(firstDate, 'MMM').toLowerCase()}–${format(lastDate, 'd')} de ${format(lastDate, 'MMM').toLowerCase()} ${format(lastDate, 'yyyy')}`;
+        break;
       case '6months':
-        return `${format(firstDate, 'MMM yyyy')} - ${format(lastDate, 'MMM yyyy')}`;
+        title = "PROMEDIO DIARIO";
+        dateRange = `${format(firstDate, 'd')} de ${format(firstDate, 'MMM').toLowerCase()}–${format(lastDate, 'd')} de ${format(lastDate, 'MMM').toLowerCase()} ${format(lastDate, 'yyyy')}`;
+        break;
       case 'year':
-        return `${format(firstDate, 'MMM yyyy')} - ${format(lastDate, 'MMM yyyy')}`;
+        title = "PROMEDIO DIARIO";
+        dateRange = `${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}–${format(lastDate, 'MMM').toLowerCase()} de ${format(lastDate, 'yyyy')}`;
+        break;
       default:
-        return "Agreements Over Time";
+        title = "PROMEDIO";
+        dateRange = "";
     }
+    
+    return { title, dateRange };
   };
+
+  const { title, dateRange } = getTitleAndDateRange();
 
   return (
     <div className={cn("bg-white p-4 rounded-md shadow-sm border", className)} ref={containerRef}>
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">{getChartTitle()}</h3>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handlePrevious}
-            disabled={isLoading}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleNext}
-            disabled={isLoading || currentOffset >= 0}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      <div className="flex flex-col mb-6">
+        <h3 className="text-gray-500 font-normal text-lg">{title}</h3>
+        <div className="flex items-baseline">
+          <span className="text-5xl font-bold mr-2">{averageValue.toLocaleString()}</span>
+          <span className="text-3xl text-gray-400 font-light">acuerdos</span>
         </div>
+        <p className="text-lg text-gray-500 mt-1">{dateRange}</p>
       </div>
       
       <div className="h-[300px] w-full">
@@ -121,7 +137,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               data={data}
               margin={{
                 top: 5,
-                right: 30,
+                right: 20,
                 left: 20,
                 bottom: 20,
               }}
@@ -129,7 +145,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis 
                 dataKey="label" 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 12, fill: '#8E9196' }}
                 axisLine={false}
                 tickLine={false}
                 padding={{ left: 10, right: 10 }}
@@ -137,16 +153,17 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               <YAxis 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => value.toString()}
+                tick={{ fontSize: 12, fill: '#8E9196' }}
+                tickFormatter={(value) => value === 0 ? '0' : value.toLocaleString()}
+                domain={[0, 'auto']}
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
                 dataKey="value" 
                 name="Agreements" 
-                fill="#3B82F6" 
+                fill="#F97316" // Orange color from the design
                 radius={[4, 4, 0, 0]}
-                barSize={timeframe === 'week' ? 30 : timeframe === 'month' ? 40 : 50}
+                maxBarSize={timeframe === 'week' ? 40 : timeframe === 'month' ? 15 : 25}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -155,6 +172,27 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
             No data available for this period
           </div>
         )}
+      </div>
+      
+      <div className="flex justify-end space-x-2 mt-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handlePrevious}
+          disabled={isLoading}
+          className="border-gray-200"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleNext}
+          disabled={isLoading || currentOffset >= 0}
+          className="border-gray-200"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

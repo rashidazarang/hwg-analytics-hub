@@ -17,7 +17,8 @@ import {
   eachWeekOfInterval, 
   eachMonthOfInterval,
   subMonths,
-  subYears
+  subYears,
+  subDays
 } from 'date-fns';
 import { TimeframeOption } from '@/components/filters/TimeframeFilter';
 
@@ -53,15 +54,19 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
+      // Show previous 6 months (current month included)
+      const sixMonthsEnd = offsetPeriods === 0 ? now : addMonths(endOfMonth(now), offsetPeriods);
       return {
-        start: addMonths(subMonths(now, 6), offsetPeriods * 6),
-        end: addMonths(now, offsetPeriods * 6)
+        start: startOfMonth(subMonths(sixMonthsEnd, 5)),
+        end: offsetPeriods === 0 ? now : endOfMonth(sixMonthsEnd)
       };
     
     case 'year':
+      // Show year to date (last 12 months from current date)
+      const yearEnd = offsetPeriods === 0 ? now : addMonths(now, offsetPeriods * 12);
       return {
-        start: addMonths(subYears(now, 1), offsetPeriods * 12),
-        end: addMonths(now, offsetPeriods * 12)
+        start: startOfMonth(subMonths(yearEnd, 11)),
+        end: offsetPeriods === 0 ? now : endOfMonth(yearEnd)
       };
       
     default:
@@ -122,7 +127,7 @@ export function usePerformanceMetricsData(
           });
           
           return {
-            label: format(day, 'EEE'),
+            label: format(day, 'EEE').toLowerCase(),
             value: dayAgreements.length,
             rawDate: day
           };
@@ -130,38 +135,27 @@ export function usePerformanceMetricsData(
         break;
         
       case 'month':
-        // Group by weeks
-        const monthWeeks = eachWeekOfInterval(
-          { start: startDate, end: endDate },
-          { weekStartsOn: 1 }
-        );
-        
-        formattedData = monthWeeks.map((weekStart, index) => {
-          const weekEnd = index < monthWeeks.length - 1 
-            ? new Date(monthWeeks[index + 1].getTime() - 1) 
-            : endDate;
-            
-          const weekAgreements = agreements.filter(agreement => {
+        // Group by days for the month
+        const monthDays = eachDayOfInterval({ start: startDate, end: endDate });
+        formattedData = monthDays.map(day => {
+          const dayAgreements = agreements.filter(agreement => {
             const effectiveDate = new Date(agreement.EffectiveDate);
-            return effectiveDate >= weekStart && effectiveDate <= weekEnd;
+            return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
           });
           
           return {
-            label: `Week ${index + 1}`,
-            value: weekAgreements.length,
-            rawDate: weekStart
+            label: format(day, 'd'),
+            value: dayAgreements.length,
+            rawDate: day
           };
         });
         break;
         
       case '6months':
-      case 'year':
-        // Group by months
+        // Group by days for 6 months
         const months = eachMonthOfInterval({ start: startDate, end: endDate });
         formattedData = months.map(month => {
-          const monthEnd = new Date(month);
-          monthEnd.setMonth(monthEnd.getMonth() + 1);
-          monthEnd.setDate(0); // Last day of the month
+          const monthEnd = endOfMonth(month);
           
           const monthAgreements = agreements.filter(agreement => {
             const effectiveDate = new Date(agreement.EffectiveDate);
@@ -172,7 +166,29 @@ export function usePerformanceMetricsData(
           });
           
           return {
-            label: format(month, 'MMM'),
+            label: format(month, 'MMM').toLowerCase(),
+            value: monthAgreements.length,
+            rawDate: month
+          };
+        });
+        break;
+        
+      case 'year':
+        // Group by months for year
+        const yearMonths = eachMonthOfInterval({ start: startDate, end: endDate });
+        formattedData = yearMonths.map(month => {
+          const monthEnd = endOfMonth(month);
+          
+          const monthAgreements = agreements.filter(agreement => {
+            const effectiveDate = new Date(agreement.EffectiveDate);
+            return (
+              effectiveDate >= month && 
+              effectiveDate <= monthEnd
+            );
+          });
+          
+          return {
+            label: format(month, 'MMM').toLowerCase(),
             value: monthAgreements.length,
             rawDate: month
           };

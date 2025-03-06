@@ -40,6 +40,7 @@ const PerformanceMetrics: React.FC = () => {
       <TimeframeFilter 
         selected={timeframe} 
         onChange={handleTimeframeChange} 
+        className="mx-auto"
       />
     </div>
   );
@@ -50,7 +51,7 @@ const PerformanceMetrics: React.FC = () => {
       kpiSection={<KPISection dateRange={dateRange} />}
       subnavbar={metricsNavigation}
     >
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-5xl mx-auto">
         <div className="grid grid-cols-1 gap-6">
           <InteractiveBarChart 
             data={data}

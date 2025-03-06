@@ -17,22 +17,24 @@ const TimeframeFilter: React.FC<TimeframeFilterProps> = ({
   className = '',
 }) => {
   const options: Array<{ value: TimeframeOption; label: string }> = [
-    { value: 'week', label: 'Week' },
-    { value: 'month', label: 'Month' },
-    { value: '6months', label: '6 Months' },
-    { value: 'year', label: 'Year' },
+    { value: 'week', label: 'D' },
+    { value: 'month', label: 'M' },
+    { value: '6months', label: '6M' },
+    { value: 'year', label: 'A' },
   ];
 
   return (
-    <div className={cn("flex items-center space-x-2 bg-white rounded-md p-2", className)}>
+    <div className={cn("flex items-center bg-gray-100 rounded-full p-1.5", className)}>
       {options.map((option) => (
         <Button
           key={option.value}
-          variant={selected === option.value ? 'default' : 'outline'}
+          variant={selected === option.value ? 'default' : 'ghost'}
           size="sm"
           className={cn(
-            "h-8 px-3 text-xs font-medium",
-            selected === option.value ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            "h-8 min-w-12 px-4 text-sm font-medium rounded-full",
+            selected === option.value 
+              ? "bg-white text-black shadow-sm" 
+              : "text-gray-500 hover:text-gray-700 hover:bg-transparent"
           )}
           onClick={() => onChange(option.value)}
         >
