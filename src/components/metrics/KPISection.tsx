@@ -27,7 +27,7 @@ const KPISection: React.FC = () => {
   }
   
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto mb-6 animate-fade-in">
       <KPICard
         title="Avg Pending Contracts"
         value={averages.pending.toLocaleString("en-US", { maximumFractionDigits: 0 })}

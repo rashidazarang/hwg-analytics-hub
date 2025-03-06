@@ -17,13 +17,13 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, to, isActi
       <Link
         to={to}
         className={cn(
-          "flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          "flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200",
           isActive 
-            ? "bg-primary/10 text-primary" 
-            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            ? "bg-primary/10 text-primary font-semibold" 
+            : "text-muted-foreground hover:bg-gray-100 hover:text-foreground"
         )}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className={cn("h-5 w-5", isActive ? "text-primary" : "text-gray-500")} />
         <span>{label}</span>
       </Link>
     </li>
@@ -62,7 +62,7 @@ const Sidebar: React.FC = () => {
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
-      <div className="flex-1 flex flex-col min-h-0 border-r bg-background">
+      <div className="flex-1 flex flex-col min-h-0 border-r bg-white shadow-sm">
         <div className="flex items-center h-16 px-4 border-b">
           <Link to="/" className="flex items-center">
             <span className="text-xl font-semibold tracking-tight">
@@ -71,12 +71,13 @@ const Sidebar: React.FC = () => {
           </Link>
         </div>
         <div className="flex-1 flex flex-col overflow-y-auto pt-5 pb-4">
-          <nav className="flex-1 px-3 space-y-6">
+          <nav className="flex-1 px-3 space-y-8">
             <div>
-              <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                 Dashboard
               </h3>
-              <ul className="mt-2 space-y-1">
+              <div className="h-px bg-gray-200 mb-3"></div>
+              <ul className="space-y-1">
                 {mainNavItems.map((item) => (
                   <SidebarItem 
                     key={item.to}
@@ -93,10 +94,11 @@ const Sidebar: React.FC = () => {
               </ul>
             </div>
             <div>
-              <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                 User
               </h3>
-              <ul className="mt-2 space-y-1">
+              <div className="h-px bg-gray-200 mb-3"></div>
+              <ul className="space-y-1">
                 {accountItems.map((item) => (
                   <SidebarItem 
                     key={item.to}

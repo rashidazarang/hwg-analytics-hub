@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
 import { 
   Popover, 
   PopoverContent, 
@@ -105,6 +105,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
         numberOfMonths={1}
         defaultMonth={dateRange.from}
         initialFocus
+        className="rounded-md shadow-sm"
       />
       <div className="p-3 border-t flex justify-end">
         <Button 
@@ -120,9 +121,9 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
 
   if (isMobile) {
     return (
-      <div className="flex items-center space-x-1 xs:space-x-2 bg-white rounded-md px-1 xs:px-2 py-1.5 w-full xs:w-auto min-w-[110px]">
+      <div className="flex items-center space-x-1 xs:space-x-2 bg-white rounded-md px-1 xs:px-2 py-1.5 w-full xs:w-auto min-w-[110px] date-range-selector shadow-sm">
         <div className="inline-flex items-center">
-          <Calendar className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
+          <CalendarIcon className="h-3 w-3 xs:h-4 xs:w-4 text-primary" />
         </div>
         
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -148,9 +149,9 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   }
 
   return (
-    <div className="flex items-center space-x-1 xs:space-x-2 bg-white rounded-md px-1 xs:px-2 py-1.5 w-full xs:w-auto min-w-[110px]">
+    <div className="flex items-center space-x-1 xs:space-x-2 bg-white rounded-md px-1 xs:px-2 py-1.5 w-full xs:w-auto min-w-[110px] date-range-selector shadow-sm">
       <div className="inline-flex items-center">
-        <Calendar className="h-3 w-3 xs:h-4 xs:w-4 text-muted-foreground" />
+        <CalendarIcon className="h-3 w-3 xs:h-4 xs:w-4 text-primary" />
       </div>
       
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -164,7 +165,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
             <ChevronDown className="ml-1 h-3 w-3 text-muted-foreground flex-shrink-0" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 shadow-lg" align="start">
           {CalendarContent}
         </PopoverContent>
       </Popover>

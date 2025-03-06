@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { format } from 'date-fns';
@@ -33,9 +34,9 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
     }
     
     return (
-      <div className="bg-white p-3 shadow-md rounded-md border">
-        <p className="font-medium">{formattedDate}</p>
-        <p className="text-primary">{tooltipContent}</p>
+      <div className="bg-white p-4 shadow-md rounded-md border border-gray-100">
+        <p className="font-semibold">{formattedDate}</p>
+        <p className="text-primary font-medium">{tooltipContent}</p>
       </div>
     );
   }
@@ -120,9 +121,9 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const { dateRange } = getDateRange();
 
   return (
-    <div className={cn("bg-white p-4 rounded-md shadow-sm border", className)} ref={containerRef}>
+    <div className={cn("bg-white p-5 rounded-xl shadow-sm border border-gray-100 chart-container", className)} ref={containerRef}>
       <div className="flex flex-col mb-6">
-        <p className="text-lg text-gray-500 mt-1">{dateRange}</p>
+        <p className="text-lg text-gray-500 mt-1 font-medium">{dateRange}</p>
       </div>
       
       <div className="h-[300px] w-full">
@@ -157,13 +158,14 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 domain={[0, 'auto']}
                 width={30}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
               <Bar 
                 dataKey="value" 
                 name="Agreements" 
                 fill="#F97316"
-                radius={[4, 4, 0, 0]}
-                maxBarSize={timeframe === 'week' ? 40 : timeframe === 'month' ? 15 : 25}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                animationDuration={1000}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -174,13 +176,13 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         )}
       </div>
       
-      <div className="flex justify-end space-x-2 mt-2">
+      <div className="flex justify-end space-x-2 mt-4">
         <Button 
           variant="outline" 
           size="sm" 
           onClick={handlePrevious}
           disabled={isLoading}
-          className="border-gray-200"
+          className="border-gray-200 hover:bg-gray-50"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -189,7 +191,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
           size="sm" 
           onClick={handleNext}
           disabled={isLoading || (currentOffset >= 1)}
-          className="border-gray-200"
+          className="border-gray-200 hover:bg-gray-50"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

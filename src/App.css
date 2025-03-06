@@ -42,6 +42,61 @@
   color: #888;
 }
 
+/* Enhanced dashboard styling */
+.dashboard-content {
+  background-color: #f5f7fa;
+  min-height: 100vh;
+}
+
+.card-hover-effect {
+  transition: all 0.3s ease;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Improve date range selector */
+.date-range-selector {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.date-range-selector:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Enhanced chart styling */
+.chart-container {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* Added animation for data loading */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
 /* Mobile-specific styles */
 @media (max-width: 640px) {
   .mobile-optimized {
