@@ -60,6 +60,13 @@
   flex: 1;
 }
 
+@media (max-width: 768px) {
+  .sidebar-layout-content {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
 .card-hover-effect {
   transition: all 0.3s ease;
   border-radius: 12px !important;
@@ -187,4 +194,13 @@
     margin-right: -0.5rem;
     width: calc(100% + 1rem);
   }
+}
+
+/* Mobile sidebar transitions */
+.sidebar-transition {
+  transition: transform 0.3s ease-in-out;
+}
+
+.sidebar-overlay {
+  transition: opacity 0.3s ease-in-out;
 }
