@@ -780,19 +780,32 @@ export type Database = {
           cancelled_contracts: number
         }[]
       }
-      get_top_dealers_by_revenue: {
-        Args: {
-          start_date: string
-          end_date: string
-          limit_count?: number
-        }
-        Returns: {
-          dealer_name: string
-          total_contracts: number
-          total_revenue: number
-          cancelled_contracts: number
-        }[]
-      }
+      get_top_dealers_by_revenue:
+        | {
+            Args: {
+              start_date: string
+              end_date: string
+            }
+            Returns: {
+              dealer_name: string
+              total_contracts: number
+              total_revenue: number
+              cancelled_contracts: number
+            }[]
+          }
+        | {
+            Args: {
+              start_date: string
+              end_date: string
+              limit_count?: number
+            }
+            Returns: {
+              dealer_name: string
+              total_contracts: number
+              total_revenue: number
+              cancelled_contracts: number
+            }[]
+          }
     }
     Enums: {
       [_ in never]: never

@@ -110,27 +110,23 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="flex-1 flex flex-col md:ml-64 w-full max-w-full">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
           <div className="px-2 xs:px-3 sm:px-6 py-2 sm:py-3">
-            <div className="flex justify-between items-center">
-              {/* Mobile Controls */}
-              <div className="flex items-center md:hidden">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 mobile-toggle mr-1 xs:mr-2" 
-                  onClick={toggleMobileMenu}
-                  ref={menuButtonRef}
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-                <h1 className="text-base xs:text-lg font-semibold tracking-tight">{pageTitle}</h1>
-              </div>
-              
-              {/* Desktop Page Title - hidden on mobile */}
-              <h1 className="hidden md:block text-2xl font-bold tracking-tight">{pageTitle}</h1>
-              
-              {/* Controls - right side */}
-              <div className="flex items-center space-x-1 sm:space-x-3">
-                {isMobile ? (
+            {/* Update this div to match the Leaderboard style */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              {/* Mobile Controls - Only shown on mobile */}
+              <div className="flex items-center md:hidden w-full justify-between mb-3 sm:mb-0">
+                <div className="flex items-center">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 mobile-toggle mr-1 xs:mr-2" 
+                    onClick={toggleMobileMenu}
+                    ref={menuButtonRef}
+                  >
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                  <h1 className="text-base xs:text-lg font-semibold tracking-tight">{pageTitle}</h1>
+                </div>
+                {isMobile && (
                   <Button 
                     variant="ghost" 
                     size="icon" 
@@ -140,7 +136,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                   >
                     <Calendar className="h-4 xs:h-5 w-4 xs:w-5" />
                   </Button>
-                ) : (
+                )}
+              </div>
+              
+              {/* Desktop Title and Controls */}
+              <h1 className="hidden md:block text-2xl font-bold tracking-tight">{pageTitle}</h1>
+              
+              <div className="flex items-center space-x-1 sm:space-x-3">
+                {!isMobile && (
                   <DateRangeFilter 
                     dateRange={dateRange}
                     onChange={handleDateChange} 
