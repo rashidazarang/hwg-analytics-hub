@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
@@ -58,7 +59,7 @@ const Sidebar: React.FC = () => {
             <img 
               src="/lovable-uploads/eb0ad36a-388f-454c-aaa9-4ba36c462126.png"
               alt="HWG Logo"
-              className="h-8"
+              className="h-[35px]"
             />
           </Link>
         </div>
