@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { format } from 'date-fns';
@@ -137,8 +136,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               data={data}
               margin={{
                 top: 5,
-                right: 20,
-                left: 20,
+                right: 10,
+                left: 10,
                 bottom: 20,
               }}
             >
@@ -148,7 +147,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 tick={{ fontSize: 12, fill: '#8E9196' }}
                 axisLine={false}
                 tickLine={false}
-                padding={{ left: 10, right: 10 }}
+                padding={{ left: 5, right: 5 }}
               />
               <YAxis 
                 axisLine={false}
@@ -156,6 +155,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 tick={{ fontSize: 12, fill: '#8E9196' }}
                 tickFormatter={(value) => value === 0 ? '0' : value.toLocaleString()}
                 domain={[0, 'auto']}
+                width={30}
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar 
