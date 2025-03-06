@@ -10,19 +10,19 @@ const KPISection: React.FC = () => {
   const { averages, timeframe } = performanceData;
   
   // Determine description based on timeframe
-  let periodDescription = "per period";
+  let periodDescription = "average per interval";
   switch (timeframe) {
     case 'week':
-      periodDescription = "per week";
+      periodDescription = "average per day";
       break;
     case 'month':
-      periodDescription = "for this month";
+      periodDescription = "average per day";
       break;
     case '6months':
-      periodDescription = "per month (6-month avg)";
+      periodDescription = "average per month";
       break;
     case 'year':
-      periodDescription = "per month (yearly avg)";
+      periodDescription = "average per month";
       break;
   }
   

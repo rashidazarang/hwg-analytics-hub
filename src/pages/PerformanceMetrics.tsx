@@ -47,7 +47,7 @@ const PerformanceMetrics: React.FC = () => {
         const fromDate = startDate.toISOString();
         const toDate = endDate.toISOString();
         
-        console.log(`Fetching agreement status counts from ${fromDate} to ${toDate}`);
+        console.log(`[PERFORMANCE_METRICS] Fetching agreement status counts from ${fromDate} to ${toDate}`);
         
         // IMPORTANT: Fetch all agreements in one query rather than separate queries for each status
         // This ensures we're using the same dataset for calculating all averages
@@ -58,7 +58,7 @@ const PerformanceMetrics: React.FC = () => {
           .lte('EffectiveDate', toDate);
         
         if (countError) {
-          console.error("Error fetching agreement status counts:", countError);
+          console.error("[PERFORMANCE_METRICS] Error fetching agreement status counts:", countError);
           return;
         }
         
@@ -81,56 +81,33 @@ const PerformanceMetrics: React.FC = () => {
         console.log("[PERFORMANCE_METRICS] Total agreements fetched:", agreementData?.length || 0);
         console.log("[PERFORMANCE_METRICS] Status breakdown:", statusCounts);
 
-        // Calculate division factor based on timeframe
-        let divisionFactor = 1;
-        switch (timeframe) {
-          case 'week':
-            divisionFactor = 7; // Days in a week
-            break;
-          case 'month':
-            // Calculate exact days in the month for more accuracy
-            const daysInMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0).getDate();
-            divisionFactor = daysInMonth;
-            break;
-          case '6months':
-            divisionFactor = 1; // For averages, we want totals for the period
-            break;
-          case 'year':
-            divisionFactor = 1; // For averages, we want totals for the period
-            break;
-        }
+        // Calculate division factor based on data points actually displayed
+        // Instead of using a fixed timeframe-based divisor, use the actual number of intervals with data
+        const nonZeroDataPoints = data.filter(point => point.value > 0).length;
         
-        // For 6-months and year views, we want the average per month
-        if (timeframe === '6months' || timeframe === 'year') {
-          const startMonth = startDate.getMonth();
-          const startYear = startDate.getFullYear();
-          const endMonth = endDate.getMonth();
-          const endYear = endDate.getFullYear();
-          
-          // Calculate number of months in the range
-          const monthCount = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
-          divisionFactor = monthCount;
-        }
+        // Use at least 1 as divisor to avoid division by zero
+        const divisionFactor = Math.max(nonZeroDataPoints, 1);
         
-        // Calculate averages - round to nearest integer
-        let pendingAvg = Math.round(statusCounts.PENDING / divisionFactor);
-        let activeAvg = Math.round(statusCounts.ACTIVE / divisionFactor);
-        let cancelledAvg = Math.round(statusCounts.CANCELLED / divisionFactor);
-        
-        // Instead of averaging for single month view, just display the total
-        if (timeframe === 'month') {
-          pendingAvg = statusCounts.PENDING;
-          activeAvg = statusCounts.ACTIVE;
-          cancelledAvg = statusCounts.CANCELLED;
-        }
-        
+        console.log("[PERFORMANCE_METRICS] Non-zero data points:", nonZeroDataPoints);
         console.log("[PERFORMANCE_METRICS] Division factor:", divisionFactor);
-        console.log("[PERFORMANCE_METRICS] Calculated values:", { 
+        
+        // Calculate averages based on actual displayed intervals - round to nearest integer
+        const pendingAvg = Math.round(statusCounts.PENDING / divisionFactor);
+        const activeAvg = Math.round(statusCounts.ACTIVE / divisionFactor);
+        const cancelledAvg = Math.round(statusCounts.CANCELLED / divisionFactor);
+        
+        console.log("[PERFORMANCE_METRICS] Calculated averages:", { 
           pendingAvg, 
           activeAvg, 
           cancelledAvg,
           timeframe
         });
+        
+        // Verify sum matches
+        const totalAvg = pendingAvg + activeAvg + cancelledAvg;
+        const totalDataPointsSum = data.reduce((sum, point) => sum + point.value, 0);
+        console.log("[PERFORMANCE_METRICS] Total average:", totalAvg);
+        console.log("[PERFORMANCE_METRICS] Sum of data points:", totalDataPointsSum);
         
         // Update shared state
         updatePerformanceData(data, timeframe, {
