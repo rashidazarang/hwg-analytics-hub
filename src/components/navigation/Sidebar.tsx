@@ -32,7 +32,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, to, isActi
 
 const sidebarItems = [
   {
-    name: "Dashboard",
+    name: "Overview",
     path: "/",
     icon: Home
   },
