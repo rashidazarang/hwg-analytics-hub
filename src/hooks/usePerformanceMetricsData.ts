@@ -26,6 +26,9 @@ export interface PerformanceDataPoint {
   label: string;
   value: number;
   rawDate: Date;
+  pending: number;
+  active: number;
+  cancelled: number;
 }
 
 export interface PerformanceData {
@@ -72,35 +75,55 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
   console.log(`Fetching aggregated monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
-  const { data, error } = await supabase.rpc('fetch_monthly_agreement_counts', {
-    start_date: startDate.toISOString(),
-    end_date: endDate.toISOString(),
-  });
+  const { data, error } = await supabase
+    .from('agreements')
+    .select('EffectiveDate, AgreementStatus')
+    .gte('EffectiveDate', startDate.toISOString())
+    .lte('EffectiveDate', endDate.toISOString());
 
   if (error) {
     console.error("Error fetching aggregated agreement data:", error);
     throw new Error(error.message);
   }
 
-  const monthlyCounts: Record<string, number> = {};
+  const monthlyStats: Record<string, { total: number, pending: number, active: number, cancelled: number }> = {};
   const months = eachMonthOfInterval({ start: startDate, end: endDate });
 
   months.forEach(month => {
     const monthKey = format(month, 'yyyy-MM');
-    monthlyCounts[monthKey] = 0;
+    monthlyStats[monthKey] = { total: 0, pending: 0, active: 0, cancelled: 0 };
   });
 
   if (data) {
-    data.forEach(({ month, total }) => {
-      monthlyCounts[month] = total;
+    data.forEach(agreement => {
+      const effectiveDate = new Date(agreement.EffectiveDate);
+      const monthKey = format(effectiveDate, 'yyyy-MM');
+      
+      if (monthlyStats[monthKey]) {
+        monthlyStats[monthKey].total++;
+        
+        const status = (agreement.AgreementStatus || '').toUpperCase();
+        
+        if (status === 'PENDING') {
+          monthlyStats[monthKey].pending++;
+        } else if (status === 'ACTIVE') {
+          monthlyStats[monthKey].active++;
+        } else if (status === 'CANCELLED') {
+          monthlyStats[monthKey].cancelled++;
+        }
+      }
     });
   }
 
   return months.map(month => {
     const monthKey = format(month, 'yyyy-MM');
+    const stats = monthlyStats[monthKey];
     return {
       label: format(month, 'MMM').toLowerCase(),
-      value: monthlyCounts[monthKey] || 0,
+      value: stats.total,
+      pending: stats.pending,
+      active: stats.active,
+      cancelled: stats.cancelled,
       rawDate: month
     };
   });
@@ -109,38 +132,19 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
 async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date) {
   console.log(`Fetching all agreements by status from ${startDate.toISOString()} to ${endDate.toISOString()}`);
   
-  let allAgreements: any[] = [];
-  let offset = 0;
-  const limit = 1000;
-  let hasMore = true;
+  const { data, error } = await supabase
+    .from('agreements')
+    .select('EffectiveDate, AgreementStatus')
+    .gte('EffectiveDate', startDate.toISOString())
+    .lte('EffectiveDate', endDate.toISOString());
   
-  while (hasMore) {
-    const { data, error } = await supabase
-      .from('agreements')
-      .select('AgreementStatus')
-      .gte('EffectiveDate', startDate.toISOString())
-      .lte('EffectiveDate', endDate.toISOString())
-      .range(offset, offset + limit - 1);
-    
-    if (error) {
-      console.error("Error fetching agreement data with pagination:", error);
-      throw new Error(error.message);
-    }
-    
-    if (!data || data.length === 0) {
-      hasMore = false;
-    } else {
-      allAgreements = [...allAgreements, ...data];
-      offset += data.length;
-      
-      if (data.length < limit) {
-        hasMore = false;
-      }
-    }
+  if (error) {
+    console.error("Error fetching agreement data:", error);
+    throw new Error(error.message);
   }
   
-  console.log(`Total agreements fetched with pagination: ${allAgreements.length}`);
-  return allAgreements;
+  console.log(`Total agreements fetched: ${data?.length || 0}`);
+  return data || [];
 }
 
 export function usePerformanceMetricsData(
@@ -169,18 +173,7 @@ export function usePerformanceMetricsData(
       return await fetchMonthlyAgreementCounts(startDate, endDate);
     }
     
-    const { data, error } = await supabase
-      .from('agreements')
-      .select('EffectiveDate')
-      .gte('EffectiveDate', formattedDates.startDate)
-      .lte('EffectiveDate', formattedDates.endDate);
-    
-    if (error) {
-      console.error("Error fetching agreement data:", error);
-      throw new Error(error.message);
-    }
-    
-    return data || [];
+    return await fetchAllAgreementsByStatus(startDate, endDate);
   }, [timeframe, formattedDates, startDate, endDate]);
   
   const { data, isLoading, error } = useQuery({
@@ -202,37 +195,65 @@ export function usePerformanceMetricsData(
     let formattedData: PerformanceDataPoint[] = [];
     
     switch (timeframe) {
-      case 'week':
+      case 'week': {
         const weekDays = eachDayOfInterval({ start: startDate, end: endDate });
+        
         formattedData = weekDays.map(day => {
           const dayAgreements = agreements.filter(agreement => {
             const effectiveDate = new Date(agreement.EffectiveDate);
             return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
           });
           
+          let pending = 0, active = 0, cancelled = 0;
+          
+          dayAgreements.forEach(agreement => {
+            const status = (agreement.AgreementStatus || '').toUpperCase();
+            if (status === 'PENDING') pending++;
+            else if (status === 'ACTIVE') active++;
+            else if (status === 'CANCELLED') cancelled++;
+          });
+          
           return {
             label: format(day, 'EEE').toLowerCase(),
             value: dayAgreements.length,
+            pending,
+            active,
+            cancelled,
             rawDate: day
           };
         });
         break;
+      }
         
-      case 'month':
+      case 'month': {
         const monthDays = eachDayOfInterval({ start: startDate, end: endDate });
+        
         formattedData = monthDays.map(day => {
           const dayAgreements = agreements.filter(agreement => {
             const effectiveDate = new Date(agreement.EffectiveDate);
             return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
           });
           
+          let pending = 0, active = 0, cancelled = 0;
+          
+          dayAgreements.forEach(agreement => {
+            const status = (agreement.AgreementStatus || '').toUpperCase();
+            if (status === 'PENDING') pending++;
+            else if (status === 'ACTIVE') active++;
+            else if (status === 'CANCELLED') cancelled++;
+          });
+          
           return {
             label: format(day, 'd'),
             value: dayAgreements.length,
+            pending,
+            active,
+            cancelled,
             rawDate: day
           };
         });
         break;
+      }
     }
     
     return formattedData;

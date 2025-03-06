@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps, Legend } from 'recharts';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,16 +27,35 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
     
     if (isMonthView) {
       formattedDate = format(dataPoint.rawDate, 'MMMM yyyy');
-      tooltipContent = `Total Agreements: ${dataPoint.value.toLocaleString()}`;
     } else {
       formattedDate = format(dataPoint.rawDate, 'MMM d, yyyy');
-      tooltipContent = `Total Agreements: ${dataPoint.value.toLocaleString()}`;
     }
+    
+    // Create detailed breakdown for tooltip
+    tooltipContent = (
+      <>
+        <p className="text-primary font-medium">Total Agreements: {dataPoint.value.toLocaleString()}</p>
+        <div className="mt-2 text-sm space-y-1">
+          <p className="flex items-center">
+            <span className="inline-block w-3 h-3 bg-[#FEF7CD] mr-2 rounded-sm"></span>
+            Pending: {dataPoint.pending.toLocaleString()}
+          </p>
+          <p className="flex items-center">
+            <span className="inline-block w-3 h-3 bg-[#F2FCE2] mr-2 rounded-sm"></span>
+            Active: {dataPoint.active.toLocaleString()}
+          </p>
+          <p className="flex items-center">
+            <span className="inline-block w-3 h-3 bg-[#ea384c] mr-2 rounded-sm"></span>
+            Cancelled: {dataPoint.cancelled.toLocaleString()}
+          </p>
+        </div>
+      </>
+    );
     
     return (
       <div className="bg-white p-4 shadow-md rounded-md border border-gray-100">
         <p className="font-semibold">{formattedDate}</p>
-        <p className="text-primary font-medium">{tooltipContent}</p>
+        {tooltipContent}
       </div>
     );
   }
@@ -120,11 +139,31 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
 
   const { dateRange } = getDateRange();
 
+  // Define custom legend for the chart
+  const CustomLegend = () => (
+    <div className="flex flex-wrap justify-center items-center gap-4 mt-2 mb-4">
+      <div className="flex items-center">
+        <span className="inline-block w-3 h-3 bg-[#FEF7CD] mr-2 rounded-sm"></span>
+        <span className="text-sm text-gray-600">Pending</span>
+      </div>
+      <div className="flex items-center">
+        <span className="inline-block w-3 h-3 bg-[#F2FCE2] mr-2 rounded-sm"></span>
+        <span className="text-sm text-gray-600">Active</span>
+      </div>
+      <div className="flex items-center">
+        <span className="inline-block w-3 h-3 bg-[#ea384c] mr-2 rounded-sm"></span>
+        <span className="text-sm text-gray-600">Cancelled</span>
+      </div>
+    </div>
+  );
+
   return (
     <div className={cn("bg-white p-5 rounded-xl shadow-sm border border-gray-100 chart-container", className)} ref={containerRef}>
-      <div className="flex flex-col mb-6">
+      <div className="flex flex-col mb-2">
         <p className="text-lg text-gray-500 mt-1 font-medium">{dateRange}</p>
       </div>
+      
+      <CustomLegend />
       
       <div className="h-[300px] w-full">
         {isLoading ? (
@@ -159,11 +198,32 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 width={30}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
+              
+              {/* Replace single bar with stacked bars */}
               <Bar 
-                dataKey="value" 
-                name="Agreements" 
-                fill="#F97316"
-                radius={[6, 6, 0, 0]}
+                dataKey="pending" 
+                name="Pending" 
+                stackId="a"
+                fill="#FEF7CD"  
+                radius={[0, 0, 0, 0]}
+                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                animationDuration={800}
+              />
+              <Bar 
+                dataKey="active" 
+                name="Active" 
+                stackId="a" 
+                fill="#F2FCE2"
+                radius={[0, 0, 0, 0]}
+                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                animationDuration={900}
+              />
+              <Bar 
+                dataKey="cancelled" 
+                name="Cancelled" 
+                stackId="a" 
+                fill="#ea384c"
+                radius={[6, 6, 0, 0]}  // Only top corners rounded
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={1000}
               />

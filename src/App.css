@@ -90,6 +90,19 @@
   transition: all 0.3s ease;
 }
 
+/* Status color indicators for charts */
+.status-pending {
+  background-color: #FEF7CD;
+}
+
+.status-active {
+  background-color: #F2FCE2;
+}
+
+.status-cancelled {
+  background-color: #ea384c;
+}
+
 @media (min-width: 640px) {
   .chart-container {
     height: 500px;  /* Increased height from 400px to 500px for larger screens */

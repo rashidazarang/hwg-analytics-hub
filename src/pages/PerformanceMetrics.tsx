@@ -45,104 +45,52 @@ const PerformanceMetrics: React.FC = () => {
       return;
     }
 
-    async function fetchStatusAverages() {
-      const fromDate = startDate.toISOString();
-      const toDate = endDate.toISOString();
+    // Calculate the status averages for KPI cards
+    const calculateStatusAverages = () => {
+      // Sum all status counts across all data points
+      const totalPending = data.reduce((sum, point) => sum + point.pending, 0);
+      const totalActive = data.reduce((sum, point) => sum + point.active, 0);
+      const totalCancelled = data.reduce((sum, point) => sum + point.cancelled, 0);
       
-      console.log(`[PERFORMANCE_METRICS] Fetching agreement status counts from ${fromDate} to ${toDate}`);
-      
-      let allAgreements: any[] = [];
-      let hasMore = true;
-      let offset = 0;
-      const limit = 1000;
-      
-      while (hasMore) {
-        const { data: pageData, error: pageError } = await supabase
-          .from('agreements')
-          .select('AgreementStatus')
-          .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate)
-          .range(offset, offset + limit - 1);
-        
-        if (pageError) {
-          console.error("[PERFORMANCE_METRICS] Error fetching agreement page data:", pageError);
-          break;
-        }
-        
-        if (!pageData || pageData.length === 0) {
-          hasMore = false;
-        } else {
-          allAgreements = [...allAgreements, ...pageData];
-          offset += pageData.length;
-          
-          if (pageData.length < limit) {
-            hasMore = false;
-          }
-        }
-      }
-      
-      const statusCounts = {
-        'PENDING': 0,
-        'ACTIVE': 0,
-        'CANCELLED': 0
-      };
-      
-      if (allAgreements && allAgreements.length > 0) {
-        allAgreements.forEach(agreement => {
-          const status = agreement.AgreementStatus?.toUpperCase() || 'UNKNOWN';
-          if (status === 'PENDING') statusCounts.PENDING++;
-          else if (status === 'ACTIVE') statusCounts.ACTIVE++;
-          else if (status === 'CANCELLED') statusCounts.CANCELLED++;
-        });
-      }
-      
-      console.log("[PERFORMANCE_METRICS] Total agreements fetched:", allAgreements?.length || 0);
-      console.log("[PERFORMANCE_METRICS] Status breakdown:", statusCounts);
-
-      let nonZeroDataPoints = data.filter(point => point.value > 0).length;
-      
+      // Find non-zero data points for averaging
+      const nonZeroDataPoints = data.filter(point => point.value > 0).length;
       const divisionFactor = Math.max(nonZeroDataPoints, 1);
       
-      console.log("[PERFORMANCE_METRICS] Non-zero data points:", nonZeroDataPoints);
-      console.log("[PERFORMANCE_METRICS] Division factor:", divisionFactor);
-      
-      const pendingAvg = Math.round(statusCounts.PENDING / divisionFactor);
-      const activeAvg = Math.round(statusCounts.ACTIVE / divisionFactor);
-      const cancelledAvg = Math.round(statusCounts.CANCELLED / divisionFactor);
-      
-      console.log("[PERFORMANCE_METRICS] Calculated averages:", { 
-        pendingAvg, 
-        activeAvg, 
-        cancelledAvg,
-        timeframe
+      console.log("[PERFORMANCE_METRICS] Status totals:", { 
+        totalPending, 
+        totalActive, 
+        totalCancelled,
+        nonZeroDataPoints
       });
       
-      const totalAvg = pendingAvg + activeAvg + cancelledAvg;
-      const totalDataPointsSum = data.reduce((sum, point) => sum + point.value, 0);
-      console.log("[PERFORMANCE_METRICS] Total average:", totalAvg);
-      console.log("[PERFORMANCE_METRICS] Sum of data points:", totalDataPointsSum);
+      // Calculate averages
+      const pendingAvg = Math.round(totalPending / divisionFactor);
+      const activeAvg = Math.round(totalActive / divisionFactor);
+      const cancelledAvg = Math.round(totalCancelled / divisionFactor);
       
-      const dateRangeForKPI = {
-        from: startDate,
-        to: endDate
+      return {
+        pending: pendingAvg,
+        active: activeAvg,
+        cancelled: cancelledAvg
       };
-      
-      updatePerformanceData(
-        data, 
-        timeframe, 
-        dateRangeForKPI, 
-        '',
-        {
-          pending: pendingAvg,
-          active: activeAvg,
-          cancelled: cancelledAvg
-        }
-      );
-      
-    }
+    };
     
-    fetchStatusAverages();
-  }, [statusFetchKey, startDate, endDate, updatePerformanceData]);
+    // Update shared performance data
+    const statusAverages = calculateStatusAverages();
+    const dateRangeForKPI = {
+      from: startDate,
+      to: endDate
+    };
+    
+    updatePerformanceData(
+      data, 
+      timeframe, 
+      dateRangeForKPI, 
+      '',
+      statusAverages
+    );
+    
+  }, [statusFetchKey, startDate, endDate, data, updatePerformanceData]);
 
   const timeframeSubnavbar = (
     <div className="flex justify-center items-center w-full">
