@@ -40,7 +40,7 @@ const App = () => {
             {/* Public routes */}
             <Route path="/auth" element={<Auth />} />
             
-            {/* Protected routes with persistent sidebar */}
+            {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
               <Route path="/agreements" element={<Agreements />} />
