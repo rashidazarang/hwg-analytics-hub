@@ -4,18 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, Bell, Info, ArrowRight } from 'lucide-react';
 import { useKPIData } from '@/hooks/useKPIData';
-import KPICard from '@/components/metrics/KPICard';
-import { BarChart, PieChart, FileSignature, Clock, AlertTriangle as AlertIcon } from 'lucide-react';
 import { useLeaderboardSummary } from '@/hooks/useLeaderboardData';
-import { AgreementPieChart } from '@/components/charts/AgreementPieChart';
-import ClaimPieChart from '@/components/charts/ClaimPieChart';
 import { useTopDealersData, useTopAgentsData } from '@/hooks/useLeaderboardData';
 import DashboardSummaryKPIs from '@/components/metrics/DashboardSummaryKPIs';
-import DashboardCharts from '@/components/charts/DashboardCharts';
 import DashboardLeaderboard from '@/components/dashboard/DashboardLeaderboard';
 import DashboardAlerts from '@/components/dashboard/DashboardAlerts';
 
@@ -79,12 +71,6 @@ const Index = () => {
       pageTitle="Analytics Dashboard"
     >
       <div className="w-full overflow-x-hidden space-y-6">
-        {/* Dashboard Charts Section */}
-        <DashboardCharts 
-          dateRange={dateRange} 
-          dealerFilter={dealerFilter} 
-        />
-
         {/* Leaderboard Highlights Section */}
         <DashboardLeaderboard 
           topDealers={topDealers?.slice(0, 3)} 

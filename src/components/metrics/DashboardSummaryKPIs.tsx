@@ -3,7 +3,8 @@ import React from 'react';
 import KPICard from '@/components/metrics/KPICard';
 import { KPIData } from '@/lib/types';
 import { LeaderboardSummary } from '@/lib/types';
-import { FileSignature, AlertTriangle, Clock, BarChart, DollarSign, Trophy } from 'lucide-react';
+import { FileSignature, AlertTriangle, Clock, BarChart, DollarSign } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardSummaryKPIsProps {
   kpiData?: KPIData;
@@ -18,6 +19,8 @@ const DashboardSummaryKPIs: React.FC<DashboardSummaryKPIsProps> = ({
   leaderboardSummary,
   isLeaderboardLoading
 }) => {
+  const navigate = useNavigate();
+  
   const formatCurrency = (value: number) => {
     return value.toLocaleString('en-US', {
       style: 'currency',
@@ -28,15 +31,15 @@ const DashboardSummaryKPIs: React.FC<DashboardSummaryKPIsProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 w-full mb-6 animate-fade-in">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 w-full mb-6 animate-fade-in">
       <KPICard
-        title="Total Revenue"
+        title="Pending Agreements"
         value={isLoading || !kpiData
           ? "..." 
-          : formatCurrency(kpiData.totalClaimsAmount || 0)}
-        description="Revenue in selected period"
-        icon={DollarSign}
-        color="success"
+          : kpiData.pendingContracts.toLocaleString() || "0"}
+        description="Agreements in pending status"
+        icon={Clock}
+        color="warning"
       />
       <KPICard
         title="Active Agreements"
@@ -73,15 +76,6 @@ const DashboardSummaryKPIs: React.FC<DashboardSummaryKPIsProps> = ({
         description="Claims awaiting process"
         icon={Clock}
         color="warning"
-      />
-      <KPICard
-        title="Top Dealer"
-        value={isLeaderboardLoading || !leaderboardSummary
-          ? "..." 
-          : leaderboardSummary.top_dealer || "N/A"}
-        description="By revenue generation"
-        icon={Trophy}
-        color="primary"
       />
     </div>
   );
