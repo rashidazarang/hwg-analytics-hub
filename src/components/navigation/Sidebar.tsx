@@ -169,7 +169,7 @@ const Sidebar: React.FC = () => {
       
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-black/30 z-30 md:hidden"
+          className="fixed inset-0 bg-black/30 z-30 md:hidden sidebar-overlay animate-fade-in"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />

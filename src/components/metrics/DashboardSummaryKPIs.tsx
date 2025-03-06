@@ -5,6 +5,7 @@ import { KPIData } from '@/lib/types';
 import { LeaderboardSummary } from '@/lib/types';
 import { FileSignature, AlertTriangle, Clock, BarChart, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DashboardSummaryKPIsProps {
   kpiData?: KPIData;
@@ -20,6 +21,7 @@ const DashboardSummaryKPIs: React.FC<DashboardSummaryKPIsProps> = ({
   isLeaderboardLoading
 }) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   const formatCurrency = (value: number) => {
     return value.toLocaleString('en-US', {
@@ -31,7 +33,7 @@ const DashboardSummaryKPIs: React.FC<DashboardSummaryKPIsProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 w-full mb-6 animate-fade-in">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5 w-full mb-6 animate-fade-in">
       <KPICard
         title="Pending Agreements"
         value={isLoading || !kpiData

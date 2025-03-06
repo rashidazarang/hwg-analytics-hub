@@ -40,29 +40,29 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="min-h-screen dashboard-content sidebar-layout">
-      {/* Sidebar Component */}
+      {/* Sidebar Component - Now separate and handles its own visibility */}
       <Sidebar />
       
-      {/* Main Content - adjusted to work with sidebar */}
+      {/* Main Content - adjusted for better mobile layout */}
       <div className="sidebar-layout-content">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
-          <div className="px-2 xs:px-3 sm:px-6 py-2 sm:py-3">
+          <div className="px-4 xs:px-5 sm:px-6 py-3 sm:py-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
               {/* Mobile Controls - Only shown on mobile */}
               <div className="flex items-center md:hidden w-full justify-between mb-3 sm:mb-0">
                 <div className="flex items-center">
-                  {/* Spacer to account for hamburger menu position */}
-                  <div className="w-8 h-8 mr-1 xs:mr-2"></div>
+                  {/* Spacer for hamburger menu position */}
+                  <div className="w-10 h-8 mr-2"></div>
                   <h1 className="text-base xs:text-lg font-semibold tracking-tight">{pageTitle}</h1>
                 </div>
                 {isMobile && (
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 mobile-toggle" 
+                    className="h-9 w-9 mobile-toggle rounded-full" 
                     onClick={toggleMobileFilters}
                   >
-                    <Calendar className="h-4 xs:h-5 w-4 xs:w-5" />
+                    <Calendar className="h-5 w-5" />
                   </Button>
                 )}
               </div>
@@ -70,7 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               {/* Desktop Title and Controls */}
               <h1 className="hidden md:block text-2xl font-bold tracking-tight">{pageTitle}</h1>
               
-              <div className="flex items-center space-x-1 sm:space-x-3">
+              <div className="flex items-center space-x-2 sm:space-x-3">
                 {!isMobile && (
                   <DateRangeFilter 
                     dateRange={dateRange}
@@ -82,13 +82,13 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           
-          {/* Mobile Filter Panel */}
+          {/* Mobile Filter Panel - Improved animation */}
           {mobileFiltersOpen && (
             <div 
-              className="mobile-menu mt-1 p-3 sm:p-4 bg-background border rounded-md shadow-md animate-slide-down mx-2 xs:mx-3 sm:mx-4 mb-2"
+              className="mobile-menu mt-1 p-4 bg-background border rounded-md shadow-md animate-slide-down mx-3 xs:mx-4 mb-3"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
+              <h3 className="text-sm font-medium mb-3">Select Date Range</h3>
               <DateRangeFilter 
                 dateRange={dateRange}
                 onChange={handleDateChange} 
@@ -99,15 +99,15 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* Subnavbar for desktop - if provided */}
           {subnavbar && (
             <div className="border-t border-border/30 bg-gray-50">
-              <div className="px-2 xs:px-3 sm:px-6 py-2">
+              <div className="px-4 xs:px-5 sm:px-6 py-2">
                 {subnavbar}
               </div>
             </div>
           )}
         </header>
         
-        <main className="px-2 xs:px-3 sm:px-6 py-3 sm:py-4 md:py-6 space-y-4 sm:space-y-6 md:space-y-8 animate-fade-in w-full overflow-hidden">
-          {/* KPI Metrics Section */}
+        <main className="px-4 xs:px-5 sm:px-6 py-4 sm:py-5 md:py-6 space-y-5 sm:space-y-6 md:space-y-8 animate-fade-in w-full overflow-hidden">
+          {/* KPI Metrics Section - Improved spacing for mobile */}
           <section className="animate-slide-up w-full mx-auto" style={{ animationDelay: '100ms' }}>
             {kpiSection}
           </section>
