@@ -9,16 +9,23 @@ export function useTopAgentsData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['topAgents', dateRange.from, dateRange.to],
     queryFn: async (): Promise<TopAgent[]> => {
+      // Set time to start of day for from date and end of day for to date
+      const startDate = new Date(dateRange.from);
+      startDate.setUTCHours(0, 0, 0, 0);  // Start at 00:00:00 UTC
+
+      const endDate = new Date(dateRange.to);
+      endDate.setUTCHours(23, 59, 59, 999);  // End at 23:59:59 UTC
+
       console.log('[LEADERBOARD] Fetching top agents with date range:', {
-        from: dateRange.from.toISOString(),
-        to: dateRange.to.toISOString()
+        from: startDate.toISOString(),
+        to: endDate.toISOString()
       });
 
       const { data, error } = await supabase.rpc(
         'get_top_agents_by_contracts',
         {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString(),
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString(),
           limit_count: 10
         }
       );
@@ -39,12 +46,20 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['topDealers', dateRange.from, dateRange.to],
     queryFn: async (): Promise<TopDealer[]> => {
+      // Set time to start of day for from date and end of day for to date
+      const startDate = new Date(dateRange.from);
+      startDate.setUTCHours(0, 0, 0, 0);  // Start at 00:00:00 UTC
+
+      const endDate = new Date(dateRange.to);
+      endDate.setUTCHours(23, 59, 59, 999);  // End at 23:59:59 UTC
+
       console.log('[LEADERBOARD] Fetching top dealers with date range:', {
-        from: dateRange.from.toISOString(),
-        to: dateRange.to.toISOString()
+        from: startDate.toISOString(),
+        to: endDate.toISOString()
       });
 
       // Fetch all agreements with dealer information for the date range
+      // Remove any pagination limitations to get all agreements
       const { data: agreements, error } = await supabase
         .from('agreements')
         .select(`
@@ -56,15 +71,15 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
             Payee
           )
         `)
-        .gte('EffectiveDate', dateRange.from.toISOString())
-        .lte('EffectiveDate', dateRange.to.toISOString());
+        .gte('EffectiveDate', startDate.toISOString())
+        .lte('EffectiveDate', endDate.toISOString());
 
       if (error) {
         console.error('[LEADERBOARD] Error fetching agreements:', error);
         throw error;
       }
 
-      console.log('[LEADERBOARD] Raw agreements:', agreements);
+      console.log('[LEADERBOARD] Raw agreements fetched:', agreements.length);
       
       // Check distinct statuses to verify what we're dealing with
       const statuses = new Set();
@@ -111,12 +126,13 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         }
         
         const dealer = dealerMap.get(dealerUUID)!;
+        
         // Fix: Ensure Total is treated as a number with COALESCE-like behavior
         const agreementTotal = typeof agreement.Total === 'string' 
           ? parseFloat(agreement.Total) || 0 
           : (agreement.Total || 0);
         
-        // Increment counters based on agreement status
+        // Count ALL agreements for total_contracts regardless of status
         dealer.total_contracts++;
         dealer.total_revenue += agreementTotal;
         
@@ -137,15 +153,17 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         }
       });
 
-      console.log('[LEADERBOARD] Processed dealer map:', Object.fromEntries(dealerMap));
+      console.log('[LEADERBOARD] Dealers processed:', dealerMap.size);
 
       // Convert the map to an array and sort by total contracts
       const topDealers = Array.from(dealerMap.values())
         .sort((a, b) => b.total_contracts - a.total_contracts)
         .slice(0, 10);  // Limit to top 10 dealers
 
-      console.log('[LEADERBOARD] Processed dealers:', topDealers.length);
-      console.log('[LEADERBOARD] Top dealers calculated revenue:', topDealers);
+      console.log('[LEADERBOARD] Top dealers calculated revenue breakdown:');
+      topDealers.forEach(dealer => {
+        console.log(`[LEADERBOARD] ${dealer.dealer_name}: total=${dealer.total_contracts}, pending=${dealer.pending_contracts}, active=${dealer.active_contracts}, expected=${dealer.expected_revenue}, funded=${dealer.funded_revenue}`);
+      });
       
       return topDealers;
     },
@@ -158,15 +176,22 @@ export function useRevenueGrowthData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['revenueGrowth', dateRange.from, dateRange.to],
     queryFn: async (): Promise<RevenueGrowth> => {
+      // Set time to start of day for from date and end of day for to date
+      const startDate = new Date(dateRange.from);
+      startDate.setUTCHours(0, 0, 0, 0);  // Start at 00:00:00 UTC
+
+      const endDate = new Date(dateRange.to);
+      endDate.setUTCHours(23, 59, 59, 999);  // End at 23:59:59 UTC
+
       console.log('[LEADERBOARD] Calculating revenue growth with date range:', {
-        from: dateRange.from.toISOString(),
-        to: dateRange.to.toISOString()
+        from: startDate.toISOString(),
+        to: endDate.toISOString()
       });
 
       // Calculate previous date range (same duration but earlier)
-      const currentDuration = dateRange.to.getTime() - dateRange.from.getTime();
-      const previousFrom = new Date(dateRange.from.getTime() - currentDuration);
-      const previousTo = new Date(dateRange.to.getTime() - currentDuration);
+      const currentDuration = endDate.getTime() - startDate.getTime();
+      const previousFrom = new Date(startDate.getTime() - currentDuration);
+      const previousTo = new Date(endDate.getTime() - currentDuration);
 
       console.log('[LEADERBOARD] Previous date range:', {
         from: previousFrom.toISOString(),
@@ -176,8 +201,8 @@ export function useRevenueGrowthData({ dateRange }: { dateRange: DateRange }) {
       const { data, error } = await supabase.rpc(
         'calculate_revenue_growth',
         {
-          current_start_date: dateRange.from.toISOString(),
-          current_end_date: dateRange.to.toISOString(),
+          current_start_date: startDate.toISOString(),
+          current_end_date: endDate.toISOString(),
           previous_start_date: previousFrom.toISOString(),
           previous_end_date: previousTo.toISOString()
         }
@@ -199,16 +224,23 @@ export function useLeaderboardSummary({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['leaderboardSummary', dateRange.from, dateRange.to],
     queryFn: async (): Promise<LeaderboardSummary> => {
+      // Set time to start of day for from date and end of day for to date
+      const startDate = new Date(dateRange.from);
+      startDate.setUTCHours(0, 0, 0, 0);  // Start at 00:00:00 UTC
+
+      const endDate = new Date(dateRange.to);
+      endDate.setUTCHours(23, 59, 59, 999);  // End at 23:59:59 UTC
+
       console.log('[LEADERBOARD] Fetching summary with date range:', {
-        from: dateRange.from.toISOString(),
-        to: dateRange.to.toISOString()
+        from: startDate.toISOString(),
+        to: endDate.toISOString()
       });
 
       const { data, error } = await supabase.rpc(
         'get_leaderboard_summary',
         {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString()
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString()
         }
       );
 
