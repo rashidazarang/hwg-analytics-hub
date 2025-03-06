@@ -35,15 +35,15 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
         <p className="text-primary font-medium">Total Agreements: {dataPoint.value.toLocaleString()}</p>
         <div className="mt-2 text-sm space-y-1">
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#FCF4EA] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 bg-[#E9A33B] mr-2 rounded-sm"></span>
             Pending: {dataPoint.pending.toLocaleString()}
           </p>
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#E8F4ED] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 bg-[#4CA154] mr-2 rounded-sm"></span>
             Active: {dataPoint.active.toLocaleString()}
           </p>
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#FBECEC] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 bg-[#DD524C] mr-2 rounded-sm"></span>
             Cancelled: {dataPoint.cancelled.toLocaleString()}
           </p>
         </div>
@@ -140,15 +140,15 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const CustomLegend = () => (
     <div className="flex flex-wrap justify-center items-center gap-4 mt-2 mb-4">
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#FCF4EA] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 bg-[#E9A33B] mr-2 rounded-sm"></span>
         <span className="text-sm text-gray-600">Pending</span>
       </div>
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#E8F4ED] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 bg-[#4CA154] mr-2 rounded-sm"></span>
         <span className="text-sm text-gray-600">Active</span>
       </div>
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#FBECEC] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 bg-[#DD524C] mr-2 rounded-sm"></span>
         <span className="text-sm text-gray-600">Cancelled</span>
       </div>
     </div>
@@ -201,7 +201,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="pending" 
                 name="Pending" 
                 stackId="a"
-                fill="#FCF4EA"  
+                fill="#E9A33B"  
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
@@ -211,7 +211,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="active" 
                 name="Active" 
                 stackId="a" 
-                fill="#E8F4ED"
+                fill="#4CA154"
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
@@ -221,7 +221,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="cancelled" 
                 name="Cancelled" 
                 stackId="a" 
-                fill="#FBECEC"
+                fill="#DD524C"
                 radius={[6, 6, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
