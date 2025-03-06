@@ -20,18 +20,14 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
   if (active && payload && payload.length) {
     const dataPoint = payload[0].payload as PerformanceDataPoint;
     
-    // Format the tooltip differently based on the datapoint type
     let formattedDate, tooltipContent;
     
-    // Check if this is a month datapoint (for 6-month and year views)
     const isMonthView = format(dataPoint.rawDate, 'd') === '1';
     
     if (isMonthView) {
-      // For monthly data, show the month and year with the total value
       formattedDate = format(dataPoint.rawDate, 'MMMM yyyy');
       tooltipContent = `Total Agreements: ${dataPoint.value.toLocaleString()}`;
     } else {
-      // For daily data, show the specific date
       formattedDate = format(dataPoint.rawDate, 'MMM d, yyyy');
       tooltipContent = `Total Agreements: ${dataPoint.value.toLocaleString()}`;
     }
@@ -58,7 +54,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const [chartWidth, setChartWidth] = React.useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Calculate average once when data changes using useMemo instead of useState+useEffect
   const averageValue = useMemo(() => {
     if (!data || data.length === 0) return 0;
     const total = data.reduce((sum, item) => sum + item.value, 0);
@@ -70,11 +65,9 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   }, [currentOffset, onPeriodChange]);
 
   const handleNext = useCallback(() => {
-    // Allow moving forward in time for all timeframes
     onPeriodChange(currentOffset + 1);
   }, [currentOffset, onPeriodChange]);
 
-  // Handle resize for responsive chart
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
@@ -129,11 +122,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   return (
     <div className={cn("bg-white p-4 rounded-md shadow-sm border", className)} ref={containerRef}>
       <div className="flex flex-col mb-6">
-        <div className="flex items-baseline">
-          <span className="text-5xl font-bold mr-2">{averageValue.toLocaleString()}</span>
-          <span className="text-3xl text-gray-400 font-light">agreements</span>
-        </div>
         <p className="text-lg text-gray-500 mt-1">{dateRange}</p>
+        <span className="text-5xl font-bold mr-2">{averageValue.toLocaleString()} <span className="text-3xl text-gray-400 font-light">agreements</span></span>
       </div>
       
       <div className="h-[300px] w-full">
@@ -171,7 +161,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               <Bar 
                 dataKey="value" 
                 name="Agreements" 
-                fill="#F97316" // Orange color from the design
+                fill="#F97316"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 40 : timeframe === 'month' ? 15 : 25}
               />
@@ -198,7 +188,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
           variant="outline" 
           size="sm" 
           onClick={handleNext}
-          disabled={isLoading || (currentOffset >= 1)} // Only limit to 1 period forward
+          disabled={isLoading || (currentOffset >= 1)}
           className="border-gray-200"
         >
           <ChevronRight className="h-4 w-4" />
