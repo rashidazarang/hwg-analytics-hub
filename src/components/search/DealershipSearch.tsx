@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import DealershipSearchInput from './DealershipSearchInput';
@@ -114,7 +113,10 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     });
   };
 
-  // Handle click outside to close suggestions
+  const handleContainerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
@@ -122,7 +124,6 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
       }
     };
     
-    // Add event listener with capture phase to ensure it fires before other handlers
     document.addEventListener('mousedown', handleClickOutside, true);
     
     return () => {
@@ -130,10 +131,8 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
     };
   }, []);
 
-  // For mobile, ensure body scroll is disabled when suggestions are shown
   useEffect(() => {
     if (isMobile && showSuggestions) {
-      // Optional: prevent body scroll when suggestions are open on mobile
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = '';
@@ -142,8 +141,16 @@ const DealershipSearch: React.FC<DealershipSearchProps> = ({
   }, [isMobile, showSuggestions]);
 
   return (
-    <div ref={searchContainerRef} className="relative w-full">
-      <form onSubmit={(e) => handleSearchSubmit(e)} className="relative">
+    <div 
+      ref={searchContainerRef} 
+      className="relative w-full"
+      onClick={handleContainerClick}
+    >
+      <form 
+        onSubmit={(e) => handleSearchSubmit(e)} 
+        className="relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         <DealershipSearchInput
           searchTerm={searchTerm}
           isLoading={isLoadingDealerships}

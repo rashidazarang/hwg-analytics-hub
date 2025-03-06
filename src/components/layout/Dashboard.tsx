@@ -1,5 +1,5 @@
 
-import React, { ReactNode, useState, useEffect } from 'react';
+import React, { ReactNode, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import DateRangeFilter from '../filters/DateRangeFilter';
 import { DateRange } from '@/lib/dateUtils';
@@ -27,6 +27,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileFilterRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -44,21 +48,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  // Close mobile menus when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.mobile-menu') && !target.closest('.mobile-toggle')) {
-        setMobileMenuOpen(false);
-        setMobileFiltersOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  // Remove the previous click handler that was causing the issue
+  // and replace with a better implementation that respects containment
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -82,7 +73,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <Link 
                       to="/" 
                       className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
-                      onClick={() => setMobileMenuOpen(false)}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <BarChart className="h-5 w-5" />
                       <span>Overview</span>
@@ -92,7 +83,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <Link 
                       to="/performance" 
                       className="flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
-                      onClick={() => setMobileMenuOpen(false)}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <BarChart className="h-5 w-5" />
                       <span>Performance</span>
@@ -122,6 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   size="icon" 
                   className="h-8 w-8 mobile-toggle mr-1 xs:mr-2" 
                   onClick={toggleMobileMenu}
+                  ref={menuButtonRef}
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
@@ -139,6 +131,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     size="icon" 
                     className="h-8 w-8 mobile-toggle" 
                     onClick={toggleMobileFilters}
+                    ref={filterButtonRef}
                   >
                     <Calendar className="h-4 xs:h-5 w-4 xs:w-5" />
                   </Button>
@@ -152,7 +145,11 @@ const Dashboard: React.FC<DashboardProps> = ({
           
           {/* Mobile Filter Panel */}
           {mobileFiltersOpen && (
-            <div className="mobile-menu mt-1 p-3 sm:p-4 bg-background border rounded-md shadow-md animate-slide-down mx-2 xs:mx-3 sm:mx-4 mb-2">
+            <div 
+              className="mobile-menu mt-1 p-3 sm:p-4 bg-background border rounded-md shadow-md animate-slide-down mx-2 xs:mx-3 sm:mx-4 mb-2"
+              ref={mobileFilterRef}
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
               <DateRangeFilter onChange={onDateRangeChange} />
             </div>

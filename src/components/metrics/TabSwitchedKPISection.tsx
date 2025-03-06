@@ -17,8 +17,13 @@ const TabSwitchedKPISection: React.FC<TabSwitchedKPISectionProps> = ({
 }) => {
   console.log('[KPI_SECTION] Rendering KPI section for active tab:', activeTab);
   
+  // Prevent click propagation to stop the Sheet from closing
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+  
   return (
-    <div className="w-full overflow-hidden px-1 sm:px-0">
+    <div className="w-full overflow-hidden px-1 sm:px-0" onClick={handleClick}>
       {activeTab === 'agreements' && (
         <AgreementKPISection 
           dateRange={dateRange} 

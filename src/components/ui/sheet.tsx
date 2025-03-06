@@ -61,6 +61,10 @@ const SheetContent = React.forwardRef<
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
+      onClick={(e) => {
+        // Prevent clicks inside the sheet content from closing the sheet
+        e.stopPropagation();
+      }}
       {...props}
     >
       {children}

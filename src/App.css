@@ -58,4 +58,19 @@
     overflow-x: auto;
     padding-bottom: 0.5rem;
   }
+  
+  /* Prevent interaction issues in mobile navigation */
+  .mobile-menu-container {
+    position: relative;
+    z-index: 50;
+  }
+  
+  .mobile-menu-item {
+    pointer-events: auto !important;
+  }
+  
+  /* This ensures mobile menu items remain interactive */
+  [data-radix-popper-content-wrapper] {
+    pointer-events: auto !important;
+  }
 }
