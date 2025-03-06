@@ -64,6 +64,17 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         throw error;
       }
 
+      console.log('[LEADERBOARD] Raw agreements:', agreements);
+      
+      // Check distinct statuses to verify what we're dealing with
+      const statuses = new Set();
+      agreements.forEach(agreement => {
+        if (agreement.AgreementStatus) {
+          statuses.add(agreement.AgreementStatus);
+        }
+      });
+      console.log('[LEADERBOARD] Distinct agreement statuses:', Array.from(statuses));
+
       // Process agreements by dealer
       const dealerMap = new Map<string, {
         dealer_name: string;
@@ -80,7 +91,10 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         const dealerName = agreement.dealers?.Payee || 'Unknown Dealer';
         const dealerUUID = agreement.DealerUUID;
         
-        if (!dealerUUID) return;
+        if (!dealerUUID) {
+          console.log('[LEADERBOARD] Skipping agreement without DealerUUID:', agreement.AgreementID);
+          return;
+        }
         
         // Initialize dealer in map if not exists
         if (!dealerMap.has(dealerUUID)) {
@@ -97,22 +111,33 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         }
         
         const dealer = dealerMap.get(dealerUUID)!;
-        const agreementTotal = agreement.Total || 0;
+        // Fix: Ensure Total is treated as a number with COALESCE-like behavior
+        const agreementTotal = typeof agreement.Total === 'string' 
+          ? parseFloat(agreement.Total) || 0 
+          : (agreement.Total || 0);
         
         // Increment counters based on agreement status
         dealer.total_contracts++;
         dealer.total_revenue += agreementTotal;
         
-        if (agreement.AgreementStatus === 'PENDING') {
+        // Make status check case-insensitive and more robust
+        const status = (agreement.AgreementStatus || '').toUpperCase();
+        
+        if (status === 'PENDING') {
           dealer.pending_contracts++;
           dealer.expected_revenue += agreementTotal;
-        } else if (agreement.AgreementStatus === 'ACTIVE') {
+        } else if (status === 'ACTIVE') {
           dealer.active_contracts++;
           dealer.funded_revenue += agreementTotal;
-        } else if (agreement.AgreementStatus === 'CANCELLED') {
+        } else if (status === 'CANCELLED') {
           dealer.cancelled_contracts++;
+        } else {
+          // For any other status, log it for debugging
+          console.log(`[LEADERBOARD] Unhandled agreement status: ${status} for agreement ${agreement.AgreementID}`);
         }
       });
+
+      console.log('[LEADERBOARD] Processed dealer map:', Object.fromEntries(dealerMap));
 
       // Convert the map to an array and sort by total contracts
       const topDealers = Array.from(dealerMap.values())
@@ -120,6 +145,8 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         .slice(0, 10);  // Limit to top 10 dealers
 
       console.log('[LEADERBOARD] Processed dealers:', topDealers.length);
+      console.log('[LEADERBOARD] Top dealers calculated revenue:', topDealers);
+      
       return topDealers;
     },
     staleTime: 5 * 60 * 1000,
