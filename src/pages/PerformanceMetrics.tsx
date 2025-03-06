@@ -47,34 +47,35 @@ const PerformanceMetrics: React.FC = () => {
         const fromDate = startDate.toISOString();
         const toDate = endDate.toISOString();
         
-        // Fetch agreement status counts for this period
-        const [pendingResult, activeResult, cancelledResult] = await Promise.all([
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'PENDING')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate),
-          
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'ACTIVE')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate),
-          
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'CANCELLED')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-        ]);
+        console.log(`Fetching agreement status counts from ${fromDate} to ${toDate}`);
         
-        // Get counts from results
-        const pendingCount = pendingResult.count || 0;
-        const activeCount = activeResult.count || 0; 
-        const cancelledCount = cancelledResult.count || 0;
+        // Fetch agreement counts by status for this period
+        const { data: agreementData, error: countError } = await supabase
+          .from('agreements')
+          .select('AgreementStatus')
+          .gte('EffectiveDate', fromDate)
+          .lte('EffectiveDate', toDate);
+        
+        if (countError) {
+          console.error("Error fetching agreement status counts:", countError);
+          return;
+        }
+        
+        // Count agreements by status
+        const statusCounts = {
+          'PENDING': 0,
+          'ACTIVE': 0,
+          'CANCELLED': 0
+        };
+        
+        if (agreementData && agreementData.length > 0) {
+          agreementData.forEach(agreement => {
+            const status = agreement.AgreementStatus?.toUpperCase() || 'UNKNOWN';
+            if (status === 'PENDING') statusCounts.PENDING++;
+            else if (status === 'ACTIVE') statusCounts.ACTIVE++;
+            else if (status === 'CANCELLED') statusCounts.CANCELLED++;
+          });
+        }
 
         // Calculate division factor based on timeframe
         let divisionFactor = 1;
@@ -84,7 +85,8 @@ const PerformanceMetrics: React.FC = () => {
             break;
           case 'month':
             // Approximate days in a month
-            divisionFactor = 30;
+            const daysInMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0).getDate();
+            divisionFactor = daysInMonth;
             break;
           case '6months':
             divisionFactor = 6; // Number of months
@@ -95,9 +97,13 @@ const PerformanceMetrics: React.FC = () => {
         }
         
         // Calculate averages
-        const pendingAvg = Math.round(pendingCount / divisionFactor);
-        const activeAvg = Math.round(activeCount / divisionFactor);
-        const cancelledAvg = Math.round(cancelledCount / divisionFactor);
+        const pendingAvg = Math.round(statusCounts.PENDING / divisionFactor);
+        const activeAvg = Math.round(statusCounts.ACTIVE / divisionFactor);
+        const cancelledAvg = Math.round(statusCounts.CANCELLED / divisionFactor);
+        
+        console.log("Status counts:", statusCounts);
+        console.log("Division factor:", divisionFactor);
+        console.log("Calculated averages:", { pendingAvg, activeAvg, cancelledAvg });
         
         // Update shared state
         updatePerformanceData(data, timeframe, {
