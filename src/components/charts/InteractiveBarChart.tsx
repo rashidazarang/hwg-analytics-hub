@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps, Legend } from 'recharts';
 import { format } from 'date-fns';
@@ -16,6 +15,12 @@ interface InteractiveBarChartProps {
   currentOffset: number;
   className?: string;
 }
+
+const CHART_COLORS = {
+  pending: '#F8B427',
+  active: '#4CAF50',
+  cancelled: '#FF6961'
+};
 
 const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
@@ -36,15 +41,15 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
         <p className="text-primary font-medium">Total Agreements: {dataPoint.value.toLocaleString()}</p>
         <div className="mt-2 text-sm space-y-1">
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#F8D66D] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.pending}}></span>
             Pending: {dataPoint.pending.toLocaleString()}
           </p>
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#7ABD7E] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.active}}></span>
             Active: {dataPoint.active.toLocaleString()}
           </p>
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#FF6961] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
             Cancelled: {dataPoint.cancelled.toLocaleString()}
           </p>
         </div>
@@ -90,20 +95,17 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     onPeriodChange(currentOffset + 1);
   }, [currentOffset, onPeriodChange]);
 
-  // Effect to trigger animation on timeframe or data change
   useEffect(() => {
     if (data && data.length > 0) {
       setIsTransitioning(true);
       setPrevData(data);
       
-      // Generate a unique key for the animation to reset it
       const newKey = `${timeframe}-${currentOffset}-${Date.now()}`;
       setAnimationKey(newKey);
       
-      // Reset the transition flag after animation completes
       const timer = setTimeout(() => {
         setIsTransitioning(false);
-      }, 700); // Slightly longer than animation duration
+      }, 700);
       
       return () => clearTimeout(timer);
     }
@@ -163,15 +165,15 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const CustomLegend = () => (
     <div className="flex flex-wrap justify-center items-center gap-4 mt-2 mb-4">
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#F8D66D] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.pending}}></span>
         <span className="text-sm text-gray-600">Pending</span>
       </div>
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#7ABD7E] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.active}}></span>
         <span className="text-sm text-gray-600">Active</span>
       </div>
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#FF6961] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
         <span className="text-sm text-gray-600">Cancelled</span>
       </div>
     </div>
@@ -224,7 +226,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="pending" 
                 name="Pending" 
                 stackId="a"
-                fill="#F8D66D"  
+                fill={CHART_COLORS.pending}  
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
@@ -235,7 +237,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="active" 
                 name="Active" 
                 stackId="a" 
-                fill="#7ABD7E"
+                fill={CHART_COLORS.active}
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
@@ -246,7 +248,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="cancelled" 
                 name="Cancelled" 
                 stackId="a" 
-                fill="#FF6961"
+                fill={CHART_COLORS.cancelled}
                 radius={[6, 6, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}

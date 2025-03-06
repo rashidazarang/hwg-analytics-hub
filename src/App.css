@@ -89,17 +89,17 @@
   transition: all 0.3s ease;
 }
 
-/* Status color indicators for charts */
+/* Status color indicators for charts - updated for better visibility */
 .status-pending {
-  background-color: #F8D66D;
+  background-color: #F8B427; /* Updated deeper yellow for better contrast */
 }
 
 .status-active {
-  background-color: #7ABD7E;
+  background-color: #4CAF50; /* More consistent green */
 }
 
 .status-cancelled {
-  background-color: #FF6961;
+  background-color: #FF6961; /* Keeping the existing red */
 }
 
 @media (min-width: 640px) {
