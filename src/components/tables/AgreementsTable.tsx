@@ -366,7 +366,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     },
     {
       key: 'effectiveDate',
-      title: 'Effective Date',
+      title: 'Date',
       sortable: false,
       render: (row) => {
         return row.EffectiveDate ? format(new Date(row.EffectiveDate), 'MMM d, yyyy') : 'N/A';
@@ -400,22 +400,6 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
       sortable: false,
       render: (row) => {
         return `$${(row.Total || 0).toLocaleString()}`;
-      },
-    },
-    {
-      key: 'dealerCost',
-      title: 'Dealer Cost',
-      sortable: false,
-      render: (row) => {
-        return `$${(row.DealerCost || 0).toLocaleString()}`;
-      },
-    },
-    {
-      key: 'reserveAmount',
-      title: 'Reserve Amount',
-      sortable: false,
-      render: (row) => {
-        return `$${(row.ReserveAmount || 0).toLocaleString()}`;
       },
     },
   ];
