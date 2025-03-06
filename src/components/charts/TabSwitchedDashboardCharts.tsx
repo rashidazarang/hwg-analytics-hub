@@ -20,30 +20,38 @@ const TabSwitchedDashboardCharts: React.FC<TabSwitchedDashboardChartsProps> = ({
   console.log('[DASHBOARD_CHARTS] Rendering charts for active tab:', activeTab);
   
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 xs:gap-4 sm:gap-6 mb-4 sm:mb-6 lg:mb-8 w-full overflow-hidden">
       {activeTab === 'agreements' && (
         <>
-          <AgreementChart 
-            dateRange={dateRange} 
-            dealerFilter={dealershipFilter} 
-          />
-          <AgreementBarChart
-            dateRange={dateRange}
-            dealerFilter={dealershipFilter}
-          />
+          <div className="w-full min-w-0 overflow-hidden">
+            <AgreementChart 
+              dateRange={dateRange} 
+              dealerFilter={dealershipFilter} 
+            />
+          </div>
+          <div className="w-full min-w-0 overflow-hidden">
+            <AgreementBarChart
+              dateRange={dateRange}
+              dealerFilter={dealershipFilter}
+            />
+          </div>
         </>
       )}
       
       {activeTab === 'claims' && (
         <>
-          <ClaimPieChart
-            dateRange={dateRange}
-            dealershipFilter={dealershipFilter}
-          />
-          <ClaimChart 
-            dateRange={dateRange} 
-            dealershipFilter={dealershipFilter} 
-          />
+          <div className="w-full min-w-0 overflow-hidden">
+            <ClaimPieChart
+              dateRange={dateRange}
+              dealershipFilter={dealershipFilter}
+            />
+          </div>
+          <div className="w-full min-w-0 overflow-hidden">
+            <ClaimChart 
+              dateRange={dateRange} 
+              dealershipFilter={dealershipFilter} 
+            />
+          </div>
         </>
       )}
     </div>

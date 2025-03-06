@@ -111,28 +111,28 @@ const Dashboard: React.FC<DashboardProps> = ({
       </Sheet>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-64">
+      <div className="flex-1 flex flex-col md:ml-64 w-full max-w-full">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
-          <div className="px-4 sm:px-6 py-3">
+          <div className="px-2 xs:px-3 sm:px-6 py-2 sm:py-3">
             <div className="flex justify-between items-center">
               {/* Mobile Controls */}
               <div className="flex items-center md:hidden">
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-8 w-8 mobile-toggle mr-2" 
+                  className="h-8 w-8 mobile-toggle mr-1 xs:mr-2" 
                   onClick={toggleMobileMenu}
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-                <h1 className="text-lg font-semibold tracking-tight">Analytics Dashboard</h1>
+                <h1 className="text-base xs:text-lg font-semibold tracking-tight">Analytics Dashboard</h1>
               </div>
               
               {/* Desktop Page Title - hidden on mobile */}
               <h1 className="hidden md:block text-xl font-semibold tracking-tight">Dashboard</h1>
               
               {/* Controls - right side */}
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-1 sm:space-x-3">
                 {isMobile ? (
                   <Button 
                     variant="ghost" 
@@ -140,7 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     className="h-8 w-8 mobile-toggle" 
                     onClick={toggleMobileFilters}
                   >
-                    <Calendar className="h-5 w-5" />
+                    <Calendar className="h-4 xs:h-5 w-4 xs:w-5" />
                   </Button>
                 ) : (
                   <DateRangeFilter onChange={onDateRangeChange} />
@@ -152,7 +152,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           
           {/* Mobile Filter Panel */}
           {mobileFiltersOpen && (
-            <div className="mobile-menu mt-1 p-4 bg-background border rounded-md shadow-md animate-slide-down mx-4 mb-3">
+            <div className="mobile-menu mt-1 p-3 sm:p-4 bg-background border rounded-md shadow-md animate-slide-down mx-2 xs:mx-3 sm:mx-4 mb-2">
               <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
               <DateRangeFilter onChange={onDateRangeChange} />
             </div>
@@ -161,21 +161,21 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* Subnavbar for desktop - if provided */}
           {subnavbar && (
             <div className="border-t border-border/30 bg-gray-100/10">
-              <div className="px-4 sm:px-6 py-2">
+              <div className="px-2 xs:px-3 sm:px-6 py-2">
                 {subnavbar}
               </div>
             </div>
           )}
         </header>
         
-        <main className="px-4 sm:px-6 py-4 md:py-6 space-y-6 md:space-y-8 animate-fade-in">
+        <main className="px-2 xs:px-3 sm:px-6 py-3 sm:py-4 md:py-6 space-y-4 sm:space-y-6 md:space-y-8 animate-fade-in w-full max-w-full overflow-hidden">
           {/* KPI Metrics Section */}
-          <section className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <section className="animate-slide-up w-full" style={{ animationDelay: '100ms' }}>
             {kpiSection}
           </section>
           
           {/* Dashboard Content */}
-          <section className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <section className="animate-slide-up w-full" style={{ animationDelay: '200ms' }}>
             {children}
           </section>
         </main>

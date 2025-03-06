@@ -28,23 +28,27 @@ const DashboardTables: React.FC<DashboardTablesProps> = ({
   }, [dealerFilter, dealerName, dateRange]);
 
   return (
-    <div className="space-y-6 mt-6">
+    <div className="space-y-4 sm:space-y-6 mt-4 sm:mt-6 w-full overflow-hidden">
       <Tabs value={activeTab} defaultValue={activeTab}>
-        <TabsContent value="agreements" className="mt-0">
-          <AgreementsTable 
-            dateRange={dateRange} 
-            dealerFilter={dealerFilter} // Passing UUID here
-            dealerName={dealerName}     // Passing display name here
-            searchQuery={searchQuery} 
-          />
+        <TabsContent value="agreements" className="mt-0 w-full overflow-x-auto">
+          <div className="min-w-full overflow-x-auto -mx-2 px-2">
+            <AgreementsTable 
+              dateRange={dateRange} 
+              dealerFilter={dealerFilter} // Passing UUID here
+              dealerName={dealerName}     // Passing display name here
+              searchQuery={searchQuery} 
+            />
+          </div>
         </TabsContent>
         
-        <TabsContent value="claims" className="mt-0">
-          <ClaimsTable 
-            dealerFilter={dealerFilter} // Passing UUID here
-            searchQuery={searchQuery}
-            dateRange={dateRange}       // Now passing dateRange to ClaimsTable
-          />
+        <TabsContent value="claims" className="mt-0 w-full overflow-x-auto">
+          <div className="min-w-full overflow-x-auto -mx-2 px-2">
+            <ClaimsTable 
+              dealerFilter={dealerFilter} // Passing UUID here
+              searchQuery={searchQuery}
+              dateRange={dateRange}       // Now passing dateRange to ClaimsTable
+            />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

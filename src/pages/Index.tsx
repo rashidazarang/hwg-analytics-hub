@@ -137,18 +137,20 @@ const Index = () => {
       }
       subnavbar={subnavbarContent}
     >
-      <TabSwitchedDashboardCharts 
-        activeTab={activeTab}
-        dateRange={dateRange}
-        dealershipFilter={dealershipUUID}
-      />
-      <DashboardTables
-        activeTab={activeTab}
-        dateRange={dateRange}
-        dealerFilter={dealershipUUID}
-        dealerName={dealershipName}
-        searchQuery={searchTerm}
-      />
+      <div className="w-full overflow-x-hidden">
+        <TabSwitchedDashboardCharts 
+          activeTab={activeTab}
+          dateRange={dateRange}
+          dealershipFilter={dealershipUUID}
+        />
+        <DashboardTables
+          activeTab={activeTab}
+          dateRange={dateRange}
+          dealerFilter={dealershipUUID}
+          dealerName={dealershipName}
+          searchQuery={searchTerm}
+        />
+      </div>
     </Dashboard>
   );
 };

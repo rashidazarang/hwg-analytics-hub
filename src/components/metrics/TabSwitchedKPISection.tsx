@@ -18,7 +18,7 @@ const TabSwitchedKPISection: React.FC<TabSwitchedKPISectionProps> = ({
   console.log('[KPI_SECTION] Rendering KPI section for active tab:', activeTab);
   
   return (
-    <>
+    <div className="w-full overflow-hidden px-1 sm:px-0">
       {activeTab === 'agreements' && (
         <AgreementKPISection 
           dateRange={dateRange} 
@@ -32,7 +32,7 @@ const TabSwitchedKPISection: React.FC<TabSwitchedKPISectionProps> = ({
           dealerFilter={dealerFilter} 
         />
       )}
-    </>
+    </div>
   );
 };
 
