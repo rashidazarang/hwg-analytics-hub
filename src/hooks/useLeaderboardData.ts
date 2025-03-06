@@ -14,21 +14,29 @@ export function useTopAgentsData({ dateRange }: { dateRange: DateRange }) {
         to: dateRange.to.toISOString()
       });
 
-      const { data, error } = await supabase.rpc(
-        'get_top_agents_by_contracts',
-        {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString(),
-          limit_count: 10
+      try {
+        const { data, error } = await supabase.rpc(
+          'get_top_agents_by_contracts',
+          {
+            start_date: dateRange.from.toISOString(),
+            end_date: dateRange.to.toISOString(),
+            limit_count: 10
+          }
+        );
+
+        if (error) {
+          console.error('[LEADERBOARD] Error fetching top agents:', error);
+          throw error;
         }
-      );
 
-      if (error) {
-        console.error('[LEADERBOARD] Error fetching top agents:', error);
-        throw error;
+        // Log the actual data returned for debugging
+        console.log('[LEADERBOARD] Top agents data returned:', data);
+
+        return data;
+      } catch (err) {
+        console.error('[LEADERBOARD] Exception in top agents query:', err);
+        throw err;
       }
-
-      return data;
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -44,21 +52,29 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         to: dateRange.to.toISOString()
       });
 
-      const { data, error } = await supabase.rpc(
-        'get_top_dealers_by_revenue',
-        {
-          start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString(),
-          limit_count: 10
+      try {
+        const { data, error } = await supabase.rpc(
+          'get_top_dealers_by_revenue',
+          {
+            start_date: dateRange.from.toISOString(),
+            end_date: dateRange.to.toISOString(),
+            limit_count: 10
+          }
+        );
+
+        if (error) {
+          console.error('[LEADERBOARD] Error fetching top dealers:', error);
+          throw error;
         }
-      );
 
-      if (error) {
-        console.error('[LEADERBOARD] Error fetching top dealers:', error);
-        throw error;
+        // Log the actual data returned for debugging
+        console.log('[LEADERBOARD] Top dealers data returned:', data);
+        
+        return data;
+      } catch (err) {
+        console.error('[LEADERBOARD] Exception in top dealers query:', err);
+        throw err;
       }
-
-      return data;
     },
     staleTime: 5 * 60 * 1000,
   });
