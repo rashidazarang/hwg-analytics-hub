@@ -99,10 +99,12 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         break;
       case '6months':
         title = "PROMEDIO DIARIO";
-        dateRange = `${format(firstDate, 'd')} de ${format(firstDate, 'MMM').toLowerCase()}–${format(lastDate, 'd')} de ${format(lastDate, 'MMM').toLowerCase()} ${format(lastDate, 'yyyy')}`;
+        // Format: "Oct de 2024 - Mar de 2025"
+        dateRange = `${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}–${format(lastDate, 'MMM').toLowerCase()} de ${format(lastDate, 'yyyy')}`;
         break;
       case 'year':
         title = "PROMEDIO DIARIO";
+        // Format: "Mar de 2024 - Mar de 2025"
         dateRange = `${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}–${format(lastDate, 'MMM').toLowerCase()} de ${format(lastDate, 'yyyy')}`;
         break;
       default:

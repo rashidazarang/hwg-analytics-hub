@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
@@ -54,24 +53,18 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // Show exactly 6 months from current date or shifted by offset
-      // If offset is 0, show last 6 months until today
-      // If offset is -1, show 6 months before that, etc.
+      // For 6 Months: Show exactly previous 6 months from today (e.g., Oct 2024 - Mar 2025)
       const sixMonthsEnd = offsetPeriods === 0 ? now : addMonths(now, offsetPeriods * 6);
-      const sixMonthsStart = subMonths(sixMonthsEnd, 6);
       return {
-        start: startOfMonth(sixMonthsStart),
+        start: startOfMonth(subMonths(sixMonthsEnd, 5)), // Go back 5 months from the end month (total of 6 months including current)
         end: offsetPeriods === 0 ? now : endOfMonth(sixMonthsEnd)
       };
     
     case 'year':
-      // Show exactly 12 months from current date (year-to-date)
-      // If offset is 0, show last 12 months until today
-      // If offset is -1, show the 12 months before that, etc.
+      // For Year: Show exactly 12 months (e.g., Mar 2024 - Mar 2025)
       const yearEnd = offsetPeriods === 0 ? now : addMonths(now, offsetPeriods * 12);
-      const yearStart = subMonths(yearEnd, 11);
       return {
-        start: startOfMonth(yearStart),
+        start: startOfMonth(subMonths(yearEnd, 11)), // Go back 11 months from the end month (total of 12 months including current)
         end: offsetPeriods === 0 ? now : endOfMonth(yearEnd)
       };
       
