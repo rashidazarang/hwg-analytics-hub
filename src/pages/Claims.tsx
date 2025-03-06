@@ -1,11 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dashboard from '@/components/layout/Dashboard';
 import { DateRange } from '@/lib/dateUtils';
 import ClaimKPISection from '@/components/metrics/ClaimKPISection';
-import ClaimChart from '@/components/charts/ClaimChart';
-import ClaimPieChart from '@/components/charts/ClaimPieChart';
 import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealershipSearch from '@/components/search/DealershipSearch';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +17,6 @@ const Claims = () => {
   const [dealershipName, setDealershipName] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Check authentication
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -76,20 +72,6 @@ const Claims = () => {
       pageTitle="Claims Dashboard"
     >
       <div className="w-full overflow-x-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 xs:gap-4 sm:gap-6 mb-4 sm:mb-6 lg:mb-8 w-full overflow-hidden">
-          <div className="w-full min-w-0 overflow-hidden">
-            <ClaimPieChart
-              dateRange={dateRange}
-              dealershipFilter={dealershipUUID}
-            />
-          </div>
-          <div className="w-full min-w-0 overflow-hidden">
-            <ClaimChart 
-              dateRange={dateRange} 
-              dealershipFilter={dealershipUUID} 
-            />
-          </div>
-        </div>
         <ClaimsTable
           dateRange={dateRange}
           dealerFilter={dealershipUUID}
