@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { 
@@ -29,12 +28,11 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   
-  // Apply the date range only once on mount
+  // Apply the date range only once on mount with proper dependency
   useEffect(() => {
     console.log("Initial DateRange applied:", dateRange);
     onChange(dateRange);
-    // Intentionally empty dependency array to run only on mount
-  }, []);
+  }, [onChange, dateRange]);
 
   const handlePresetChange = useCallback((newPreset: DateRangePreset) => {
     setPreset(newPreset);

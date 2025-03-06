@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { format, isThisMonth, isThisYear } from 'date-fns';
@@ -20,10 +19,27 @@ interface InteractiveBarChartProps {
 const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
     const dataPoint = payload[0].payload as PerformanceDataPoint;
+    
+    // Format the tooltip differently based on the datapoint type
+    let formattedDate = format(dataPoint.rawDate, 'MMM d, yyyy');
+    let tooltipContent;
+    
+    // Check if this is a month datapoint (for 6-month and year views)
+    const isMonthDatapoint = format(dataPoint.rawDate, 'd') === '1';
+    
+    if (isMonthDatapoint) {
+      // For monthly data, just show the month and year
+      formattedDate = format(dataPoint.rawDate, 'MMM yyyy');
+      tooltipContent = `Total Agreements: ${dataPoint.value}`;
+    } else {
+      // For daily data, show the specific date
+      tooltipContent = `Total Agreements: ${dataPoint.value}`;
+    }
+    
     return (
       <div className="bg-white p-3 shadow-md rounded-md border">
-        <p className="font-medium">{format(dataPoint.rawDate, 'MMM d, yyyy')}</p>
-        <p className="text-primary">{`Total Agreements: ${dataPoint.value}`}</p>
+        <p className="font-medium">{formattedDate}</p>
+        <p className="text-primary">{tooltipContent}</p>
       </div>
     );
   }
@@ -53,7 +69,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     }
   };
 
-  // Calculate average value
   useEffect(() => {
     if (data.length > 0) {
       const total = data.reduce((sum, item) => sum + item.value, 0);
@@ -63,7 +78,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     }
   }, [data]);
 
-  // Update chart width on resize
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
@@ -78,7 +92,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     };
   }, []);
 
-  // Generate title and date range text
   const getTitleAndDateRange = () => {
     if (data.length === 0) return { title: "No data available", dateRange: "" };
     

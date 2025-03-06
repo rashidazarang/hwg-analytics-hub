@@ -163,15 +163,20 @@ export function usePerformanceMetricsData(
         // Group by months for both 6 months and year views
         const months = eachMonthOfInterval({ start: startDate, end: endDate });
         formattedData = months.map(month => {
+          const monthStart = startOfMonth(month);
           const monthEnd = endOfMonth(month);
           
+          // Count all agreements within this month (from start to end of month)
           const monthAgreements = agreements.filter(agreement => {
             const effectiveDate = new Date(agreement.EffectiveDate);
             return (
-              effectiveDate >= month && 
+              effectiveDate >= monthStart && 
               effectiveDate <= monthEnd
             );
           });
+          
+          // Log each month's data to help with debugging
+          console.log(`Month: ${format(month, 'MMM yyyy')}, Count: ${monthAgreements.length}`);
           
           return {
             label: format(month, 'MMM').toLowerCase(),
