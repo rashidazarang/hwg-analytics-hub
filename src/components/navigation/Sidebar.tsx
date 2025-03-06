@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
@@ -25,27 +24,33 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
     </li>;
 };
 
-const sidebarItems = [{
-  name: "Overview",
-  path: "/",
-  icon: Home
-}, {
-  name: "Agreements",
-  path: "/agreements",
-  icon: FileSignature
-}, {
-  name: "Claims",
-  path: "/claims",
-  icon: AlertTriangle
-}, {
-  name: "Performance",
-  path: "/performance",
-  icon: BarChart
-}, {
-  name: "Leaderboard",
-  path: "/leaderboard",
-  icon: Trophy
-}];
+const sidebarItems = [
+  {
+    name: "Overview",
+    path: "/",
+    icon: Home
+  },
+  {
+    name: "Agreements",
+    path: "/agreements",
+    icon: FileSignature
+  },
+  {
+    name: "Claims",
+    path: "/claims",
+    icon: AlertTriangle
+  },
+  {
+    name: "Performance",
+    path: "/performance",
+    icon: BarChart
+  },
+  {
+    name: "Leaderboard",
+    path: "/leaderboard",
+    icon: Trophy
+  }
+];
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
@@ -59,7 +64,7 @@ const Sidebar: React.FC = () => {
             <img 
               src="/lovable-uploads/eb0ad36a-388f-454c-aaa9-4ba36c462126.png"
               alt="HWG Logo"
-              className="h-[35px]"
+              className="h-[46px]"
             />
           </Link>
         </div>
