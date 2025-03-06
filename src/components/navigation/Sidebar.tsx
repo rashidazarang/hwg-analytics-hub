@@ -2,12 +2,14 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
 type SidebarItemProps = {
   icon: React.ElementType;
   label: string;
   to: string;
   isActive: boolean;
 };
+
 const SidebarItem: React.FC<SidebarItemProps> = ({
   icon: Icon,
   label,
@@ -21,6 +23,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       </Link>
     </li>;
 };
+
 const sidebarItems = [{
   name: "Overview",
   path: "/",
@@ -42,16 +45,21 @@ const sidebarItems = [{
   path: "/leaderboard",
   icon: Trophy
 }];
+
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const currentPath = location.pathname;
-  return <aside className="flex w-64 flex-col fixed inset-y-0 z-30">
+
+  return (
+    <aside className="flex w-64 flex-col fixed inset-y-0 z-30">
       <div className="flex-1 flex flex-col min-h-0 border-r bg-white shadow-sm">
-        <div className="flex items-center h-[57px] px-4 border-b py-[34px]">
+        <div className="flex items-center h-[57px] px-4 border-b">
           <Link to="/" className="flex items-center">
-            <span className="text-xl font-semibold tracking-tight">
-              Analytics Dashboard
-            </span>
+            <img 
+              src="/lovable-uploads/eb0ad36a-388f-454c-aaa9-4ba36c462126.png"
+              alt="HWG Logo"
+              className="h-8"
+            />
           </Link>
         </div>
         <div className="flex-1 flex flex-col overflow-y-auto pt-5 pb-4">
@@ -64,6 +72,8 @@ const Sidebar: React.FC = () => {
           </nav>
         </div>
       </div>
-    </aside>;
+    </aside>
+  );
 };
+
 export default Sidebar;
