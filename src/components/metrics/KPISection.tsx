@@ -4,7 +4,6 @@ import KPICard from '@/components/metrics/KPICard';
 import { FileSignature, AlertTriangle, Clock, BarChart } from 'lucide-react';
 import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
 import { useKPIData } from '@/hooks/useKPIData';
-import { useParams } from 'react-router-dom';
 
 const KPISection: React.FC = () => {
   // Get shared performance data

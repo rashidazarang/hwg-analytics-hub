@@ -139,12 +139,24 @@ const PerformanceMetrics: React.FC = () => {
         console.log("[PERFORMANCE_METRICS] Total average:", totalAvg);
         console.log("[PERFORMANCE_METRICS] Sum of data points:", totalDataPointsSum);
         
-        // Update shared state
-        updatePerformanceData(data, timeframe, {
-          pending: pendingAvg,
-          active: activeAvg,
-          cancelled: cancelledAvg
-        });
+        // Create date range based on startDate and endDate from performance metrics
+        const dateRangeForKPI = {
+          from: startDate,
+          to: endDate
+        };
+        
+        // Update shared state with dateRange and dealerFilter
+        updatePerformanceData(
+          data, 
+          timeframe, 
+          dateRangeForKPI, 
+          '', // Empty dealerFilter for performance metrics page
+          {
+            pending: pendingAvg,
+            active: activeAvg,
+            cancelled: cancelledAvg
+          }
+        );
         
       } catch (e) {
         console.error("[PERFORMANCE_METRICS] Error fetching status averages:", e);
