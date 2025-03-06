@@ -9,6 +9,7 @@ import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
 import { supabase } from '@/integrations/supabase/client';
 import Sidebar from '@/components/navigation/Sidebar';
 import DateRangeFilter from '@/components/filters/DateRangeFilter';
+import Dashboard from '@/components/layout/Dashboard';
 
 const PerformanceMetrics: React.FC = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>('month');
@@ -165,8 +166,8 @@ const PerformanceMetrics: React.FC = () => {
     
   }, [statusFetchKey, startDate, endDate, updatePerformanceData]); 
 
-  // Custom navigation for the performance metrics page
-  const metricsNavigation = (
+  // Custom subnavbar for the timeframe filter
+  const timeframeSubnavbar = (
     <div className="flex justify-center items-center w-full">
       <TimeframeFilter 
         selected={timeframe} 
@@ -176,54 +177,29 @@ const PerformanceMetrics: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen flex">
-      <Sidebar />
-      <div className="ml-64 flex-1">
-        <main className="px-6 py-6 space-y-8">
-          {/* Header section with consistent styling */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-            <h1 className="text-2xl font-bold mb-4 sm:mb-0">Performance Metrics</h1>
-            <DateRangeFilter 
-              dateRange={dateRange}
-              onChange={handleDateRangeChange}
-            />
+    <Dashboard
+      onDateRangeChange={handleDateRangeChange}
+      kpiSection={<KPISection />}
+      pageTitle="Performance Metrics"
+      subnavbar={timeframeSubnavbar}
+    >
+      <div className="w-full max-w-5xl mx-auto">
+        <InteractiveBarChart 
+          data={data}
+          timeframe={timeframe}
+          isLoading={loading}
+          onPeriodChange={handlePeriodChange}
+          currentOffset={periodOffset}
+          className="w-full"
+        />
+        
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md mt-4">
+            <p>Error loading data: {error.message}</p>
           </div>
-          
-          {/* TimeframeFilter with consistent styling */}
-          <div className="flex justify-center items-center w-full mb-6">
-            <TimeframeFilter 
-              selected={timeframe} 
-              onChange={handleTimeframeChange}
-            />
-          </div>
-          
-          {/* KPI Metrics Section */}
-          <section className="animate-slide-up">
-            <KPISection />
-          </section>
-          
-          {/* Dashboard Content */}
-          <section className="animate-slide-up max-w-5xl mx-auto">
-            <div className="grid grid-cols-1 gap-6">
-              <InteractiveBarChart 
-                data={data}
-                timeframe={timeframe}
-                isLoading={loading}
-                onPeriodChange={handlePeriodChange}
-                currentOffset={periodOffset}
-                className="col-span-1"
-              />
-              
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
-                  <p>Error loading data: {error.message}</p>
-                </div>
-              )}
-            </div>
-          </section>
-        </main>
+        )}
       </div>
-    </div>
+    </Dashboard>
   );
 };
 
