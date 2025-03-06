@@ -1,11 +1,13 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import TimeframeFilter, { TimeframeOption } from '@/components/filters/TimeframeFilter';
 import InteractiveBarChart from '@/components/charts/InteractiveBarChart';
 import { usePerformanceMetricsData } from '@/hooks/usePerformanceMetricsData';
 import Dashboard from '@/components/layout/Dashboard';
 import KPISection from '@/components/metrics/KPISection';
 import { DateRange } from '@/lib/dateUtils';
+import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
+import { supabase } from '@/integrations/supabase/client';
 
 const PerformanceMetrics: React.FC = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>('month');
@@ -14,6 +16,9 @@ const PerformanceMetrics: React.FC = () => {
     from: new Date(),
     to: new Date(),
   });
+  
+  // Get shared performance data hook
+  const { updatePerformanceData } = useSharedPerformanceData();
 
   // Handle timeframe change
   const handleTimeframeChange = useCallback((newTimeframe: TimeframeOption) => {
@@ -32,7 +37,84 @@ const PerformanceMetrics: React.FC = () => {
   }, []);
 
   // Fetch performance metrics data
-  const { data, loading, error } = usePerformanceMetricsData(timeframe, periodOffset);
+  const { data, loading, error, startDate, endDate } = usePerformanceMetricsData(timeframe, periodOffset);
+
+  // Fetch status averages whenever timeframe or periodOffset changes
+  useEffect(() => {
+    async function fetchStatusAverages() {
+      try {
+        // Calculate date range for supabase query
+        const fromDate = startDate.toISOString();
+        const toDate = endDate.toISOString();
+        
+        // Fetch agreement status counts for this period
+        const [pendingResult, activeResult, cancelledResult] = await Promise.all([
+          supabase
+            .from('agreements')
+            .select('*', { count: 'exact' })
+            .eq('AgreementStatus', 'PENDING')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate),
+          
+          supabase
+            .from('agreements')
+            .select('*', { count: 'exact' })
+            .eq('AgreementStatus', 'ACTIVE')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate),
+          
+          supabase
+            .from('agreements')
+            .select('*', { count: 'exact' })
+            .eq('AgreementStatus', 'CANCELLED')
+            .gte('EffectiveDate', fromDate)
+            .lte('EffectiveDate', toDate)
+        ]);
+        
+        // Get counts from results
+        const pendingCount = pendingResult.count || 0;
+        const activeCount = activeResult.count || 0; 
+        const cancelledCount = cancelledResult.count || 0;
+
+        // Calculate division factor based on timeframe
+        let divisionFactor = 1;
+        switch (timeframe) {
+          case 'week':
+            divisionFactor = 7; // Days in a week
+            break;
+          case 'month':
+            // Approximate days in a month
+            divisionFactor = 30;
+            break;
+          case '6months':
+            divisionFactor = 6; // Number of months
+            break;
+          case 'year':
+            divisionFactor = 12; // Months in a year
+            break;
+        }
+        
+        // Calculate averages
+        const pendingAvg = Math.round(pendingCount / divisionFactor);
+        const activeAvg = Math.round(activeCount / divisionFactor);
+        const cancelledAvg = Math.round(cancelledCount / divisionFactor);
+        
+        // Update shared state
+        updatePerformanceData(data, timeframe, {
+          pending: pendingAvg,
+          active: activeAvg,
+          cancelled: cancelledAvg
+        });
+        
+      } catch (e) {
+        console.error("Error fetching status averages:", e);
+      }
+    }
+    
+    if (!loading && data.length > 0) {
+      fetchStatusAverages();
+    }
+  }, [data, loading, timeframe, startDate, endDate, updatePerformanceData, periodOffset]);
 
   // Custom navigation for the performance metrics page
   const metricsNavigation = (
@@ -48,10 +130,12 @@ const PerformanceMetrics: React.FC = () => {
   return (
     <Dashboard
       onDateRangeChange={handleDateRangeChange}
-      kpiSection={<KPISection dateRange={dateRange} />}
+      kpiSection={null}
       subnavbar={metricsNavigation}
     >
       <div className="space-y-6 max-w-5xl mx-auto">
+        <KPISection />
+        
         <div className="grid grid-cols-1 gap-6">
           <InteractiveBarChart 
             data={data}

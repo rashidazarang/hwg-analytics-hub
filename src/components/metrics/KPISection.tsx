@@ -1,55 +1,36 @@
 
 import React from 'react';
 import KPICard from '@/components/metrics/KPICard';
-import { FileSignature, FileCheck, AlertTriangle, Clock } from 'lucide-react';
-import { DateRange } from '@/lib/dateUtils';
-import { useKPIData } from '@/hooks/useKPIData';
+import { FileSignature, AlertTriangle, Clock } from 'lucide-react';
+import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
 
-type KPISectionProps = {
-  dateRange: DateRange;
-  dealerFilter?: string;
-};
-
-const KPISection: React.FC<KPISectionProps> = ({ dateRange, dealerFilter = '' }) => {
-  // Fetch KPI data based on date range and dealer filter
-  const { data: kpis, isLoading, error } = useKPIData({ 
-    dateRange, 
-    dealerFilter 
-  });
-  
-  if (error) {
-    console.error("Error loading KPI data:", error);
-  }
+const KPISection: React.FC = () => {
+  // Get shared performance data
+  const { performanceData } = useSharedPerformanceData();
+  const { averages } = performanceData;
   
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto mb-6">
       <KPICard
-        title="Pending Contracts"
-        value={isLoading ? "..." : kpis?.pendingContracts.toLocaleString() || "0"}
-        description="Contracts in pending status"
+        title="Avg Pending Contracts"
+        value={averages.pending.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description="Average pending contracts per period"
         icon={Clock}
         color="warning"
       />
       <KPICard
-        title="Newly Active Contracts"
-        value={isLoading ? "..." : kpis?.newlyActiveContracts.toLocaleString() || "0"}
-        description="Contracts activated in this period"
+        title="Avg Active Contracts"
+        value={averages.active.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description="Average active contracts per period"
         icon={FileSignature}
         color="success"
       />
       <KPICard
-        title="Cancelled Contracts"
-        value={isLoading ? "..." : kpis?.cancelledContracts.toLocaleString() || "0"}
-        description="Contracts cancelled in this period"
+        title="Avg Cancelled Contracts"
+        value={averages.cancelled.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description="Average cancelled contracts per period"
         icon={AlertTriangle}
         color="destructive"
-      />
-      <KPICard
-        title="Open Claims"
-        value={isLoading ? "..." : kpis?.openClaims.toLocaleString() || "0"}
-        description="Claims currently open"
-        icon={FileCheck}
-        color="info"
       />
     </div>
   );

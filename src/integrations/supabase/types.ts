@@ -731,6 +731,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      fetch_monthly_agreement_counts: {
+        Args: {
+          start_date: string
+          end_date: string
+        }
+        Returns: {
+          month: string
+          total: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
