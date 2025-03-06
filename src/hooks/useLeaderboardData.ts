@@ -34,7 +34,7 @@ export function useTopAgentsData({ dateRange }: { dateRange: DateRange }) {
   });
 }
 
-// Hook to fetch all dealers data with at least one contract
+// Hook to fetch all dealers data without any limit
 export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['topDealers', dateRange.from, dateRange.to],
@@ -44,7 +44,7 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         to: dateRange.to.toISOString()
       });
 
-      // Use the version of the function without the limit_count parameter
+      // Call the updated SQL function without a limit parameter
       const { data, error } = await supabase.rpc(
         'get_top_dealers_by_revenue',
         {
