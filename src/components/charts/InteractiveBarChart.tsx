@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { format } from 'date-fns';
@@ -123,7 +124,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     <div className={cn("bg-white p-4 rounded-md shadow-sm border", className)} ref={containerRef}>
       <div className="flex flex-col mb-6">
         <p className="text-lg text-gray-500 mt-1">{dateRange}</p>
-        <span className="text-5xl font-bold mr-2">{averageValue.toLocaleString()} <span className="text-3xl text-gray-400 font-light">agreements</span></span>
       </div>
       
       <div className="h-[300px] w-full">
