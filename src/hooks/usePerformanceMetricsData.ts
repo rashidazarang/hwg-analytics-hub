@@ -75,14 +75,11 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
 // A more efficient function to fetch monthly counts directly from the database
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
   console.log(`Fetching aggregated monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
-  
-  const { data, error } = await supabase
-    .from('agreements')
-    .select('COUNT(*) as total, DATE_TRUNC(\'month\', "EffectiveDate") as month', { head: false })
-    .gte('EffectiveDate', startDate.toISOString())
-    .lte('EffectiveDate', endDate.toISOString())
-    .group('month')
-    .order('month');
+
+  const { data, error } = await supabase.rpc('fetch_monthly_agreement_counts', {
+    start_date: startDate.toISOString(),
+    end_date: endDate.toISOString(),
+  });
 
   if (error) {
     console.error("Error fetching aggregated agreement data:", error);
