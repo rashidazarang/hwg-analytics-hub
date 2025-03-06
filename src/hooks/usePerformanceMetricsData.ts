@@ -86,7 +86,7 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
     throw new Error(error.message);
   }
 
-  // Ensure that all months in the range are initialized with zero
+  // Ensure all months in the range are initialized with zero
   const monthlyCounts: Record<string, number> = {};
   const months = eachMonthOfInterval({ start: startDate, end: endDate });
 
@@ -99,8 +99,7 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
   // Populate actual counts from database query
   if (data) {
     data.forEach(({ month, total }) => {
-      const monthKey = format(new Date(month), 'yyyy-MM'); // Convert timestamp to correct format
-      monthlyCounts[monthKey] = total;
+      monthlyCounts[month] = total; // Month is correctly formatted as 'YYYY-MM'
     });
   }
 
