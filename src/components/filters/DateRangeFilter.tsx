@@ -19,20 +19,22 @@ import {
 } from '@/components/ui/sheet';
 
 type DateRangeFilterProps = {
-  dateRange: DateRange;
+  dateRange?: DateRange;
   onChange: (range: DateRange) => void;
 };
 
 const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange }) => {
   // Set default preset to 'ytd' instead of 'mtd'
   const [preset, setPreset] = useState<DateRangePreset>('ytd');
-  const [localDateRange, setLocalDateRange] = useState<DateRange>(dateRange);
+  const [localDateRange, setLocalDateRange] = useState<DateRange>(dateRange || getPresetDateRange('ytd'));
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   
   // Update local state when props change
   useEffect(() => {
-    setLocalDateRange(dateRange);
+    if (dateRange) {
+      setLocalDateRange(dateRange);
+    }
   }, [dateRange]);
 
   const handlePresetChange = useCallback((newPreset: DateRangePreset) => {

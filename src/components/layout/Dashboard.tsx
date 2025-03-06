@@ -2,7 +2,7 @@
 import React, { ReactNode, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import DateRangeFilter from '../filters/DateRangeFilter';
-import { DateRange } from '@/lib/dateUtils';
+import { DateRange, getPresetDateRange } from '@/lib/dateUtils';
 import AuthNav from '../navigation/AuthNav';
 import Sidebar from '../navigation/Sidebar';
 import { Menu, X, Calendar, BarChart } from 'lucide-react';
@@ -31,6 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const mobileFilterRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -46,6 +47,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (!mobileFiltersOpen) {
       setMobileMenuOpen(false);
     }
+  };
+
+  const handleDateChange = (range: DateRange) => {
+    setDateRange(range);
+    onDateRangeChange(range);
   };
 
   return (
@@ -133,7 +139,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <Calendar className="h-4 xs:h-5 w-4 xs:w-5" />
                   </Button>
                 ) : (
-                  <DateRangeFilter onChange={onDateRangeChange} />
+                  <DateRangeFilter 
+                    dateRange={dateRange}
+                    onChange={handleDateChange} 
+                  />
                 )}
                 <AuthNav />
               </div>
@@ -148,7 +157,10 @@ const Dashboard: React.FC<DashboardProps> = ({
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
-              <DateRangeFilter onChange={onDateRangeChange} />
+              <DateRangeFilter 
+                dateRange={dateRange}
+                onChange={handleDateChange} 
+              />
             </div>
           )}
           
