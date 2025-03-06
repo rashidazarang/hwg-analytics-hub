@@ -75,7 +75,6 @@ const Sidebar: React.FC = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLImageElement>(null);
   
-  // Handle clicks outside the sidebar to close it on mobile
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isMobile && isOpen && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
@@ -89,23 +88,18 @@ const Sidebar: React.FC = () => {
     };
   }, [isMobile, isOpen]);
   
-  // Close sidebar when route changes (mobile only)
   useEffect(() => {
     if (isMobile) {
       setIsOpen(false);
     }
   }, [currentPath, isMobile]);
 
-  // Toggle sidebar visibility
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
   };
 
-  // For desktop: regular sidebar
-  // For mobile: hidden by default with toggle button
   return (
     <>
-      {/* Mobile Menu Toggle Button - Only visible on mobile */}
       {isMobile && (
         <button 
           onClick={toggleSidebar}
@@ -116,13 +110,12 @@ const Sidebar: React.FC = () => {
         </button>
       )}
 
-      {/* Sidebar - Different behavior on mobile vs desktop */}
       <aside 
         ref={sidebarRef}
         className={cn(
           "bg-white shadow-sm transition-all duration-300 ease-in-out z-40",
           isMobile 
-            ? "fixed inset-y-0 left-0 w-64 transform", 
+            ? "fixed inset-y-0 left-0 w-64 transform"
             : "flex w-64 flex-col fixed inset-y-0 z-30",
           isMobile && !isOpen ? "-translate-x-full" : "translate-x-0"
         )}
@@ -141,7 +134,6 @@ const Sidebar: React.FC = () => {
             </Link>
           </div>
           
-          {/* Mobile Close Button - Inside sidebar */}
           {isMobile && isOpen && (
             <div className="flex justify-end p-2 border-b md:hidden">
               <button 
@@ -175,7 +167,6 @@ const Sidebar: React.FC = () => {
         </div>
       </aside>
       
-      {/* Overlay for mobile - only visible when sidebar is open */}
       {isMobile && isOpen && (
         <div 
           className="fixed inset-0 bg-black/30 z-30 md:hidden"
@@ -187,5 +178,4 @@ const Sidebar: React.FC = () => {
   );
 };
 
-// Use React.memo to prevent unnecessary re-renders
 export default React.memo(Sidebar);
