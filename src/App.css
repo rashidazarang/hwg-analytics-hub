@@ -89,6 +89,12 @@
   transition: all 0.3s ease;
 }
 
+@media (min-width: 640px) {
+  .chart-container {
+    height: 400px;  /* Increased height for larger screens */
+  }
+}
+
 .chart-container:hover {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
