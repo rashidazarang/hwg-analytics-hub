@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import { format } from 'date-fns';
@@ -97,51 +96,42 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     };
   }, []);
 
-  const getTitleAndDateRange = useCallback(() => {
-    if (data.length === 0) return { title: "No data available", dateRange: "" };
+  const getDateRange = useCallback(() => {
+    if (data.length === 0) return { dateRange: "" };
     
     const firstDate = data[0].rawDate;
     const lastDate = data[data.length - 1].rawDate;
     
-    let title = "PROMEDIO DIARIO";
     let dateRange = "";
     
     switch (timeframe) {
       case 'week':
-        title = "PROMEDIO";
-        dateRange = `${format(firstDate, 'd')}–${format(lastDate, 'd')} de ${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}`;
+        dateRange = `${format(firstDate, 'MMM d')} - ${format(lastDate, 'MMM d, yyyy')}`;
         break;
       case 'month':
-        title = "PROMEDIO";
-        dateRange = `${format(firstDate, 'd')} de ${format(firstDate, 'MMM').toLowerCase()}–${format(lastDate, 'd')} de ${format(lastDate, 'MMM').toLowerCase()} ${format(lastDate, 'yyyy')}`;
+        dateRange = `${format(firstDate, 'MMM d')} - ${format(lastDate, 'MMM d, yyyy')}`;
         break;
       case '6months':
-        title = "PROMEDIO MENSUAL";
-        // Format: "Oct de 2024 - Mar de 2025"
-        dateRange = `${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}–${format(lastDate, 'MMM').toLowerCase()} de ${format(lastDate, 'yyyy')}`;
+        dateRange = `${format(firstDate, 'MMM yyyy')} - ${format(lastDate, 'MMM yyyy')}`;
         break;
       case 'year':
-        title = "PROMEDIO MENSUAL";
-        // Format: "Mar de 2024 - Mar de 2025"
-        dateRange = `${format(firstDate, 'MMM').toLowerCase()} de ${format(firstDate, 'yyyy')}–${format(lastDate, 'MMM').toLowerCase()} de ${format(lastDate, 'yyyy')}`;
+        dateRange = `${format(firstDate, 'MMM yyyy')} - ${format(lastDate, 'MMM yyyy')}`;
         break;
       default:
-        title = "PROMEDIO";
         dateRange = "";
     }
     
-    return { title, dateRange };
+    return { dateRange };
   }, [data, timeframe]);
 
-  const { title, dateRange } = getTitleAndDateRange();
+  const { dateRange } = getDateRange();
 
   return (
     <div className={cn("bg-white p-4 rounded-md shadow-sm border", className)} ref={containerRef}>
       <div className="flex flex-col mb-6">
-        <h3 className="text-gray-500 font-normal text-lg">{title}</h3>
         <div className="flex items-baseline">
           <span className="text-5xl font-bold mr-2">{averageValue.toLocaleString()}</span>
-          <span className="text-3xl text-gray-400 font-light">acuerdos</span>
+          <span className="text-3xl text-gray-400 font-light">agreements</span>
         </div>
         <p className="text-lg text-gray-500 mt-1">{dateRange}</p>
       </div>
