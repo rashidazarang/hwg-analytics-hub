@@ -139,7 +139,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
 
   const { dateRange } = getDateRange();
 
-  // Define custom legend for the chart
+  // Define custom legend for the chart with corrected colors
   const CustomLegend = () => (
     <div className="flex flex-wrap justify-center items-center gap-4 mt-2 mb-4">
       <div className="flex items-center">
@@ -180,6 +180,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 left: 10,
                 bottom: 20,
               }}
+              className="animate-fade-in"
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis 
@@ -199,7 +200,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
               
-              {/* Replace single bar with stacked bars */}
+              {/* Stacked bars with correct colors */}
               <Bar 
                 dataKey="pending" 
                 name="Pending" 
@@ -207,7 +208,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 fill="#FEF7CD"  
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
-                animationDuration={800}
+                animationDuration={600}
+                animationBegin={0}
               />
               <Bar 
                 dataKey="active" 
@@ -216,7 +218,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 fill="#F2FCE2"
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
-                animationDuration={900}
+                animationDuration={600}
+                animationBegin={100}
               />
               <Bar 
                 dataKey="cancelled" 
@@ -225,7 +228,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 fill="#ea384c"
                 radius={[6, 6, 0, 0]}  // Only top corners rounded
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
-                animationDuration={1000}
+                animationDuration={600}
+                animationBegin={200}
               />
             </BarChart>
           </ResponsiveContainer>
