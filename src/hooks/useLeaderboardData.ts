@@ -34,27 +34,27 @@ export function useTopAgentsData({ dateRange }: { dateRange: DateRange }) {
   });
 }
 
-// Hook to fetch all dealers data without any limit
+// Hook to fetch top dealers data
 export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['topDealers', dateRange.from, dateRange.to],
     queryFn: async (): Promise<TopDealer[]> => {
-      console.log('[LEADERBOARD] Fetching all dealers with date range:', {
+      console.log('[LEADERBOARD] Fetching top dealers with date range:', {
         from: dateRange.from.toISOString(),
         to: dateRange.to.toISOString()
       });
 
-      // Call the updated SQL function without a limit parameter
       const { data, error } = await supabase.rpc(
         'get_top_dealers_by_revenue',
         {
           start_date: dateRange.from.toISOString(),
-          end_date: dateRange.to.toISOString()
+          end_date: dateRange.to.toISOString(),
+          limit_count: 10
         }
       );
 
       if (error) {
-        console.error('[LEADERBOARD] Error fetching dealers:', error);
+        console.error('[LEADERBOARD] Error fetching top dealers:', error);
         throw error;
       }
 
