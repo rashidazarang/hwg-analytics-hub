@@ -58,8 +58,10 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="min-h-screen dashboard-content flex">
-      {/* Desktop Sidebar */}
-      <Sidebar />
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
       
       {/* Mobile Sidebar (using Sheet) */}
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -107,7 +109,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       </Sheet>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-64 w-full max-w-full">
+      <div className="flex-1 flex flex-col w-full max-w-full">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm shadow-sm">
           <div className="px-2 xs:px-3 sm:px-6 py-2 sm:py-3">
             {/* Update this div to match the Leaderboard style */}
