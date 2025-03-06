@@ -24,7 +24,7 @@ const AgreementKPISection: React.FC<AgreementKPISectionProps> = ({ dateRange, de
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <KPICard
-        title="Pending Agreements"
+        title="Pending Contracts"
         value={isLoading ? "..." : kpis?.pendingContracts.toLocaleString() || "0"}
         description="Contracts in pending status"
         icon={Clock}
