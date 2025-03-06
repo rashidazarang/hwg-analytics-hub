@@ -85,7 +85,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     const firstDate = data[0].rawDate;
     const lastDate = data[data.length - 1].rawDate;
     
-    let title = "PROMEDIO";
+    let title = "PROMEDIO DIARIO";
     let dateRange = "";
     
     switch (timeframe) {

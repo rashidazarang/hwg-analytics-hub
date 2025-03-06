@@ -17,10 +17,10 @@ const TimeframeFilter: React.FC<TimeframeFilterProps> = ({
   className = '',
 }) => {
   const options: Array<{ value: TimeframeOption; label: string }> = [
-    { value: 'week', label: 'D' },
-    { value: 'month', label: 'M' },
-    { value: '6months', label: '6M' },
-    { value: 'year', label: 'A' },
+    { value: 'week', label: 'Week' },
+    { value: 'month', label: 'Month' },
+    { value: '6months', label: '6 Months' },
+    { value: 'year', label: 'Year' },
   ];
 
   return (
@@ -31,7 +31,7 @@ const TimeframeFilter: React.FC<TimeframeFilterProps> = ({
           variant={selected === option.value ? 'default' : 'ghost'}
           size="sm"
           className={cn(
-            "h-8 min-w-12 px-4 text-sm font-medium rounded-full",
+            "h-8 px-4 text-sm font-medium rounded-full",
             selected === option.value 
               ? "bg-white text-black shadow-sm" 
               : "text-gray-500 hover:text-gray-700 hover:bg-transparent"

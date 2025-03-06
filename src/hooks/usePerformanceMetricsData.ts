@@ -54,18 +54,24 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // Show previous 6 months (current month included)
-      const sixMonthsEnd = offsetPeriods === 0 ? now : addMonths(endOfMonth(now), offsetPeriods);
+      // Show exactly 6 months from current date or shifted by offset
+      // If offset is 0, show last 6 months until today
+      // If offset is -1, show 6 months before that, etc.
+      const sixMonthsEnd = offsetPeriods === 0 ? now : addMonths(now, offsetPeriods * 6);
+      const sixMonthsStart = subMonths(sixMonthsEnd, 6);
       return {
-        start: startOfMonth(subMonths(sixMonthsEnd, 5)),
+        start: startOfMonth(sixMonthsStart),
         end: offsetPeriods === 0 ? now : endOfMonth(sixMonthsEnd)
       };
     
     case 'year':
-      // Show year to date (last 12 months from current date)
+      // Show exactly 12 months from current date (year-to-date)
+      // If offset is 0, show last 12 months until today
+      // If offset is -1, show the 12 months before that, etc.
       const yearEnd = offsetPeriods === 0 ? now : addMonths(now, offsetPeriods * 12);
+      const yearStart = subMonths(yearEnd, 11);
       return {
-        start: startOfMonth(subMonths(yearEnd, 11)),
+        start: startOfMonth(yearStart),
         end: offsetPeriods === 0 ? now : endOfMonth(yearEnd)
       };
       
