@@ -3,11 +3,15 @@ import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { DateRange } from '@/lib/dateUtils';
 import DateRangeFilter from '@/components/filters/DateRangeFilter';
+import LeaderboardSummaryCards from '@/components/leaderboard/LeaderboardSummaryCards';
 import TopAgentsTable from '@/components/leaderboard/TopAgentsTable';
 import TopDealersTable from '@/components/leaderboard/TopDealersTable';
+import LeaderboardCharts from '@/components/leaderboard/LeaderboardCharts';
 import { 
   useTopAgentsData, 
-  useTopDealersData
+  useTopDealersData, 
+  useRevenueGrowthData,
+  useLeaderboardSummary
 } from '@/hooks/useLeaderboardData';
 import { today, lastMonth } from '@/lib/dateUtils';
 
@@ -32,6 +36,16 @@ const Leaderboard: React.FC = () => {
     isLoading: isLoadingDealers 
   } = useTopDealersData({ dateRange });
 
+  const {
+    data: revenueGrowth,
+    isLoading: isLoadingGrowth
+  } = useRevenueGrowthData({ dateRange });
+
+  const {
+    data: summary,
+    isLoading: isLoadingSummary
+  } = useLeaderboardSummary({ dateRange });
+
   // Handle date range change
   const handleDateRangeChange = (range: DateRange) => {
     setDateRange(range);
@@ -51,6 +65,26 @@ const Leaderboard: React.FC = () => {
           onChange={handleDateRangeChange}
         />
       </div>
+
+      {/* Summary Cards */}
+      <LeaderboardSummaryCards 
+        data={summary || {
+          active_contracts: 0,
+          total_revenue: 0,
+          cancellation_rate: 0,
+          top_dealer: 'N/A',
+          top_agent: 'N/A'
+        }}
+        isLoading={isLoadingSummary}
+        growthRate={revenueGrowth?.growth_rate}
+      />
+
+      {/* Performance Charts */}
+      <LeaderboardCharts 
+        topAgents={topAgents || []}
+        topDealers={topDealers || []}
+        isLoading={isLoadingAgents || isLoadingDealers}
+      />
 
       {/* Tabbed Tables */}
       <Tabs 
