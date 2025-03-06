@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart, User, Settings } from 'lucide-react';
+import { LayoutDashboard, BarChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SidebarItemProps = {
@@ -47,19 +47,6 @@ const Sidebar: React.FC = () => {
     },
   ];
 
-  const accountItems = [
-    {
-      icon: User,
-      label: 'Account',
-      to: '/account',
-    },
-    {
-      icon: Settings,
-      label: 'Settings',
-      to: '/settings',
-    }
-  ];
-
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
       <div className="flex-1 flex flex-col min-h-0 border-r bg-white shadow-sm">
@@ -89,23 +76,6 @@ const Sidebar: React.FC = () => {
                         ? currentPath === '/' 
                         : currentPath.startsWith(item.to)
                     }
-                  />
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                User
-              </h3>
-              <div className="h-px bg-gray-200 mb-3"></div>
-              <ul className="space-y-1">
-                {accountItems.map((item) => (
-                  <SidebarItem 
-                    key={item.to}
-                    icon={item.icon}
-                    label={item.label}
-                    to={item.to}
-                    isActive={currentPath.startsWith(item.to)}
                   />
                 ))}
               </ul>
