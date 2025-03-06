@@ -26,11 +26,11 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({ dateRange, dealerFilt
   const timeframe: TimeframeOption = 'month';
   const [currentOffset, setCurrentOffset] = React.useState(0);
   
-  // Get performance metrics data for the bar chart
-  const { data: performanceData, isLoading: isPerformanceLoading } = usePerformanceMetricsData({
+  // Get performance metrics data for the bar chart - Fixing parameter passing
+  const { data: performanceData, loading: isPerformanceLoading } = usePerformanceMetricsData(
     timeframe,
     currentOffset
-  });
+  );
   
   const handlePeriodChange = (offset: number) => {
     setCurrentOffset(offset);
@@ -68,7 +68,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({ dateRange, dealerFilt
         </CardHeader>
         <CardContent>
           <InteractiveBarChart 
-            data={performanceData?.data || []}
+            data={performanceData} 
             timeframe={timeframe}
             isLoading={isPerformanceLoading}
             onPeriodChange={handlePeriodChange}
