@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps, Legend } from 'recharts';
 import { format } from 'date-fns';
@@ -35,11 +36,11 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
         <p className="text-primary font-medium">Total Agreements: {dataPoint.value.toLocaleString()}</p>
         <div className="mt-2 text-sm space-y-1">
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#FDE1D3] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 bg-[#FEC6A1] mr-2 rounded-sm"></span>
             Pending: {dataPoint.pending.toLocaleString()}
           </p>
           <p className="flex items-center">
-            <span className="inline-block w-3 h-3 bg-[#D3E4FD] mr-2 rounded-sm"></span>
+            <span className="inline-block w-3 h-3 bg-[#F2FCE2] mr-2 rounded-sm"></span>
             Active: {dataPoint.active.toLocaleString()}
           </p>
           <p className="flex items-center">
@@ -140,11 +141,11 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const CustomLegend = () => (
     <div className="flex flex-wrap justify-center items-center gap-4 mt-2 mb-4">
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#FDE1D3] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 bg-[#FEC6A1] mr-2 rounded-sm"></span>
         <span className="text-sm text-gray-600">Pending</span>
       </div>
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 bg-[#D3E4FD] mr-2 rounded-sm"></span>
+        <span className="inline-block w-3 h-3 bg-[#F2FCE2] mr-2 rounded-sm"></span>
         <span className="text-sm text-gray-600">Active</span>
       </div>
       <div className="flex items-center">
@@ -201,7 +202,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="pending" 
                 name="Pending" 
                 stackId="a"
-                fill="#FDE1D3"  
+                fill="#FEC6A1"  
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
@@ -211,7 +212,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 dataKey="active" 
                 name="Active" 
                 stackId="a" 
-                fill="#D3E4FD"
+                fill="#F2FCE2"
                 radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}

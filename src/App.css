@@ -1,4 +1,3 @@
-
 #root {
   max-width: 100%;
   margin: 0 auto;
@@ -92,7 +91,7 @@
 
 /* Status color indicators for charts */
 .status-pending {
-  background-color: #FEF7CD;
+  background-color: #FEC6A1;
 }
 
 .status-active {
@@ -100,7 +99,7 @@
 }
 
 .status-cancelled {
-  background-color: #ea384c;
+  background-color: #FFDEE2;
 }
 
 @media (min-width: 640px) {
