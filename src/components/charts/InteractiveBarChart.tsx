@@ -150,21 +150,22 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         dateRange = `${format(firstDate, 'MMM d')} - ${format(lastDate, 'MMM d, yyyy')}`;
         break;
       case '6months':
-        // For 6 months timeframe, explicitly show H1/H2 format
-        const month = firstDate.getMonth();
+        // Always show exact month range for 6 months view
+        const firstMonth = firstDate.getMonth();
         const year = firstDate.getFullYear();
         
-        if (month === 0) { // January = first half of year
-          dateRange = `H1 (Jan-Jun) ${year}`;
-        } else if (month === 6) { // July = second half of year
-          dateRange = `H2 (Jul-Dec) ${year}`;
+        // Check if we're showing Jan-Jun or Jul-Dec
+        if (firstMonth === 0) { // January = first half of year
+          dateRange = `Jan - Jun ${year}`;
+        } else if (firstMonth === 6) { // July = second half of year
+          dateRange = `Jul - Dec ${year}`;
         } else {
-          // Fallback if date doesn't align with half-years
+          // Fallback, though we should always have properly aligned date ranges now
           dateRange = `${format(firstDate, 'MMM')} - ${format(lastDate, 'MMM')} ${year}`;
         }
         break;
       case 'year':
-        dateRange = `Full Year ${format(firstDate, 'yyyy')}`;
+        dateRange = `Jan - Dec ${format(firstDate, 'yyyy')}`;
         break;
       default:
         dateRange = "";
@@ -291,7 +292,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
           variant="outline" 
           size="sm" 
           onClick={handleNext}
-          disabled={isLoading || currentOffset === 0}
+          disabled={isLoading}
           className="border-gray-200 hover:bg-gray-50"
         >
           <ChevronRight className="h-4 w-4" />

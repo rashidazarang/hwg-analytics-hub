@@ -60,11 +60,24 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // For 6 months timeframe, show calendar half-years (H1: Jan-Jun, H2: Jul-Dec)
-      // Even offset: first half of the year (Jan-Jun), Odd offset: second half (Jul-Dec)
-      const isFirstHalf = offsetPeriods % 2 === 0;
-      const yearOffset = Math.floor(offsetPeriods / 2);
-      const targetYear = currentYear + yearOffset;
+      // For 6 months timeframe, always show calendar half-years (Jan-Jun, Jul-Dec)
+      // Based on pagination: 
+      // offsetPeriods % 2 === 0 -> first half year (Jan-Jun)
+      // offsetPeriods % 2 === 1 -> second half year (Jul-Dec)
+      
+      // Calculate year offset based on how many half-years we've moved
+      const halfYearOffset = Math.abs(offsetPeriods);
+      const yearOffset = Math.floor(halfYearOffset / 2);
+      
+      // Determine whether to show H1 (Jan-Jun) or H2 (Jul-Dec)
+      const isFirstHalf = offsetPeriods >= 0 ? 
+                          (offsetPeriods % 2 === 0) : 
+                          (Math.abs(offsetPeriods) % 2 === 1);
+                          
+      // Calculate target year based on whether we're moving forward or backward
+      const targetYear = offsetPeriods >= 0 ? 
+                         (currentYear + yearOffset) : 
+                         (currentYear - yearOffset);
       
       if (isFirstHalf) {
         // First half of year (Jan-Jun)
@@ -79,9 +92,8 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       }
     
     case 'year':
-      // For full year view, show Jan-Dec of the selected year
-      const yearOffset2 = offsetPeriods;
-      const targetYear2 = currentYear + yearOffset2;
+      // Always show Jan-Dec for the selected year, regardless of current month
+      const targetYear2 = currentYear + offsetPeriods;
       const startYear = new Date(targetYear2, 0, 1); // January 1st
       const endYear = new Date(targetYear2, 11, 31); // December 31st
       return { start: startYear, end: endYear };
@@ -678,7 +690,9 @@ export function usePerformanceMetricsData(
             value: 0,
             pending: 0,
             active: 0,
+            claimable: 0,
             cancelled: 0,
+            void: 0,
             rawDate: day
           };
         });
@@ -690,6 +704,38 @@ export function usePerformanceMetricsData(
         // For year view, ensure we have exactly 12 months
         const expectedMonths = timeframe === '6months' ? 6 : 12;
         
+        // Get all months in the interval - ensure we get the full range
+        const monthInterval = { 
+          start: startDate, 
+          end: endDate 
+        };
+        const allMonths = eachMonthOfInterval(monthInterval);
+        
+        // Make sure we have appropriate months
+        // For 6 months: Jan-Jun or Jul-Dec
+        // For year: Jan-Dec
+        const finalMonths = [];
+        
+        if (timeframe === '6months') {
+          // Determine if we're in first half (Jan-Jun) or second half (Jul-Dec)
+          const isFirstHalf = startDate.getMonth() === 0; // January
+          
+          // Get appropriate months (either 0-5 or 6-11)
+          const targetYear = startDate.getFullYear();
+          
+          for (let i = 0; i < 6; i++) {
+            const monthIndex = isFirstHalf ? i : i + 6;
+            finalMonths.push(new Date(targetYear, monthIndex, 1));
+          }
+        } else {
+          // For year view, ensure all 12 months
+          const targetYear = startDate.getFullYear();
+          
+          for (let i = 0; i < 12; i++) {
+            finalMonths.push(new Date(targetYear, i, 1));
+          }
+        }
+        
         // Create a map of existing data points by month
         const monthMap = new Map();
         sortedData.forEach(point => {
@@ -697,27 +743,16 @@ export function usePerformanceMetricsData(
           monthMap.set(monthKey, point);
         });
         
-        // Generate expected months
-        const expectedData = [];
-        const monthInterval = { 
-          start: startDate, 
-          end: endDate 
-        };
-        
-        // Get all months in the interval
-        const allMonths = eachMonthOfInterval(monthInterval);
-        
-        // Ensure we have the correct number of months
-        for (let i = 0; i < Math.min(allMonths.length, expectedMonths); i++) {
-          const month = allMonths[i];
+        // Map the months to data points
+        return finalMonths.map(month => {
           const monthKey = format(month, 'yyyy-MM');
           
           if (monthMap.has(monthKey)) {
             // Use existing data
-            expectedData.push(monthMap.get(monthKey));
+            return monthMap.get(monthKey);
           } else {
             // Create zeroed data for missing month
-            expectedData.push({
+            return {
               label: format(month, 'MMM').toLowerCase(),
               value: 0,
               pending: 0,
@@ -726,11 +761,9 @@ export function usePerformanceMetricsData(
               cancelled: 0,
               void: 0,
               rawDate: month
-            });
+            };
           }
-        }
-        
-        return expectedData;
+        });
       }
       
       // For other timeframes, just return sorted data

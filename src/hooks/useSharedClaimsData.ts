@@ -325,7 +325,7 @@ export async function fetchClaimsData({
     }
 
     // Process the claims data to get status breakdown
-    const claims = data || [];
+    let claims = data || [];
     
     // Initialize status counters
     const statusBreakdown = {
@@ -415,7 +415,8 @@ export async function fetchClaimsData({
             });
             
             // Merge payment data with claims
-            claims = claims.map(claim => {
+            // Using let variable for the transformed claims instead of reassigning claims
+            const processedClaims = claims.map(claim => {
               const paymentInfo = paymentMap.get(claim.ClaimID);
               return {
                 ...claim,
@@ -423,6 +424,9 @@ export async function fetchClaimsData({
                 lastPaymentDate: paymentInfo ? paymentInfo.lastPaymentDate : null
               };
             });
+            
+            // Use the processed claims going forward
+            claims = processedClaims;
             
             return {
               data: claims,
@@ -443,7 +447,8 @@ export async function fetchClaimsData({
           });
           
           // Merge payment data with claims
-          claims = claims.map(claim => {
+          // Using let variable for the transformed claims instead of reassigning claims
+          const processedClaims = claims.map(claim => {
             const paymentInfo = paymentMap.get(claim.ClaimID);
             return {
               ...claim,
@@ -451,6 +456,9 @@ export async function fetchClaimsData({
               lastPaymentDate: paymentInfo ? paymentInfo.lastPaymentDate : null
             };
           });
+          
+          // Use the processed claims going forward
+          claims = processedClaims;
           
           return {
             data: claims,
