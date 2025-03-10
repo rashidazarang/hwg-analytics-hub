@@ -48,7 +48,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             } as any // Type assertion to avoid TypeScript error
           );
           
-          if (!countError && countsByStatus) {
+          if (!countError && countsByStatus && Array.isArray(countsByStatus) && countsByStatus.length > 0) {
             console.log('[KPI_DATA] Status distribution from RPC:', countsByStatus);
             
             // Process each status individually - no normalization
@@ -67,7 +67,10 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
               }
             });
           } else {
-            throw new Error('RPC call failed or returned no data');
+            console.error('[KPI_DATA] RPC response error:', countError);
+            console.log('[KPI_DATA] RPC response data:', countsByStatus);
+            // Don't throw an error, just fall through to the fallback queries
+            throw new Error('Moving to fallback queries due to RPC issue');
           }
         } catch (rpcError) {
           console.error('[KPI_DATA] Error using RPC:', rpcError);

@@ -50,10 +50,28 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   }, [dealerFilter, searchQuery, dateRange]);
 
   // Fetch claims data with all filters
+  // Use a try-catch block to handle potential errors
   const { 
     data: claimsData, 
-    isFetching 
+    isFetching,
+    error 
   } = useClaimsFetching(page, pageSize, dealerFilter, dateRange);
+  
+  // Log any errors and handle timeout errors specifically
+  useEffect(() => {
+    if (error) {
+      console.error('[CLAIMS_TABLE] Error fetching claims data:', error);
+      
+      // Check for timeout errors
+      if (error instanceof Error && 
+          (error.message.includes('timeout') || 
+           (error as any).code === '57014' || // Statement timeout error code
+           error.message.includes('statement timeout'))) {
+        console.log('[CLAIMS_TABLE] Detected timeout error, showing friendly message');
+        // You could display a user-friendly message here
+      }
+    }
+  }, [error]);
   
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);

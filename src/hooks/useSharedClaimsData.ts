@@ -23,6 +23,9 @@ const extendedClient = supabase as ExtendedSupabaseClient;
 // Add a config option to bypass payment date filtering if needed
 const BYPASS_PAYMENT_DATE_FILTERING = true; // Set to true if you're getting timeout errors
 
+// Set a small page size limit to avoid timeouts
+const MAX_PAGE_SIZE = 100; // Limit page size to avoid timeouts
+
 export interface ClaimsQueryOptions {
   dateRange: DateRange;
   dealerFilter?: string;
@@ -303,10 +306,13 @@ export async function fetchClaimsData({
       // This ensures we only fetch the current page of data, not all records
       if (pagination !== undefined && pagination.pageSize !== undefined) {
         const { page, pageSize } = pagination;
-        const startRow = (page - 1) * pageSize;
-        const endRow = startRow + pageSize - 1;
+        // Limit page size to avoid timeouts
+        const effectivePageSize = Math.min(pageSize, MAX_PAGE_SIZE);
         
-        console.log(`[SHARED_CLAIMS] Applying pagination: page ${page}, rows ${startRow}-${endRow}`);
+        const startRow = (page - 1) * effectivePageSize;
+        const endRow = startRow + effectivePageSize - 1;
+        
+        console.log(`[SHARED_CLAIMS] Applying pagination: page ${page}, rows ${startRow}-${endRow} (limited to ${effectivePageSize} per page)`);
         query = query.range(startRow, endRow);
       } else {
         // CRITICAL FIX: We must override Supabase's default limit when no pagination is provided
@@ -343,7 +349,7 @@ export async function fetchClaimsData({
         }
         
         // Always fetch in batches regardless of size to be consistent with paginated approach
-        if (totalCount) {
+        if (totalCount && !pagination) { // Skip this section if we're using pagination
           console.log(`[SHARED_CLAIMS] Total claims count is ${totalCount}, fetching in batches`);
           
           // Set up for batched fetching
@@ -686,11 +692,40 @@ export async function fetchClaimsData({
       }
     }
 
-    const { data, error } = await query;
+    // Safety check to make sure query is defined before using it
+    if (!query) {
+      console.error('[SHARED_CLAIMS] Query object is undefined, creating a fallback query');
+      query = extendedClient
+        .from("claims")
+        .select(`
+          id,
+          ClaimID, 
+          AgreementID,
+          ReportedDate, 
+          Closed,
+          Cause,
+          Correction,
+          Deductible,
+          LastModified,
+          agreements!inner(DealerUUID, dealers(Payee))
+        `)
+        .limit(100); // Use a small limit for safety
+    }
 
-    if (error) {
-      console.error('[SHARED_CLAIMS] Error fetching claims:', error);
-      throw error;
+    let data, error;
+    try {
+      const result = await query;
+      data = result.data;
+      error = result.error;
+
+      if (error) {
+        console.error('[SHARED_CLAIMS] Error fetching claims:', error);
+        throw error;
+      }
+    } catch (queryError) {
+      console.error('[SHARED_CLAIMS] Exception executing query:', queryError);
+      // Handle fallback in the outer catch block
+      throw queryError;
     }
 
     // Process the claims data to get status breakdown
@@ -1048,5 +1083,7 @@ export function useSharedClaimsData(options: ClaimsQueryOptions) {
     ],
     queryFn: () => fetchClaimsData(options),
     staleTime: 1000 * 60 * 5, // 5 minutes stale time - consistent across all usages
+    retry: 1, // Limit retries to avoid hammering the server on timeout errors
+    retryDelay: 1000, // Wait 1 second between retries
   });
 }

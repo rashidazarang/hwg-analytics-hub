@@ -12,6 +12,8 @@ export function useClaimsFetching(
   dealerFilter?: string, 
   dateRange?: DateRange
 ) {
+  // Apply a safety limit to page size to prevent timeouts
+  const safePageSize = Math.min(pageSize, 100); // Limit to 100 records per page for performance
   // If limiting date range is enabled, limit to the last 12 months for better performance
   let effectiveDateRange = dateRange;
   
@@ -48,7 +50,7 @@ export function useClaimsFetching(
     dealerFilter,
     pagination: {
       page,
-      pageSize
+      pageSize: safePageSize // Use the safety-limited page size
     },
     includeCount: true
   });

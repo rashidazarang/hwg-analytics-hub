@@ -137,49 +137,66 @@ const DataTable = <T extends Record<string, any>>({
 
   // Create a ref outside of the useEffect to track pagination reset state
   const hasScheduledReset = React.useRef(false);
+  const firstRender = React.useRef(true);
 
   useEffect(() => {
+    // Skip first render to prevent initial reset issues
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    
     // Safety check for pagination props
     if (!paginationProps) return;
     
     // Calculate the correct total pages for current data
     const calculatedTotalPages = Math.max(1, Math.ceil(paginationProps.totalItems / paginationProps.pageSize));
+    let shouldResetPage = false;
+    let resetReason = '';
     
-    // If current page is out of bounds, reset to page 1
-    if (paginationProps.currentPage > calculatedTotalPages && calculatedTotalPages > 0 && !hasScheduledReset.current) {
-      console.log(`[DataTable] Resetting page from ${paginationProps.currentPage} to 1 (totalPages: ${calculatedTotalPages})`);
+    // Check if we need to reset the page
+    if (paginationProps.currentPage > calculatedTotalPages && calculatedTotalPages > 0) {
+      shouldResetPage = true;
+      resetReason = `current page (${paginationProps.currentPage}) is greater than total pages (${calculatedTotalPages})`;
+    } else if (paginationProps.totalItems === 0 && paginationProps.currentPage !== 1) {
+      shouldResetPage = true;
+      resetReason = 'totalItems is 0';
+    }
+    
+    // Only reset if needed and not already in progress
+    if (shouldResetPage && !hasScheduledReset.current) {
+      console.log(`[DataTable] Resetting page to 1 because ${resetReason}`);
       hasScheduledReset.current = true;
       
       // Use a longer timeout to ensure we avoid React batching issues
-      setTimeout(() => {
-        paginationProps.onPageChange(1);
+      const resetTimer = setTimeout(() => {
+        try {
+          if (paginationProps && typeof paginationProps.onPageChange === 'function') {
+            paginationProps.onPageChange(1);
+          }
+        } catch (e) {
+          console.error('[DataTable] Error resetting page:', e);
+        }
+        
         // Reset the flag after a delay to allow for future resets if needed
-        setTimeout(() => {
+        const flagResetTimer = setTimeout(() => {
           hasScheduledReset.current = false;
         }, 500);
+        
+        // Clean up the flag reset timer if component unmounts
+        return () => clearTimeout(flagResetTimer);
       }, 150);
-    }
-    
-    // Also handle the case where totalItems is 0 but currentPage isn't 1
-    if (paginationProps.totalItems === 0 && paginationProps.currentPage !== 1 && !hasScheduledReset.current) {
-      console.log(`[DataTable] Resetting page to 1 because totalItems is 0`);
-      hasScheduledReset.current = true;
       
-      // Use a longer timeout to ensure we avoid React batching issues
-      setTimeout(() => {
-        paginationProps.onPageChange(1);
-        // Reset the flag after a delay to allow for future resets if needed
-        setTimeout(() => {
-          hasScheduledReset.current = false;
-        }, 500);
-      }, 150);
+      // Clean up the reset timer if component unmounts
+      return () => clearTimeout(resetTimer);
     }
-  }, [paginationProps?.totalItems, paginationProps?.pageSize, paginationProps?.currentPage, paginationProps?.onPageChange]);
+  }, [paginationProps?.totalItems, paginationProps?.pageSize]);
   
   // Cleanup the ref when component unmounts
   useEffect(() => {
     return () => {
       hasScheduledReset.current = false;
+      firstRender.current = false;
     };
   }, []);
 
