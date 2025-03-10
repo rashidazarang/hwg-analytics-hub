@@ -20,6 +20,7 @@ import {
   subYears,
   subDays
 } from 'date-fns';
+import { toCSTISOString, setCSTHours, CST_TIMEZONE, toCSTDate } from '@/lib/dateUtils';
 import { TimeframeOption } from '@/components/filters/TimeframeFilter';
 
 export interface PerformanceDataPoint {
@@ -73,17 +74,37 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
 }
 
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
-  console.log(`[PERFORMANCE] Fetching aggregated monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  // Format dates in CST timezone for proper comparison
+  const cstStartDateIso = toCSTISOString(setCSTHours(startDate, 0, 0, 0, 0));
+  const cstEndDateIso = toCSTISOString(setCSTHours(endDate, 23, 59, 59, 999));
+  
+  console.log(`[PERFORMANCE] Fetching aggregated monthly data from ${cstStartDateIso} to ${cstEndDateIso}`);
+
+  // First, set timezone to CST for the query
+  await supabase.rpc('set_timezone', { timezone_name: CST_TIMEZONE });
 
   const { data, error } = await supabase
     .from('agreements')
     .select('EffectiveDate, AgreementStatus')
-    .gte('EffectiveDate', startDate.toISOString())
-    .lte('EffectiveDate', endDate.toISOString());
+    .gte('EffectiveDate', cstStartDateIso)
+    .lte('EffectiveDate', cstEndDateIso);
 
   if (error) {
-    console.error("Error fetching aggregated agreement data:", error);
+    console.error("[PERFORMANCE] Error fetching aggregated agreement data:", error);
     throw new Error(error.message);
+  }
+  
+  // Log total count for debugging
+  console.log(`[PERFORMANCE] Monthly data fetch returned ${data?.length || 0} agreements`);
+  
+  // Log status distribution for debugging
+  if (data && data.length > 0) {
+    const statusCounts: Record<string, number> = {};
+    data.forEach(agreement => {
+      const status = (agreement.AgreementStatus || '').toUpperCase();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    console.log('[PERFORMANCE] Status distribution in monthly data:', statusCounts);
   }
 
   const monthlyStats: Record<string, { total: number, pending: number, active: number, cancelled: number }> = {};
@@ -95,12 +116,17 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
   });
 
   if (data) {
+    // Track the number of agreements with non-standard statuses
+    let otherStatusCount = 0;
+    
     data.forEach(agreement => {
       const effectiveDate = new Date(agreement.EffectiveDate);
-      const monthKey = format(effectiveDate, 'yyyy-MM');
+      // Use CST dates to avoid timezone issues
+      const effectiveDateCST = toCSTDate(effectiveDate);
+      const monthKey = format(effectiveDateCST, 'yyyy-MM');
       
       if (monthlyStats[monthKey]) {
-        monthlyStats[monthKey].total++;
+        monthlyStats[monthKey].total++; // Always increment total
         
         const status = (agreement.AgreementStatus || '').toUpperCase();
         
@@ -110,9 +136,17 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
           monthlyStats[monthKey].active++;
         } else if (status === 'CANCELLED') {
           monthlyStats[monthKey].cancelled++;
+        } else {
+          // Count agreements with other statuses
+          otherStatusCount++;
         }
       }
     });
+    
+    // Log information about agreements with non-standard statuses
+    if (otherStatusCount > 0) {
+      console.log(`[PERFORMANCE] Found ${otherStatusCount} agreements with statuses other than PENDING/ACTIVE/CANCELLED`);
+    }
   }
 
   return months.map(month => {
@@ -130,20 +164,38 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
 }
 
 async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date) {
-  console.log(`[PERFORMANCE] Fetching all agreements by status from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  // Format dates in CST timezone for proper comparison
+  const cstStartDateIso = toCSTISOString(setCSTHours(startDate, 0, 0, 0, 0));
+  const cstEndDateIso = toCSTISOString(setCSTHours(endDate, 23, 59, 59, 999));
+  
+  console.log(`[PERFORMANCE] Fetching all agreements by status from ${cstStartDateIso} to ${cstEndDateIso}`);
+  
+  // First, set timezone to CST for the query
+  await supabase.rpc('set_timezone', { timezone_name: CST_TIMEZONE });
   
   const { data, error } = await supabase
     .from('agreements')
     .select('EffectiveDate, AgreementStatus')
-    .gte('EffectiveDate', startDate.toISOString())
-    .lte('EffectiveDate', endDate.toISOString());
+    .gte('EffectiveDate', cstStartDateIso)
+    .lte('EffectiveDate', cstEndDateIso);
   
   if (error) {
-    console.error("Error fetching agreement data:", error);
+    console.error("[PERFORMANCE] Error fetching agreement data:", error);
     throw new Error(error.message);
   }
   
   console.log(`[PERFORMANCE] Total agreements fetched: ${data?.length || 0}`);
+  
+  // Log status distribution for debugging
+  if (data && data.length > 0) {
+    const statusCounts: Record<string, number> = {};
+    data.forEach(agreement => {
+      const status = (agreement.AgreementStatus || '').toUpperCase();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    console.log('[PERFORMANCE] Status distribution in raw data:', statusCounts);
+  }
+  
   return data || [];
 }
 
@@ -204,18 +256,26 @@ export function usePerformanceMetricsData(
             return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
           });
           
-          let pending = 0, active = 0, cancelled = 0;
+          // Initialize counters for different statuses
+          let pending = 0, active = 0, cancelled = 0, other = 0;
           
+          // Count agreements by status - including ALL agreements in the total
           dayAgreements.forEach(agreement => {
             const status = (agreement.AgreementStatus || '').toUpperCase();
             if (status === 'PENDING') pending++;
             else if (status === 'ACTIVE') active++;
             else if (status === 'CANCELLED') cancelled++;
+            else other++; // Count other statuses separately for debugging
           });
+          
+          // Log any day with significant discrepancy
+          if (other > 0) {
+            console.log(`[PERFORMANCE] Day ${format(day, 'yyyy-MM-dd')} has ${other} agreements with status other than PENDING/ACTIVE/CANCELLED`);
+          }
           
           return {
             label: format(day, 'EEE').toLowerCase(),
-            value: dayAgreements.length,
+            value: dayAgreements.length, // This includes ALL agreements regardless of status
             pending,
             active,
             cancelled,
@@ -234,18 +294,26 @@ export function usePerformanceMetricsData(
             return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
           });
           
-          let pending = 0, active = 0, cancelled = 0;
+          // Initialize counters for different statuses
+          let pending = 0, active = 0, cancelled = 0, other = 0;
           
+          // Count agreements by status - including ALL agreements in the total
           dayAgreements.forEach(agreement => {
             const status = (agreement.AgreementStatus || '').toUpperCase();
             if (status === 'PENDING') pending++;
             else if (status === 'ACTIVE') active++;
             else if (status === 'CANCELLED') cancelled++;
+            else other++; // Count other statuses separately for debugging
           });
+          
+          // Log any day with significant discrepancy
+          if (other > 0) {
+            console.log(`[PERFORMANCE] Day ${format(day, 'yyyy-MM-dd')} has ${other} agreements with status other than PENDING/ACTIVE/CANCELLED`);
+          }
           
           return {
             label: format(day, 'd'),
-            value: dayAgreements.length,
+            value: dayAgreements.length, // This includes ALL agreements regardless of status
             pending,
             active,
             cancelled,
