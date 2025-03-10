@@ -66,9 +66,80 @@ export async function fetchClaimsData({
         agreements!inner(DealerUUID, dealers(Payee))
       `, { count: includeCount ? 'exact' : undefined });
 
-    // Apply date range filter using ReportedDate (primary) or LastModified (fallback)
-    // This gives us a broader range of claims that might be relevant
-    query = query.or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()},LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`);
+    // First, we need to determine if we can use the optimized payment date filtering
+    // Let's check if the function exists in Supabase
+    let usePaymentDateFiltering = false;
+    
+    try {
+      // Try to check if the function exists by calling it with a simple test
+      await supabase.rpc('get_claims_with_payment_in_date_range', {
+        start_date: new Date("2000-01-01").toISOString(),
+        end_date: new Date("2000-01-02").toISOString()
+      });
+      
+      usePaymentDateFiltering = true;
+      console.log("[SHARED_CLAIMS] Found payment date filtering function, will use it for date filtering");
+    } catch (e) {
+      console.log("[SHARED_CLAIMS] Payment date filtering function not found, using traditional date filtering instead");
+      
+      // Apply traditional date range filter on claim dates
+      query = query.or(
+        `ReportedDate.gte.${dateRange.from.toISOString()},` +
+        `ReportedDate.lte.${dateRange.to.toISOString()},` +
+        `LastModified.gte.${dateRange.from.toISOString()},` +
+        `LastModified.lte.${dateRange.to.toISOString()}`
+      );
+    }
+    
+    // If we can use payment date filtering, we need a more complex approach
+    if (usePaymentDateFiltering) {
+      try {
+        // Get IDs of claims with payments in the date range
+        const { data: paymentRangeClaimIds, error: paymentRangeError } = await supabase.rpc(
+          'get_claims_with_payment_in_date_range', 
+          { 
+            start_date: dateRange.from.toISOString(), 
+            end_date: dateRange.to.toISOString() 
+          }
+        );
+        
+        if (paymentRangeError) {
+          throw paymentRangeError;
+        }
+        
+        if (paymentRangeClaimIds && paymentRangeClaimIds.length > 0) {
+          // Extract the claim IDs from the result
+          const claimIdsWithPayments = paymentRangeClaimIds.map(r => r.ClaimID);
+          
+          // Include claims with reported/lastmodified dates in range OR payments in range
+          query = query.or(
+            `ClaimID.in.(${claimIdsWithPayments.map(id => `"${id}"`).join(',')})` + 
+            `,ReportedDate.gte.${dateRange.from.toISOString()},` +
+            `ReportedDate.lte.${dateRange.to.toISOString()},` + 
+            `LastModified.gte.${dateRange.from.toISOString()},` +
+            `LastModified.lte.${dateRange.to.toISOString()}`
+          );
+        } else {
+          // If no claims have payments in the range, fall back to traditional filtering
+          query = query.or(
+            `ReportedDate.gte.${dateRange.from.toISOString()},` +
+            `ReportedDate.lte.${dateRange.to.toISOString()},` +
+            `LastModified.gte.${dateRange.from.toISOString()},` +
+            `LastModified.lte.${dateRange.to.toISOString()}`
+          );
+        }
+      } catch (e) {
+        console.error("[SHARED_CLAIMS] Error using payment date filtering:", e);
+        
+        // Fall back to traditional date filtering
+        query = query.or(
+          `ReportedDate.gte.${dateRange.from.toISOString()},` +
+          `ReportedDate.lte.${dateRange.to.toISOString()},` +
+          `LastModified.gte.${dateRange.from.toISOString()},` +
+          `LastModified.lte.${dateRange.to.toISOString()}`
+        );
+      }
+    }
     
     // Apply dealer filter if provided
     if (dealerFilter && dealerFilter.trim() !== '') {
@@ -89,13 +160,71 @@ export async function fetchClaimsData({
       // Fetch records in batches to get around Supabase's default limit
       
       // First, get the total count
+      // Use the same filtering conditions as the main query for consistency
       const countQuery = supabase
         .from("claims")
         .select(`
           id,
           agreements!inner(DealerUUID)
-        `, { count: 'exact', head: true })
-        .or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()},LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`);
+        `, { count: 'exact', head: true });
+      
+      // Apply the same date range logic as the main query
+      if (usePaymentDateFiltering) {
+        try {
+          // Get IDs of claims with payments in the date range
+          const { data: countPaymentRangeClaimIds, error: countPaymentRangeError } = await supabase.rpc(
+            'get_claims_with_payment_in_date_range', 
+            { 
+              start_date: dateRange.from.toISOString(), 
+              end_date: dateRange.to.toISOString() 
+            }
+          );
+          
+          if (countPaymentRangeError) {
+            throw countPaymentRangeError;
+          }
+          
+          if (countPaymentRangeClaimIds && countPaymentRangeClaimIds.length > 0) {
+            // Extract the claim IDs from the result
+            const countClaimIdsWithPayments = countPaymentRangeClaimIds.map(r => r.ClaimID);
+            
+            // Include claims with reported/lastmodified dates in range OR payments in range
+            countQuery.or(
+              `ClaimID.in.(${countClaimIdsWithPayments.map(id => `"${id}"`).join(',')})` + 
+              `,ReportedDate.gte.${dateRange.from.toISOString()},` +
+              `ReportedDate.lte.${dateRange.to.toISOString()},` + 
+              `LastModified.gte.${dateRange.from.toISOString()},` +
+              `LastModified.lte.${dateRange.to.toISOString()}`
+            );
+          } else {
+            // If no claims have payments in the range, fall back to traditional filtering
+            countQuery.or(
+              `ReportedDate.gte.${dateRange.from.toISOString()},` +
+              `ReportedDate.lte.${dateRange.to.toISOString()},` +
+              `LastModified.gte.${dateRange.from.toISOString()},` +
+              `LastModified.lte.${dateRange.to.toISOString()}`
+            );
+          }
+        } catch (e) {
+          console.error("[SHARED_CLAIMS] Error using payment date filtering for count query:", e);
+          
+          // Fall back to traditional date filtering
+          countQuery.or(
+            `ReportedDate.gte.${dateRange.from.toISOString()},` +
+            `ReportedDate.lte.${dateRange.to.toISOString()},` +
+            `LastModified.gte.${dateRange.from.toISOString()},` +
+            `LastModified.lte.${dateRange.to.toISOString()}`
+          );
+        }
+      } else {
+        // Traditional date range filter for count
+        countQuery.or(
+          `ReportedDate.gte.${dateRange.from.toISOString()},` +
+          `ReportedDate.lte.${dateRange.to.toISOString()},` +
+          `LastModified.gte.${dateRange.from.toISOString()},` +
+          `LastModified.lte.${dateRange.to.toISOString()}`
+        );
+      }
       
       // Apply dealer filter to count query if provided
       if (dealerFilter && dealerFilter.trim() !== '') {
@@ -137,7 +266,12 @@ export async function fetchClaimsData({
               LastModified,
               agreements!inner(DealerUUID, dealers(Payee))
             `)
-            .or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()},LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`)
+            .or(
+              `ReportedDate.gte.${dateRange.from.toISOString()},` +
+              `ReportedDate.lte.${dateRange.to.toISOString()},` +
+              `LastModified.gte.${dateRange.from.toISOString()},` +
+              `LastModified.lte.${dateRange.to.toISOString()}`
+            )
             .order('LastModified', { ascending: false })
             .range(start, end);
           

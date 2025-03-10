@@ -111,15 +111,27 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       sortable: false,
       render: (row) => {
         // Use the totalPaid field from the SQL query using get_claims_payment_info
+        // This comes from summing all PaidPrice values for PAID subclaims
+        
         // Handle undefined, null, or non-numeric values
-        const amount = typeof row.totalPaid === 'number' ? row.totalPaid : 0;
+        let amount = 0;
+        
+        // Ensure we have a valid number for totalPaid
+        if (row.totalPaid !== undefined && row.totalPaid !== null) {
+          // Convert string to number if needed
+          amount = typeof row.totalPaid === 'string' 
+            ? parseFloat(row.totalPaid) 
+            : typeof row.totalPaid === 'number' 
+              ? row.totalPaid 
+              : 0;
+        }
         
         // Debug info to help troubleshoot
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[CLAIMS_TABLE] Claim ${row.ClaimID} payment: totalPaid=${row.totalPaid}, type=${typeof row.totalPaid}`);
+          console.log(`[CLAIMS_TABLE] Claim ${row.ClaimID} payment: totalPaid=${row.totalPaid}, type=${typeof row.totalPaid}, calculated=${amount}`);
         }
         
-        // Always display the amount, even if it's zero
+        // Always display the amount with dollar sign and 2 decimal places
         // Only apply green styling to positive amounts
         return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
           {`$${amount.toFixed(2)}`}
