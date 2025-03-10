@@ -148,34 +148,104 @@ export async function fetchClaimsData({
                   const claimIds = claimsWithPayments.map(item => item.ClaimID);
                   console.log(`[SHARED_CLAIMS] Found ${claimIds.length} claims with payments in date range`);
                   
-                  // Clear previous date filter and use claim IDs instead
-                  // Create a new query, since we can't easily remove the previous OR conditions
-                  query = extendedClient
-                    .from("claims")
-                    .select(`
-                      id,
-                      ClaimID, 
-                      AgreementID,
-                      ReportedDate, 
-                      Closed,
-                      Cause,
-                      Correction,
-                      Deductible,
-                      LastModified,
-                      agreements!inner(DealerUUID, dealers(Payee))
-                    `, { count: includeCount ? 'exact' : undefined })
-                    .in('ClaimID', claimIds);
+                  // Try to use the new dealer info function first
+                  try {
+                    console.log("[SHARED_CLAIMS] Using improved dealer info function");
+                    const { data: claimsData, error: dealerInfoError } = await extendedClient.rpc(
+                      'get_claims_with_dealer_info',
+                      {
+                        start_date: dateRange.from.toISOString(),
+                        end_date: dateRange.to.toISOString(),
+                        dealer_uuid: dealerFilter && dealerFilter.trim() !== '' ? dealerFilter.trim() : null,
+                        max_results: pagination ? pagination.pageSize : 1000
+                      }
+                    );
                     
-                    // Re-apply dealer filter if needed
-                    if (dealerFilter && dealerFilter.trim() !== '') {
-                      query = query.eq('agreements.DealerUUID', dealerFilter.trim());
-                    }
-                  } else {
-                    console.log("[SHARED_CLAIMS] No claims with payments in date range, using traditional filters");
-                    // Traditional filtering already applied at the beginning
+                    if (dealerInfoError) {
+                      console.error("[SHARED_CLAIMS] Error getting claims with dealer info:", dealerInfoError);
+                      // Fall back to the original approach if the new function fails
+                      query = extendedClient
+                        .from("claims")
+                        .select(`
+                          id,
+                          ClaimID, 
+                          AgreementID,
+                          ReportedDate, 
+                          Closed,
+                          Cause,
+                          Correction,
+                          Deductible,
+                          LastModified,
+                          agreements!inner(DealerUUID, dealers(Payee))
+                        `, { count: includeCount ? 'exact' : undefined })
+                        .in('ClaimID', claimIds);
+                        
+                        // Re-apply dealer filter if needed
+                        if (dealerFilter && dealerFilter.trim() !== '') {
+                          query = query.eq('agreements.DealerUUID', dealerFilter.trim());
+                        }
+                      } else if (claimsData && Array.isArray(claimsData)) {
+                        // Transform the data to match the expected format
+                        const transformedClaims = claimsData.map(claim => ({
+                          id: claim.id,
+                          ClaimID: claim.ClaimID,
+                          AgreementID: claim.AgreementID,
+                          ReportedDate: claim.ReportedDate,
+                          IncurredDate: claim.IncurredDate,
+                          Closed: claim.Closed,
+                          Complaint: claim.Complaint,
+                          Cause: claim.Cause,
+                          Correction: claim.Correction,
+                          Deductible: claim.Deductible,
+                          LastModified: claim.LastModified,
+                          agreements: {
+                            DealerUUID: claim.DealerUUID,
+                            dealers: {
+                              Payee: claim.DealerName
+                            }
+                          }
+                        }));
+                        
+                        // Filter to only include claims with payments in date range
+                        const filteredClaims = transformedClaims.filter(claim => 
+                          claimIds.includes(claim.ClaimID)
+                        );
+                        
+                        console.log(`[SHARED_CLAIMS] Retrieved ${filteredClaims.length} claims with dealer info`);
+                        
+                        // Use the filtered and transformed data directly
+                        claims = filteredClaims;
+                        
+                        // Skip further query execution since we already have the data
+                        skipQuery = true;
+                        totalCount = filteredClaims.length;
+                      }
+                  } catch (dealerInfoError) {
+                    console.error("[SHARED_CLAIMS] Error using dealer info function:", dealerInfoError);
+                    // Fall back to original query approach
+                    query = extendedClient
+                      .from("claims")
+                      .select(`
+                        id,
+                        ClaimID, 
+                        AgreementID,
+                        ReportedDate, 
+                        Closed,
+                        Cause,
+                        Correction,
+                        Deductible,
+                        LastModified,
+                        agreements!inner(DealerUUID, dealers(Payee))
+                      `, { count: includeCount ? 'exact' : undefined })
+                      .in('ClaimID', claimIds);
+                      
+                      // Re-apply dealer filter if needed
+                      if (dealerFilter && dealerFilter.trim() !== '') {
+                        query = query.eq('agreements.DealerUUID', dealerFilter.trim());
+                      }
                   }
                 } else {
-                  console.error("[SHARED_CLAIMS] Payment date function test failed:", testFunctionResult.error);
+                  console.log("[SHARED_CLAIMS] No claims with payments in date range, using traditional filters");
                   // Traditional filtering already applied at the beginning
                 }
               } else {
@@ -670,7 +740,7 @@ export async function fetchClaimsData({
           type PaymentDataItem = {
             ClaimID: string;
             AgreementID: string;
-            totalpaid: number;
+            totalpaid: number | string | null;
             lastpaymentdate: string | null;
           };
           
@@ -678,52 +748,81 @@ export async function fetchClaimsData({
           let paymentError: PostgrestError | null = null;
           
           if (paymentFunctionExists) {
-            // Process in batches
-            if (claimIds.length > PAYMENT_BATCH_SIZE) {
-              console.log(`[SHARED_CLAIMS] Processing ${claimIds.length} claims in batches of ${PAYMENT_BATCH_SIZE}`);
-              
-              let allPaymentData: PaymentDataItem[] = [];
+            try {
+              console.log(`[SHARED_CLAIMS] Retrieving payment data for ${claimIds.length} claims`);
               
               // Process in batches
-              for (let i = 0; i < claimIds.length; i += PAYMENT_BATCH_SIZE) {
-                const batchClaimIds = claimIds.slice(i, i + PAYMENT_BATCH_SIZE);
-                console.log(`[SHARED_CLAIMS] Processing batch ${Math.floor(i/PAYMENT_BATCH_SIZE)+1}/${Math.ceil(claimIds.length/PAYMENT_BATCH_SIZE)}`);
+              if (claimIds.length > PAYMENT_BATCH_SIZE) {
+                console.log(`[SHARED_CLAIMS] Processing ${claimIds.length} claims in batches of ${PAYMENT_BATCH_SIZE}`);
                 
-                try {
-                  const { data: batchData, error: batchError } = await extendedClient.rpc<PaymentDataItem[]>(
-                    'get_claims_payment_info',
-                    { 
-                      claim_ids: batchClaimIds,
-                      max_results: batchClaimIds.length
+                let allPaymentData: PaymentDataItem[] = [];
+                
+                // Process in batches
+                for (let i = 0; i < claimIds.length; i += PAYMENT_BATCH_SIZE) {
+                  const batchClaimIds = claimIds.slice(i, i + PAYMENT_BATCH_SIZE);
+                  console.log(`[SHARED_CLAIMS] Processing batch ${Math.floor(i/PAYMENT_BATCH_SIZE)+1}/${Math.ceil(claimIds.length/PAYMENT_BATCH_SIZE)}`);
+                  
+                  try {
+                    const { data: batchData, error: batchError } = await extendedClient.rpc<PaymentDataItem[]>(
+                      'get_claims_payment_info',
+                      { 
+                        claim_ids: batchClaimIds,
+                        max_results: batchClaimIds.length
+                      }
+                    );
+                    
+                    if (batchData && Array.isArray(batchData)) {
+                      console.log(`[SHARED_CLAIMS] Retrieved payment data batch with ${batchData.length} results`);
+                      allPaymentData = [...allPaymentData, ...batchData];
+                      
+                      // Log a sample of the payment data for debugging
+                      if (batchData.length > 0) {
+                        console.log(`[SHARED_CLAIMS] Payment data sample:`, {
+                          sampleItem: batchData[0],
+                          totalpaidType: typeof batchData[0].totalpaid,
+                          totalpaidValue: batchData[0].totalpaid
+                        });
+                      }
+                    } else if (batchError) {
+                      console.error(`[SHARED_CLAIMS] Batch error:`, batchError);
                     }
-                  );
-                  
-                  if (batchData && Array.isArray(batchData)) {
-                    allPaymentData = [...allPaymentData, ...batchData];
-                  } else if (batchError) {
-                    console.error(`[SHARED_CLAIMS] Batch error:`, batchError);
+                    
+                    // Add a small delay between batches
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                  } catch (error) {
+                    console.error(`[SHARED_CLAIMS] Batch processing error:`, error);
                   }
+                }
+                
+                paymentData = allPaymentData;
+              } else {
+                // For smaller sets, process all at once
+                const { data: rpcData, error } = await extendedClient.rpc<PaymentDataItem[]>(
+                  'get_claims_payment_info',
+                  { 
+                    claim_ids: claimIds,
+                    max_results: claimIds.length
+                  }
+                );
+                
+                if (rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
+                  console.log(`[SHARED_CLAIMS] Retrieved payment data with ${rpcData.length} results`);
                   
-                  // Add a small delay between batches
-                  await new Promise(resolve => setTimeout(resolve, 100));
-                } catch (error) {
-                  console.error(`[SHARED_CLAIMS] Batch processing error:`, error);
+                  // Log a sample of the payment data for debugging
+                  console.log(`[SHARED_CLAIMS] Payment data sample:`, {
+                    sampleItem: rpcData[0],
+                    totalpaidType: typeof rpcData[0].totalpaid,
+                    totalpaidValue: rpcData[0].totalpaid
+                  });
                 }
+                
+                paymentData = Array.isArray(rpcData) ? rpcData : [];
+                paymentError = error;
               }
-              
-              paymentData = allPaymentData;
-            } else {
-              // For smaller sets, process all at once
-              const { data: rpcData, error } = await extendedClient.rpc<PaymentDataItem[]>(
-                'get_claims_payment_info',
-                { 
-                  claim_ids: claimIds,
-                  max_results: claimIds.length
-                }
-              );
-              
-              paymentData = Array.isArray(rpcData) ? rpcData : [];
-              paymentError = error;
+            } catch (paymentFetchError) {
+              console.error(`[SHARED_CLAIMS] Error fetching payment data:`, paymentFetchError);
+              // Ensure we have an empty array if there was an error
+              paymentData = [];
             }
           }
 
@@ -734,37 +833,51 @@ export async function fetchClaimsData({
             
             // Map the payment data by ClaimID for easy lookup
             paymentData.forEach(item => {
-              // Parse the totalpaid value from the SQL function, ensuring it's a number
-              let totalPaidValue = 0;
-              
-              // Handle different formats of totalpaid
-              if (item.totalpaid !== null && item.totalpaid !== undefined) {
-                if (typeof item.totalpaid === 'string') {
-                  totalPaidValue = parseFloat(item.totalpaid) || 0;
-                } else if (typeof item.totalpaid === 'number') {
-                  totalPaidValue = item.totalpaid;
-                } else if (typeof item.totalpaid === 'object' && 'value' in item.totalpaid) {
-                  // Handle Postgres numeric type which may come as object with value property
-                  const numericValue = (item.totalpaid as unknown as { value: string }).value;
-                  totalPaidValue = parseFloat(numericValue) || 0;
+              try {
+                // Parse the totalpaid value from the SQL function, ensuring it's a number
+                let totalPaidValue = 0;
+                
+                // Handle different formats of totalpaid
+                if (item.totalpaid !== null && item.totalpaid !== undefined) {
+                  if (typeof item.totalpaid === 'string') {
+                    totalPaidValue = parseFloat(item.totalpaid) || 0;
+                  } else if (typeof item.totalpaid === 'number') {
+                    totalPaidValue = item.totalpaid;
+                  } else if (typeof item.totalpaid === 'object') {
+                    if (item.totalpaid && 'value' in (item.totalpaid as any)) {
+                      // Handle Postgres numeric type which may come as object with value property
+                      const numericValue = (item.totalpaid as any).value;
+                      totalPaidValue = parseFloat(numericValue) || 0;
+                    } else {
+                      // Try to convert the object to a number
+                      totalPaidValue = Number(item.totalpaid) || 0;
+                    }
+                  }
                 }
+                
+                // Always set lastPaymentDate if it exists, even if the payment amount is zero
+                // This is because a claim might have PAID status but with zero amount
+                const paymentDate = item.lastpaymentdate ? new Date(item.lastpaymentdate) : null;
+                
+                console.log(`[SHARED_CLAIMS] Payment processing for ${item.ClaimID}:`, {
+                  rawTotalPaid: item.totalpaid,
+                  rawType: typeof item.totalpaid,
+                  processedValue: totalPaidValue,
+                  lastPaymentDate: paymentDate ? paymentDate.toISOString() : null
+                });
+                
+                paymentMap.set(item.ClaimID, {
+                  totalPaid: totalPaidValue,
+                  lastPaymentDate: paymentDate
+                });
+              } catch (parseError) {
+                console.error(`[SHARED_CLAIMS] Error parsing payment data for claim ${item.ClaimID}:`, parseError);
+                // Set default values in case of parsing error
+                paymentMap.set(item.ClaimID, {
+                  totalPaid: 0,
+                  lastPaymentDate: null
+                });
               }
-              
-              // Always set lastPaymentDate if it exists, even if the payment amount is zero
-              // This is because a claim might have PAID status but with zero amount
-              const paymentDate = item.lastpaymentdate ? new Date(item.lastpaymentdate) : null;
-              
-              console.log(`[SHARED_CLAIMS] Payment processing for ${item.ClaimID}:`, {
-                rawTotalPaid: item.totalpaid,
-                rawType: typeof item.totalpaid,
-                processedValue: totalPaidValue,
-                item: item
-              });
-              
-              paymentMap.set(item.ClaimID, {
-                totalPaid: totalPaidValue,
-                lastPaymentDate: paymentDate
-              });
             });
             
             // Merge payment data with claims

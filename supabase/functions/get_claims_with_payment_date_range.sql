@@ -10,25 +10,18 @@ RETURNS TABLE(
     "ClaimID" text
 )
 LANGUAGE sql
-AS $$$
-    -- Get claim IDs with an explicit limit to prevent timeouts
-    -- Find claims with PAID subclaims where payment date is within range
-    SELECT DISTINCT 
-      c."ClaimID"
-    FROM 
-      claims c
-    JOIN 
-      -- Join with subclaims, filtering for PAID status and date range
-      subclaims sc ON c."ClaimID" = sc."ClaimID" 
-      AND sc."Status" = 'PAID'
-      AND sc."Closed" BETWEEN start_date AND end_date
-      -- Ensure we only include subclaims with actual payments
-      AND EXISTS (
-        SELECT 1 
-        FROM subclaim_parts sp
-        WHERE sp."SubClaimID" = sc."SubClaimID"
-        AND COALESCE(CAST(sp."PaidPrice" AS numeric), 0) > 0
-        LIMIT 1
-      )
+AS $$
+    -- Much simpler query with better performance characteristics
+    SELECT DISTINCT sc."ClaimID"
+    FROM subclaims sc
+    WHERE 
+        sc."Status" = 'PAID'
+        AND sc."Closed" BETWEEN start_date AND end_date
+        AND EXISTS (
+            SELECT 1 
+            FROM subclaim_parts sp
+            WHERE sp."SubClaimID" = sc."SubClaimID"
+            LIMIT 1
+        )
     LIMIT max_results;
-$$$;
+$$;

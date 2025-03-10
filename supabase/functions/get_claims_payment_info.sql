@@ -12,32 +12,36 @@ RETURNS TABLE(
     lastpaymentdate timestamp without time zone
 )
 LANGUAGE sql
-AS $$$
+AS $$
     -- Get payment data with an explicit limit to prevent timeouts
+    WITH payment_data AS (
+        SELECT 
+            s."ClaimID",
+            SUM(COALESCE(CAST(sp."PaidPrice" AS numeric), 0)) AS claim_paid_amount,
+            MAX(s."Closed") AS last_payment_date
+        FROM 
+            subclaims s
+        JOIN 
+            subclaim_parts sp ON s."SubClaimID" = sp."SubClaimID"
+        WHERE 
+            s."ClaimID" = ANY(claim_ids)
+            AND s."Status" = 'PAID'
+        GROUP BY 
+            s."ClaimID"
+    )
+    
     SELECT 
-      c."ClaimID",
-      c."AgreementID",
-      -- Calculate the total paid amount with optimized query
-      COALESCE(
-        (SELECT SUM(COALESCE(CAST(sp."PaidPrice" AS numeric), 0))
-         FROM subclaim_parts sp
-         JOIN subclaims s ON sp."SubClaimID" = s."SubClaimID"
-         WHERE s."ClaimID" = c."ClaimID" 
-           AND s."Status" = 'PAID'
-         LIMIT 500), 
-      0) AS totalpaid,
-      
-      -- Find the most recent payment date 
-      (SELECT MAX(s."Closed")
-       FROM subclaims s
-       WHERE s."ClaimID" = c."ClaimID" 
-         AND s."Status" = 'PAID'
-       LIMIT 1) AS lastpaymentdate
+        c."ClaimID",
+        c."AgreementID",
+        COALESCE(pd.claim_paid_amount, 0) AS totalpaid,
+        pd.last_payment_date AS lastpaymentdate
     FROM 
-      claims c
+        claims c
+    LEFT JOIN 
+        payment_data pd ON c."ClaimID" = pd."ClaimID"
     WHERE
-      c."ClaimID" = ANY(claim_ids)
+        c."ClaimID" = ANY(claim_ids)
     GROUP BY 
-      c."ClaimID", c."AgreementID"
+        c."ClaimID", c."AgreementID", pd.claim_paid_amount, pd.last_payment_date
     LIMIT max_results;
-$$$;
+$$;

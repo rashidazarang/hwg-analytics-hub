@@ -90,7 +90,21 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       key: 'dealership',
       title: 'Dealership',
       searchable: true,
-      render: (row) => row.agreements?.dealers?.Payee || "Unknown Dealership",
+      render: (row) => {
+        // Enhanced dealership display with better fallbacks
+        if (row.DealerName) {
+          // Display directly from our custom SQL function
+          return row.DealerName;
+        } else if (row.agreements?.dealers?.Payee) {
+          // Get from nested data structure
+          return row.agreements.dealers.Payee;
+        } else if (row.agreements?.DealerUUID) {
+          // At least show the UUID if we have it
+          return `Dealer ${row.agreements.DealerUUID.substring(0, 8)}...`;
+        } else {
+          return "Unknown Dealership";
+        }
+      },
     },
     {
       key: 'Status',
@@ -110,20 +124,20 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Payed',
       sortable: false,
       render: (row) => {
-        // Always log payment data for every row to see what's happening
-        console.log(`[CLAIMS_TABLE] Payment data for ${row.ClaimID}:`, {
-          totalPaid: row.totalPaid,
-          type: typeof row.totalPaid,
-          hasValue: row.totalPaid !== undefined && row.totalPaid !== null,
-          objectInspect: typeof row.totalPaid === 'object' ? Object.keys(row.totalPaid || {}) : 'not an object',
-          rowKeys: Object.keys(row)
-        });
-        
-        // Initialize amount - this ensures we always have a valid number
-        let amount = 0;
-        
+        // Enhanced payment amount display with robust error handling
         try {
-          // Enhanced totalPaid handling with deep inspection for better debugging
+          // Initialize amount - this ensures we always have a valid number
+          let amount = 0;
+          
+          // Log payment data for debugging
+          console.log(`[CLAIMS_TABLE] Payment data for ${row.ClaimID}:`, {
+            totalPaid: row.totalPaid,
+            type: typeof row.totalPaid,
+            hasValue: row.totalPaid !== undefined && row.totalPaid !== null,
+            objectInspect: typeof row.totalPaid === 'object' ? Object.keys(row.totalPaid || {}) : 'not an object'
+          });
+          
+          // Enhanced totalPaid handling with deep inspection
           if (row.totalPaid !== undefined && row.totalPaid !== null) {
             // Case 1: Direct number value
             if (typeof row.totalPaid === 'number') {
@@ -133,39 +147,28 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
             else if (typeof row.totalPaid === 'string') {
               amount = parseFloat(row.totalPaid) || 0;
             }
-            // Case 3: PostgreSQL numeric type with value property
+            // Case 3: Object with value property (PostgreSQL numeric type)
             else if (typeof row.totalPaid === 'object') {
               if (row.totalPaid && 'value' in row.totalPaid) {
                 amount = parseFloat(row.totalPaid.value) || 0;
               }
-              else if (row.totalPaid && 'toFixed' in row.totalPaid) {
-                // Handle case where it might be a Number object
-                amount = Number(row.totalPaid) || 0;
+              else if (row.totalPaid && typeof row.totalPaid.toString === 'function') {
+                // Try using toString() and parsing the result
+                const strValue = row.totalPaid.toString();
+                amount = parseFloat(strValue) || 0;
               }
             }
           }
-
-          // Debug info to help troubleshoot - very detailed for diagnosis
-          if (process.env.NODE_ENV === 'development' && row.ClaimID) {
-            console.log(`[CLAIMS_TABLE] Payment for ${row.ClaimID}:`, {
-              rawValue: row.totalPaid,
-              valueType: typeof row.totalPaid,
-              finalAmount: amount,
-              isPrimitive: (typeof row.totalPaid !== 'object' || row.totalPaid === null),
-              objectDetails: (typeof row.totalPaid === 'object' && row.totalPaid !== null) ? 
-                Object.getOwnPropertyNames(row.totalPaid) : 'N/A'
-            });
-          }
+          
+          // Always display the amount with dollar sign and 2 decimal places
+          // Only apply green styling to positive amounts
+          return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
+            {`$${Math.abs(amount).toFixed(2)}`}
+          </span>;
+        } catch (err) {
+          console.error(`[CLAIMS_TABLE] Error rendering payment for claim ${row.ClaimID}:`, err);
+          return <span className="text-muted-foreground">$0.00</span>;
         }
-        catch (err) {
-          console.error(`[CLAIMS_TABLE] Error parsing payment for claim ${row.ClaimID}:`, err);
-        }
-        
-        // Always display the amount with dollar sign and 2 decimal places
-        // Only apply green styling to positive amounts
-        return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
-          {`$${Math.abs(amount).toFixed(2)}`}
-        </span>;
       },
     },
     {
@@ -173,26 +176,46 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Most Recent Payment',
       sortable: false,
       render: (row) => {
-        // Use the lastPaymentDate field from our data fetching
-        // Check if there's a valid lastPaymentDate before rendering
-        
-        // Debug info to help troubleshoot
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[CLAIMS_TABLE] Claim ${row.ClaimID} payment date: lastPaymentDate=${row.lastPaymentDate ? row.lastPaymentDate.toString() : 'null'}`);
-        }
-        
-        if (row.lastPaymentDate) {
-          try {
-            // Format the date, handle possible date parsing errors
-            return format(new Date(row.lastPaymentDate), 'MMM d, yyyy');
-          } catch (e) {
-            console.error(`Error formatting payment date for claim ${row.ClaimID}:`, e);
-            // If date parsing fails, show a dash instead of N/A
-            return <span className="text-muted-foreground">-</span>;
+        try {
+          // Enhanced date display with better error handling
+          
+          // Debug info to help troubleshoot
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[CLAIMS_TABLE] Claim ${row.ClaimID} payment date:`, {
+              hasDateProp: row.hasOwnProperty('lastPaymentDate'),
+              dateValue: row.lastPaymentDate,
+              dateType: row.lastPaymentDate ? typeof row.lastPaymentDate : 'null'
+            });
           }
-        } 
-        // For null/undefined lastPaymentDate when there are no paid subclaims, show a dash
-        return <span className="text-muted-foreground">-</span>;
+          
+          // Handle various cases for lastPaymentDate
+          if (row.lastPaymentDate) {
+            // It could be a Date object, string, or timestamp
+            let paymentDate: Date;
+            
+            if (row.lastPaymentDate instanceof Date) {
+              paymentDate = row.lastPaymentDate;
+            } else if (typeof row.lastPaymentDate === 'string') {
+              paymentDate = new Date(row.lastPaymentDate);
+            } else if (typeof row.lastPaymentDate === 'number') {
+              paymentDate = new Date(row.lastPaymentDate);
+            } else {
+              // If it's some unexpected type, show a dash
+              return <span className="text-muted-foreground">-</span>;
+            }
+            
+            // Check if date is valid before formatting
+            if (!isNaN(paymentDate.getTime())) {
+              return format(paymentDate, 'MMM d, yyyy');
+            }
+          }
+          
+          // For null/undefined/invalid lastPaymentDate, show a dash
+          return <span className="text-muted-foreground">-</span>;
+        } catch (err) {
+          console.error(`[CLAIMS_TABLE] Error rendering payment date for claim ${row.ClaimID}:`, err);
+          return <span className="text-muted-foreground">-</span>;
+        }
       },
     },
     {
