@@ -51,6 +51,8 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
     // Ensure total value is sum of all statuses for consistency
     const totalValue = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
     
+    const currentTimeframe = timeframe || 'month'; // Provide default if undefined
+    
     tooltipContent = (
       <>
         <p className="text-primary font-medium">Total Agreements: {totalValue.toLocaleString()}</p>
@@ -76,7 +78,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
             Void: {voidCount.toLocaleString()}
           </p>
         </div>
-        {timeframe !== 'day' && (
+        {currentTimeframe !== 'day' && (
           <div className="mt-2 text-xs text-gray-500">
             Click to view detailed breakdown
           </div>
@@ -132,8 +134,11 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     const dataPoint = data.activePayload[0].payload as PerformanceDataPoint;
     const date = dataPoint.rawDate;
     
+    // Use a safe timeframe value with a default
+    const safeTimeframe = timeframe || 'month';
+    
     // Determine which view to transition to based on current timeframe
-    switch(timeframe) {
+    switch(safeTimeframe) {
       case 'year':
       case '6months':
         // Drill down to month view when clicking on a month in year/6months view
@@ -195,7 +200,10 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     
     let dateRange = "";
     
-    switch (timeframe) {
+    // Use a safe timeframe value with a default
+    const safeTimeframe = timeframe || 'month';
+    
+    switch (safeTimeframe) {
       case 'week':
         dateRange = `${format(firstDate, 'MMM d')} - ${format(lastDate, 'MMM d, yyyy')}`;
         break;
@@ -298,7 +306,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
               
-              {timeframe === 'day' ? (
+              {(timeframe || 'month') === 'day' ? (
                 // For day view, display each status as a separate bar
                 <>
                   <Bar 
@@ -366,7 +374,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     stackId="a"
                     fill={CHART_COLORS.pending}  
                     radius={[0, 0, 0, 0]}
-                    maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                    maxBarSize={(timeframe || 'month') === 'week' ? 45 : (timeframe || 'month') === 'month' ? 18 : 30}
                     animationDuration={600}
                     animationBegin={0}
                     animationEasing="ease-in-out"
@@ -379,7 +387,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     stackId="a" 
                     fill={CHART_COLORS.active}
                     radius={[0, 0, 0, 0]}
-                    maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                    maxBarSize={(timeframe || 'month') === 'week' ? 45 : (timeframe || 'month') === 'month' ? 18 : 30}
                     animationDuration={600}
                     animationBegin={100}
                     animationEasing="ease-in-out"
@@ -392,7 +400,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     stackId="a" 
                     fill={CHART_COLORS.cancelled}
                     radius={[6, 6, 0, 0]}
-                    maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                    maxBarSize={(timeframe || 'month') === 'week' ? 45 : (timeframe || 'month') === 'month' ? 18 : 30}
                     animationDuration={600}
                     animationBegin={200}
                     animationEasing="ease-in-out"

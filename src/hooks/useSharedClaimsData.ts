@@ -408,12 +408,12 @@ export async function fetchClaimsData({
                 }
               }
               
-              // Only set lastPaymentDate if there was an actual payment
-              const hasValidPayment = totalPaid > 0;
+              // Always set lastPaymentDate if it exists, even if payment amount is zero
+              // This handles cases where a subclaim has PAID status but zero dollar amount
               
               paymentMap.set(claim.ClaimID, {
                 totalPaid,
-                lastPaymentDate: hasValidPayment ? lastPaymentDate : null
+                lastPaymentDate: lastPaymentDate
               });
             });
             
@@ -425,8 +425,8 @@ export async function fetchClaimsData({
                 ...claim,
                 // Ensure totalPaid is always a valid number
                 totalPaid: paymentInfo && typeof paymentInfo.totalPaid === 'number' ? paymentInfo.totalPaid : 0,
-                // Only set lastPaymentDate if there was actual payment
-                lastPaymentDate: paymentInfo && paymentInfo.totalPaid > 0 ? paymentInfo.lastPaymentDate : null
+                // Always set lastPaymentDate if it exists, even if payment amount is zero
+                lastPaymentDate: paymentInfo ? paymentInfo.lastPaymentDate : null
               };
             });
             
@@ -450,10 +450,9 @@ export async function fetchClaimsData({
               parseFloat(item.totalpaid) || 0 : 
               (typeof item.totalpaid === 'number' ? item.totalpaid : 0);
             
-            // Only set lastPaymentDate if there's an actual payment
-            const hasPayment = totalPaidValue > 0;
-            const paymentDate = hasPayment && item.lastpaymentdate ? 
-              new Date(item.lastpaymentdate) : null;
+            // Always set lastPaymentDate if it exists, even if the payment amount is zero
+            // This is because a claim might have PAID status but with zero amount
+            const paymentDate = item.lastpaymentdate ? new Date(item.lastpaymentdate) : null;
             
             paymentMap.set(item.ClaimID, {
               totalPaid: totalPaidValue,
@@ -469,8 +468,8 @@ export async function fetchClaimsData({
               ...claim,
               // Ensure totalPaid is always a valid number
               totalPaid: paymentInfo && typeof paymentInfo.totalPaid === 'number' ? paymentInfo.totalPaid : 0,
-              // Only set lastPaymentDate if there was actual payment
-              lastPaymentDate: paymentInfo && paymentInfo.totalPaid > 0 ? paymentInfo.lastPaymentDate : null
+              // Always set lastPaymentDate if it exists, even if payment amount is zero
+              lastPaymentDate: paymentInfo ? paymentInfo.lastPaymentDate : null
             };
           });
           

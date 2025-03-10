@@ -910,9 +910,28 @@ export interface PerformanceMetricsOptions {
   specificDate?: Date; // For drilldown from month to day or from year/6months to month
 }
 
+// Original function for backward compatibility
 export function usePerformanceMetricsData(
-  options: PerformanceMetricsOptions
+  timeframeOrOptions: TimeframeOption | PerformanceMetricsOptions,
+  offsetPeriods?: number,
+  dealerFilter?: string
 ): PerformanceData {
+  // Check if first argument is a string (TimeframeOption) or an object (PerformanceMetricsOptions)
+  if (typeof timeframeOrOptions === 'string') {
+    // Legacy function call with positional parameters
+    return usePerformanceMetricsDataImpl({
+      timeframe: timeframeOrOptions,
+      offsetPeriods: offsetPeriods || 0,
+      dealerFilter: dealerFilter || ''
+    });
+  } else {
+    // New function call with options object
+    return usePerformanceMetricsDataImpl(timeframeOrOptions);
+  }
+}
+
+// Implementation function with new parameters
+function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): PerformanceData {
   const { 
     timeframe, 
     offsetPeriods = 0, 
@@ -958,19 +977,6 @@ export function usePerformanceMetricsData(
         throw new Error(`Unknown timeframe: ${timeframe}`);
     }
   }, [timeframe, formattedDates, startDate, endDate, dealerFilter]);
-  
-  // Backward compatibility function (used by existing code)
-  usePerformanceMetricsData.legacy = function(
-    timeframe: TimeframeOption,
-    offsetPeriods: number = 0,
-    dealerFilter: string = ''
-  ): PerformanceData {
-    return usePerformanceMetricsData({
-      timeframe,
-      offsetPeriods,
-      dealerFilter
-    });
-  };
   
   // Use React Query with appropriate settings to avoid stale data
   const { data, isLoading, error } = useQuery({

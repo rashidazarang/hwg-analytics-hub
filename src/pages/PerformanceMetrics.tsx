@@ -124,12 +124,12 @@ const PerformanceMetrics: React.FC = () => {
 
   // Use this key to track when data changes and needs to be processed for KPIs
   const statusFetchKey = useMemo(() => 
-    `${timeframe}-${periodOffset}-${dealerFilter}-${data.length}`,
-    [timeframe, periodOffset, dealerFilter, data.length]
+    `${timeframe}-${periodOffset}-${dealerFilter}-${data?.length || 0}-${selectedDate?.toISOString() || ''}`,
+    [timeframe, periodOffset, dealerFilter, data?.length, selectedDate]
   );
 
   useEffect(() => {
-    if (loading || data.length === 0) {
+    if (loading || !data || data.length === 0) {
       return;
     }
 
