@@ -82,8 +82,44 @@ export async function fetchClaimsData({
       CLOSED: 0
     };
     
-    // Check if we should use payment date filtering
-    let query; // Declare query variable at the top level to fix "query is not defined" error
+    // IMPORTANT: Initialize query with a fallback value to avoid "query is not defined" errors
+    let query = extendedClient
+      .from("claims")
+      .select(`
+        id,
+        ClaimID, 
+        AgreementID,
+        ReportedDate, 
+        Closed,
+        Cause,
+        Correction,
+        Deductible,
+        LastModified,
+        agreements!inner(DealerUUID, dealers(Payee))
+      `, { count: includeCount ? 'exact' : undefined })
+      .or(
+        `ReportedDate.gte.${dateRange.from.toISOString()},` +
+        `ReportedDate.lte.${dateRange.to.toISOString()},` +
+        `LastModified.gte.${dateRange.from.toISOString()},` +
+        `LastModified.lte.${dateRange.to.toISOString()}`
+      )
+      .order('LastModified', { ascending: false });
+      
+    // Apply dealer filter if provided
+    if (dealerFilter && dealerFilter.trim() !== '') {
+      query = query.eq('agreements.DealerUUID', dealerFilter.trim());
+    }
+    
+    // Apply pagination if provided
+    if (pagination && pagination.pageSize) {
+      const { page, pageSize } = pagination;
+      const startRow = (page - 1) * pageSize;
+      const endRow = startRow + pageSize - 1;
+      query = query.range(startRow, endRow);
+    } else {
+      // Apply a safety limit if not using pagination
+      query = query.limit(100);
+    }
     
     if (!BYPASS_PAYMENT_DATE_FILTERING) {
       console.log("[SHARED_CLAIMS] Setting up date filtering for claims");
