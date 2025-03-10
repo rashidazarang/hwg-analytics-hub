@@ -110,8 +110,14 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Payed',
       sortable: false,
       render: (row) => {
-        // Use the totalPaid field from the improved SQL function
-        // This now correctly sums PaidPrice values from PAID subclaims
+        // Always log payment data for every row to see what's happening
+        console.log(`[CLAIMS_TABLE] Payment data for ${row.ClaimID}:`, {
+          totalPaid: row.totalPaid,
+          type: typeof row.totalPaid,
+          hasValue: row.totalPaid !== undefined && row.totalPaid !== null,
+          objectInspect: typeof row.totalPaid === 'object' ? Object.keys(row.totalPaid || {}) : 'not an object',
+          rowKeys: Object.keys(row)
+        });
         
         // Initialize amount - this ensures we always have a valid number
         let amount = 0;
@@ -229,6 +235,18 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     effectiveTotalForPagination: effectiveTotalCount,
     dealerFilter
   });
+
+  // Update the useEffect in this component to check data structure
+  useEffect(() => {
+    // Check the data structure when claims are loaded
+    if (claims && claims.length > 0) {
+      console.log('[CLAIMS_TABLE] Sample claim data structure:', {
+        firstClaim: claims[0],
+        hasPaymentProps: claims[0].hasOwnProperty('totalPaid'),
+        claimKeys: Object.keys(claims[0])
+      });
+    }
+  }, [claims]);
 
   return (
     <div className={className}>

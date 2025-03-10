@@ -497,7 +497,12 @@ export async function fetchClaimsData({
                 // This is because a claim might have PAID status but with zero amount
                 const paymentDate = item.lastpaymentdate ? new Date(item.lastpaymentdate) : null;
                 
-                console.log(`[SHARED_CLAIMS] Claim ${item.ClaimID} payment data - raw: ${item.totalpaid}, processed: ${totalPaidValue}, date: ${paymentDate}`);
+                console.log(`[SHARED_CLAIMS] Payment processing for ${item.ClaimID}:`, {
+                  rawTotalPaid: item.totalpaid,
+                  rawType: typeof item.totalpaid,
+                  processedValue: totalPaidValue,
+                  item: item
+                });
                 
                 paymentMap.set(item.ClaimID, {
                   totalPaid: totalPaidValue,
@@ -542,6 +547,20 @@ export async function fetchClaimsData({
 
         console.log(`[SHARED_CLAIMS] Fetched ${claims.length} claims. Total count: ${totalCount || 'N/A'}`);
         console.log('[SHARED_CLAIMS] Status breakdown:', statusBreakdown);
+
+        // Add extra debugging to trace the payment data flow
+        // Look for the section where we process the payment data and add more debugging
+
+        // Where we create the final claims object to return
+        // Add this before returning the data
+        console.log('[SHARED_CLAIMS] Final claims data sample:', {
+          sampleClaim: claims.length > 0 ? {
+            ...claims[0],
+            totalPaid: claims[0].totalPaid,
+            lastPaymentDate: claims[0].lastPaymentDate
+          } : 'No claims',
+          dataKeys: claims.length > 0 ? Object.keys(claims[0]) : []
+        });
 
         return {
           data: claimsWithPaymentInfo,
@@ -694,7 +713,12 @@ export async function fetchClaimsData({
               // This is because a claim might have PAID status but with zero amount
               const paymentDate = item.lastpaymentdate ? new Date(item.lastpaymentdate) : null;
               
-              console.log(`[SHARED_CLAIMS] Claim ${item.ClaimID} payment data - raw: ${item.totalpaid}, processed: ${totalPaidValue}, date: ${paymentDate}`);
+              console.log(`[SHARED_CLAIMS] Payment processing for ${item.ClaimID}:`, {
+                rawTotalPaid: item.totalpaid,
+                rawType: typeof item.totalpaid,
+                processedValue: totalPaidValue,
+                item: item
+              });
               
               paymentMap.set(item.ClaimID, {
                 totalPaid: totalPaidValue,
@@ -753,6 +777,20 @@ export async function fetchClaimsData({
 
       console.log(`[SHARED_CLAIMS] Fetched ${claims.length} claims. Total count: ${totalCount || 'N/A'}`);
       console.log('[SHARED_CLAIMS] Status breakdown:', statusBreakdown);
+
+      // Add extra debugging to trace the payment data flow
+      // Look for the section where we process the payment data and add more debugging
+
+      // Where we create the final claims object to return
+      // Add this before returning the data
+      console.log('[SHARED_CLAIMS] Final claims data sample:', {
+        sampleClaim: claims.length > 0 ? {
+          ...claims[0],
+          totalPaid: claims[0].totalPaid,
+          lastPaymentDate: claims[0].lastPaymentDate
+        } : 'No claims',
+        dataKeys: claims.length > 0 ? Object.keys(claims[0]) : []
+      });
 
       return {
         data: claims,
