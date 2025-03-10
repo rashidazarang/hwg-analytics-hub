@@ -195,12 +195,14 @@ async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: st
   try {
     // This will execute the SQL query directly to get agreements grouped by month with status counts
     // Use the exact same query structure as the KPI calculation to ensure consistency
+    // Remove any limits to ensure all contracts are retrieved
     const { data: monthlyData, error } = await supabase
       .from('agreements')
       .select('EffectiveDate, AgreementStatus')
       .gte('EffectiveDate', startIso)
       .lte('EffectiveDate', endIso)
-      .order('EffectiveDate', { ascending: true });
+      .order('EffectiveDate', { ascending: true })
+      .limit(100000); // Set a very high limit to effectively remove it
       
     if (dealerFilter) {
       // Apply dealer filter if provided
@@ -209,7 +211,8 @@ async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: st
         .eq('DealerUUID', dealerFilter)
         .gte('EffectiveDate', startIso)
         .lte('EffectiveDate', endIso)
-        .order('EffectiveDate', { ascending: true });
+        .order('EffectiveDate', { ascending: true })
+        .limit(100000); // Set a very high limit to effectively remove it
     }
     
     if (error) {
@@ -217,7 +220,7 @@ async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: st
       throw new Error(error.message);
     }
     
-    console.log(`[PERFORMANCE] Direct SQL query returned ${monthlyData?.length || 0} agreements`);
+    console.log(`[PERFORMANCE] Direct SQL query returned ${monthlyData?.length || 0} agreements (NO LIMIT APPLIED)`);
     
     // Get array of months in the interval to ensure we have all months represented
     const months = eachMonthOfInterval({ start: startDate, end: endDate });
@@ -589,6 +592,7 @@ async function fetchSingleDayData(startDate: Date, endDate: Date, dealerFilter: 
   try {
     // Query for all agreements for this specific day only (not hourly breakdown)
     // We just want the contracts for the full day with their status breakdowns
+    // Remove any limits to ensure all contracts are retrieved
     let query = supabase
       .from('agreements')
       .select('EffectiveDate, AgreementStatus, id');
@@ -597,7 +601,8 @@ async function fetchSingleDayData(startDate: Date, endDate: Date, dealerFilter: 
     // Ensure we're only getting data for exactly this day
     query = query
       .gte('EffectiveDate', startIso)
-      .lte('EffectiveDate', endIso);
+      .lte('EffectiveDate', endIso)
+      .limit(100000); // Set a very high limit to fetch all contracts
     
     console.log(`[PERFORMANCE] Day view SQL query: FROM agreements SELECT EffectiveDate, AgreementStatus, id WHERE EffectiveDate >= '${startIso}' AND EffectiveDate <= '${endIso}'${dealerFilter ? ` AND DealerUUID = '${dealerFilter}'` : ''}`);
     
@@ -711,6 +716,7 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
   try {
     // Use direct SQL query approach to match KPI calculation exactly
     // This ensures consistency between chart and KPIs
+    // Remove any limits to ensure all data is fetched
     let query = supabase
       .from('agreements')
       .select('EffectiveDate, AgreementStatus');
@@ -725,7 +731,10 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
       query = query.eq('DealerUUID', dealerFilter);
     }
     
-    // Fetch the data
+    // Set a very high limit to effectively remove any default limits
+    query = query.limit(100000);
+    
+    // Fetch the data with a high limit
     const { data, error } = await query;
     
     if (error) {
@@ -733,7 +742,7 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
       throw new Error(error.message);
     }
     
-    console.log(`[PERFORMANCE] Daily data fetch returned ${data?.length || 0} agreements`);
+    console.log(`[PERFORMANCE] Daily data fetch returned ${data?.length || 0} agreements (NO LIMIT APPLIED)`);
     
     // Get array of days in the interval to ensure we have all days represented
     const days = eachDayOfInterval({ start: startDate, end: endDate });
