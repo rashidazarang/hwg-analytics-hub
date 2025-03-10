@@ -1,4 +1,4 @@
-import { useSharedClaimsData } from './useSharedClaimsData';
+import { useSharedClaimsData } from './useSharedClaimsData-fixed';
 import { DateRange } from '@/lib/dateUtils';
 
 const PAGE_SIZE = 100;
@@ -86,4 +86,4 @@ export function useClaimsFetching(
 }
 
 // Export the raw fetch function for direct use if needed
-export { fetchClaimsData } from './useSharedClaimsData';
+export { fetchClaimsData } from './useSharedClaimsData-fixed';
