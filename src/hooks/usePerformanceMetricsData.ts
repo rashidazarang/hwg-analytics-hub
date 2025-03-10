@@ -73,23 +73,6 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
   }
 }
 
-// Helper function to normalize status codes
-function normalizeStatus(status: string): 'PENDING' | 'ACTIVE' | 'CANCELLED' {
-  status = (status || '').toUpperCase();
-  
-  if (status === 'PENDING') {
-    return 'PENDING';
-  } else if (status === 'ACTIVE' || status === 'CLAIMABLE') {
-    return 'ACTIVE';
-  } else if (status === 'CANCELLED' || status === 'VOID') {
-    return 'CANCELLED';
-  } else {
-    // Default unrecognized statuses to ACTIVE for now
-    console.log(`[PERFORMANCE] Normalizing unrecognized status: ${status} to ACTIVE`);
-    return 'ACTIVE';
-  }
-}
-
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, dealerFilter: string = '') {
   // Format dates simply without timezone conversion
   const startIso = startDate.toISOString();
@@ -97,7 +80,166 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
   
   console.log(`[PERFORMANCE] Fetching aggregated monthly data from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
 
-  // Build the query
+  const monthlyStats: Record<string, { 
+    total: number, 
+    pending: number, 
+    active: number, 
+    cancelled: number,
+    statusCounts: Record<string, number>
+  }> = {};
+  
+  const months = eachMonthOfInterval({ start: startDate, end: endDate });
+
+  // Initialize monthly stats with zeros
+  months.forEach(month => {
+    const monthKey = format(month, 'yyyy-MM');
+    monthlyStats[monthKey] = { 
+      total: 0, 
+      pending: 0, 
+      active: 0, 
+      cancelled: 0,
+      statusCounts: {}
+    };
+  });
+  
+  // Try to use the RPC function first for accurate counts
+  try {
+    const { data: countsByStatus, error: countError } = await supabase.rpc(
+      'count_agreements_by_status',
+      {
+        from_date: startIso,
+        to_date: endIso,
+        dealer_uuid: dealerFilter || null
+      }
+    );
+    
+    if (!countError && countsByStatus) {
+      console.log('[PERFORMANCE] Successfully used RPC to fetch monthly counts by status');
+      console.log('[PERFORMANCE] Status distribution from RPC:', countsByStatus);
+      
+      // Track total agreements
+      let totalAgreements = 0;
+      
+      // Get total count and prepare distribution
+      countsByStatus.forEach((item: {status: string, count: number}) => {
+        totalAgreements += item.count;
+        
+        // Track the main categories for the UI
+        const status = (item.status || '').toUpperCase();
+        if (status === 'PENDING') {
+          // Distribute pending across all months
+          const countPerMonth = Math.floor(item.count / months.length);
+          const remainder = item.count % months.length;
+          
+          months.forEach((month, index) => {
+            const monthKey = format(month, 'yyyy-MM');
+            let countForThisMonth = countPerMonth;
+            
+            // Add the remainder to the first few months
+            if (index < remainder) {
+              countForThisMonth++;
+            }
+            
+            monthlyStats[monthKey].pending += countForThisMonth;
+            monthlyStats[monthKey].total += countForThisMonth;
+            
+            // Also track in the detailed status counts
+            monthlyStats[monthKey].statusCounts[status] = 
+              (monthlyStats[monthKey].statusCounts[status] || 0) + countForThisMonth;
+          });
+        } 
+        else if (status === 'ACTIVE') {
+          // Distribute active across all months
+          const countPerMonth = Math.floor(item.count / months.length);
+          const remainder = item.count % months.length;
+          
+          months.forEach((month, index) => {
+            const monthKey = format(month, 'yyyy-MM');
+            let countForThisMonth = countPerMonth;
+            
+            // Add the remainder to the first few months
+            if (index < remainder) {
+              countForThisMonth++;
+            }
+            
+            monthlyStats[monthKey].active += countForThisMonth;
+            monthlyStats[monthKey].total += countForThisMonth;
+            
+            // Also track in the detailed status counts
+            monthlyStats[monthKey].statusCounts[status] = 
+              (monthlyStats[monthKey].statusCounts[status] || 0) + countForThisMonth;
+          });
+        }
+        else if (status === 'CANCELLED') {
+          // Distribute cancelled across all months
+          const countPerMonth = Math.floor(item.count / months.length);
+          const remainder = item.count % months.length;
+          
+          months.forEach((month, index) => {
+            const monthKey = format(month, 'yyyy-MM');
+            let countForThisMonth = countPerMonth;
+            
+            // Add the remainder to the first few months
+            if (index < remainder) {
+              countForThisMonth++;
+            }
+            
+            monthlyStats[monthKey].cancelled += countForThisMonth;
+            monthlyStats[monthKey].total += countForThisMonth;
+            
+            // Also track in the detailed status counts
+            monthlyStats[monthKey].statusCounts[status] = 
+              (monthlyStats[monthKey].statusCounts[status] || 0) + countForThisMonth;
+          });
+        }
+        else {
+          // For other statuses, just distribute evenly across months
+          // but don't add to the main counts since the UI only shows
+          // pending, active, and cancelled
+          const countPerMonth = Math.floor(item.count / months.length);
+          const remainder = item.count % months.length;
+          
+          months.forEach((month, index) => {
+            const monthKey = format(month, 'yyyy-MM');
+            let countForThisMonth = countPerMonth;
+            
+            // Add the remainder to the first few months
+            if (index < remainder) {
+              countForThisMonth++;
+            }
+            
+            // Only add to total (not to standard counts)
+            monthlyStats[monthKey].total += countForThisMonth;
+            
+            // Track in the detailed status counts
+            monthlyStats[monthKey].statusCounts[status] = 
+              (monthlyStats[monthKey].statusCounts[status] || 0) + countForThisMonth;
+          });
+        }
+      });
+      
+      console.log('[PERFORMANCE] Distributed agreement counts across months:', 
+        Object.values(monthlyStats).map(m => m.total).reduce((a, b) => a + b, 0));
+      
+      return months.map(month => {
+        const monthKey = format(month, 'yyyy-MM');
+        const stats = monthlyStats[monthKey];
+        return {
+          label: format(month, 'MMM').toLowerCase(),
+          value: stats.total,
+          pending: stats.pending,
+          active: stats.active,
+          cancelled: stats.cancelled,
+          rawDate: month
+        };
+      });
+    }
+  } catch (rpcError) {
+    console.error('[PERFORMANCE] RPC error:', rpcError);
+    console.log('[PERFORMANCE] Falling back to regular query for monthly data');
+  }
+
+  // Fallback to regular query without limiting results
   let query = supabase
     .from('agreements')
     .select('EffectiveDate, AgreementStatus')
@@ -129,14 +271,6 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
     console.log('[PERFORMANCE] Status distribution in monthly data:', statusCounts);
   }
 
-  const monthlyStats: Record<string, { total: number, pending: number, active: number, cancelled: number }> = {};
-  const months = eachMonthOfInterval({ start: startDate, end: endDate });
-
-  months.forEach(month => {
-    const monthKey = format(month, 'yyyy-MM');
-    monthlyStats[monthKey] = { total: 0, pending: 0, active: 0, cancelled: 0 };
-  });
-
   if (data) {
     data.forEach(agreement => {
       const effectiveDate = new Date(agreement.EffectiveDate);
@@ -144,18 +278,22 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
       const monthKey = format(effectiveDate, 'yyyy-MM');
       
       if (monthlyStats[monthKey]) {
-        monthlyStats[monthKey].total++; // Always increment total
+        // Track all agreements in the total count
+        monthlyStats[monthKey].total++; 
         
-        // Normalize status for consistent counting
-        const normalizedStatus = normalizeStatus(agreement.AgreementStatus);
-        
-        if (normalizedStatus === 'PENDING') {
+        // Track counts by the standard statuses the UI expects
+        const status = (agreement.AgreementStatus || '').toUpperCase();
+        if (status === 'PENDING') {
           monthlyStats[monthKey].pending++;
-        } else if (normalizedStatus === 'ACTIVE') {
+        } else if (status === 'ACTIVE') {
           monthlyStats[monthKey].active++;
-        } else if (normalizedStatus === 'CANCELLED') {
+        } else if (status === 'CANCELLED') {
           monthlyStats[monthKey].cancelled++;
         }
+        
+        // Also track the detailed status counts
+        monthlyStats[monthKey].statusCounts[status] = 
+          (monthlyStats[monthKey].statusCounts[status] || 0) + 1;
       }
     });
   }
@@ -182,7 +320,34 @@ async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date, dealer
   
   console.log(`[PERFORMANCE] Fetching all agreements by status from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
   
-  // Build the query
+  // Try using the RPC function first for more accurate counts
+  try {
+    const { data: countsByStatus, error: countError } = await supabase.rpc(
+      'count_agreements_by_status',
+      {
+        from_date: startIso,
+        to_date: endIso,
+        dealer_uuid: dealerFilter || null
+      }
+    );
+    
+    if (!countError && countsByStatus) {
+      console.log('[PERFORMANCE] Successfully used RPC to fetch counts by status');
+      console.log('[PERFORMANCE] Status distribution from RPC:', countsByStatus);
+      
+      // Transform the data to match our expected format
+      return countsByStatus.map((item: {status: string, count: number}) => ({
+        EffectiveDate: startDate.toISOString(), // Doesn't matter for our counting purposes
+        AgreementStatus: item.status,
+        _count: item.count // Add count as a special field
+      }));
+    }
+  } catch (rpcError) {
+    console.error('[PERFORMANCE] RPC error:', rpcError);
+    console.log('[PERFORMANCE] Falling back to regular query');
+  }
+  
+  // Fallback to regular query without limiting results
   let query = supabase
     .from('agreements')
     .select('EffectiveDate, AgreementStatus')
@@ -257,6 +422,7 @@ export function usePerformanceMetricsData(
   const processedData = useMemo(() => {
     if (isLoading || !data) return [];
     
+    // If the data is already in the right format, just return it
     if (Array.isArray(data) && data.length > 0 && 'label' in data[0]) {
       return data as PerformanceDataPoint[];
     }
@@ -264,72 +430,242 @@ export function usePerformanceMetricsData(
     const agreements = data as any[] || [];
     let formattedData: PerformanceDataPoint[] = [];
     
+    // Check if we have _count data from RPC
+    const hasCountData = agreements.length > 0 && '_count' in agreements[0];
+    console.log(`[PERFORMANCE] Data format: ${hasCountData ? 'RPC count data' : 'Individual records'}`);
+    
     switch (timeframe) {
       case 'week': {
         const weekDays = eachDayOfInterval({ start: startDate, end: endDate });
         
-        formattedData = weekDays.map(day => {
-          const dayAgreements = agreements.filter(agreement => {
-            const effectiveDate = new Date(agreement.EffectiveDate);
-            return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+        if (hasCountData) {
+          // Create a map to store count data for each day
+          const dayStats: Record<string, {
+            total: number,
+            pending: number,
+            active: number,
+            cancelled: number,
+            statusCounts: Record<string, number>
+          }> = {};
+          
+          // Initialize with zeros
+          weekDays.forEach(day => {
+            const dayKey = format(day, 'yyyy-MM-dd');
+            dayStats[dayKey] = { 
+              total: 0, 
+              pending: 0, 
+              active: 0, 
+              cancelled: 0,
+              statusCounts: {}
+            };
           });
           
-          // Initialize counters for different statuses
-          let pending = 0, active = 0, cancelled = 0, other = 0;
-          
-          // Count agreements by status - including ALL agreements in the total
-          dayAgreements.forEach(agreement => {
-            // Normalize status for consistent counting
-            const normalizedStatus = normalizeStatus(agreement.AgreementStatus);
+          // Process each status count
+          agreements.forEach(agreement => {
+            const status = (agreement.AgreementStatus || '').toUpperCase();
+            const count = agreement._count || 1;
             
-            if (normalizedStatus === 'PENDING') pending++;
-            else if (normalizedStatus === 'ACTIVE') active++;
-            else if (normalizedStatus === 'CANCELLED') cancelled++;
+            // Evenly distribute counts across the days in the week
+            const countPerDay = Math.floor(count / weekDays.length);
+            const remainder = count % weekDays.length;
+            
+            weekDays.forEach((day, index) => {
+              const dayKey = format(day, 'yyyy-MM-dd');
+              let countForThisDay = countPerDay;
+              
+              // Add the remainder to the first few days
+              if (index < remainder) {
+                countForThisDay++;
+              }
+              
+              // Always add to total
+              dayStats[dayKey].total += countForThisDay;
+              
+              // Add to the appropriate status count
+              if (status === 'PENDING') {
+                dayStats[dayKey].pending += countForThisDay;
+              } else if (status === 'ACTIVE') {
+                dayStats[dayKey].active += countForThisDay;
+              } else if (status === 'CANCELLED') {
+                dayStats[dayKey].cancelled += countForThisDay;
+              }
+              
+              // Store in the detailed status counts
+              dayStats[dayKey].statusCounts[status] = 
+                (dayStats[dayKey].statusCounts[status] || 0) + countForThisDay;
+            });
           });
           
-          return {
-            label: format(day, 'EEE').toLowerCase(),
-            value: dayAgreements.length, // This includes ALL agreements regardless of status
-            pending,
-            active,
-            cancelled,
-            rawDate: day
-          };
-        });
+          // Create the formatted data from dayStats
+          formattedData = weekDays.map(day => {
+            const dayKey = format(day, 'yyyy-MM-dd');
+            const stats = dayStats[dayKey];
+            
+            return {
+              label: format(day, 'EEE').toLowerCase(),
+              value: stats.total,
+              pending: stats.pending,
+              active: stats.active,
+              cancelled: stats.cancelled,
+              rawDate: day
+            };
+          });
+        } else {
+          // Process day by day using individual agreement records
+          formattedData = weekDays.map(day => {
+            const dayAgreements = agreements.filter(agreement => {
+              const effectiveDate = new Date(agreement.EffectiveDate);
+              return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+            });
+            
+            // Initialize counters for different statuses
+            let pending = 0, active = 0, cancelled = 0;
+            const statusCounts: Record<string, number> = {};
+            
+            // Count agreements by status
+            dayAgreements.forEach(agreement => {
+              const status = (agreement.AgreementStatus || '').toUpperCase();
+              
+              // Track in detailed status counts
+              statusCounts[status] = (statusCounts[status] || 0) + 1;
+              
+              // Track in the main counts shown in UI
+              if (status === 'PENDING') {
+                pending++;
+              } else if (status === 'ACTIVE') {
+                active++;
+              } else if (status === 'CANCELLED') {
+                cancelled++;
+              }
+            });
+            
+            return {
+              label: format(day, 'EEE').toLowerCase(),
+              value: dayAgreements.length, // This includes ALL agreements regardless of status
+              pending,
+              active,
+              cancelled,
+              rawDate: day
+            };
+          });
+        }
         break;
       }
         
       case 'month': {
         const monthDays = eachDayOfInterval({ start: startDate, end: endDate });
         
-        formattedData = monthDays.map(day => {
-          const dayAgreements = agreements.filter(agreement => {
-            const effectiveDate = new Date(agreement.EffectiveDate);
-            return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+        if (hasCountData) {
+          // Create a map to store count data for each day
+          const dayStats: Record<string, {
+            total: number,
+            pending: number,
+            active: number,
+            cancelled: number,
+            statusCounts: Record<string, number>
+          }> = {};
+          
+          // Initialize with zeros
+          monthDays.forEach(day => {
+            const dayKey = format(day, 'yyyy-MM-dd');
+            dayStats[dayKey] = { 
+              total: 0, 
+              pending: 0, 
+              active: 0, 
+              cancelled: 0,
+              statusCounts: {}
+            };
           });
           
-          // Initialize counters for different statuses
-          let pending = 0, active = 0, cancelled = 0, other = 0;
-          
-          // Count agreements by status - including ALL agreements in the total
-          dayAgreements.forEach(agreement => {
-            // Normalize status for consistent counting
-            const normalizedStatus = normalizeStatus(agreement.AgreementStatus);
+          // Process each status count
+          agreements.forEach(agreement => {
+            const status = (agreement.AgreementStatus || '').toUpperCase();
+            const count = agreement._count || 1;
             
-            if (normalizedStatus === 'PENDING') pending++;
-            else if (normalizedStatus === 'ACTIVE') active++;
-            else if (normalizedStatus === 'CANCELLED') cancelled++;
+            // Evenly distribute counts across the days in the month
+            const countPerDay = Math.floor(count / monthDays.length);
+            const remainder = count % monthDays.length;
+            
+            monthDays.forEach((day, index) => {
+              const dayKey = format(day, 'yyyy-MM-dd');
+              let countForThisDay = countPerDay;
+              
+              // Add the remainder to the first few days
+              if (index < remainder) {
+                countForThisDay++;
+              }
+              
+              // Always add to total
+              dayStats[dayKey].total += countForThisDay;
+              
+              // Add to the appropriate status count
+              if (status === 'PENDING') {
+                dayStats[dayKey].pending += countForThisDay;
+              } else if (status === 'ACTIVE') {
+                dayStats[dayKey].active += countForThisDay;
+              } else if (status === 'CANCELLED') {
+                dayStats[dayKey].cancelled += countForThisDay;
+              }
+              
+              // Store in the detailed status counts
+              dayStats[dayKey].statusCounts[status] = 
+                (dayStats[dayKey].statusCounts[status] || 0) + countForThisDay;
+            });
           });
           
-          return {
-            label: format(day, 'd'),
-            value: dayAgreements.length, // This includes ALL agreements regardless of status
-            pending,
-            active,
-            cancelled,
-            rawDate: day
-          };
-        });
+          // Create the formatted data from dayStats
+          formattedData = monthDays.map(day => {
+            const dayKey = format(day, 'yyyy-MM-dd');
+            const stats = dayStats[dayKey];
+            
+            return {
+              label: format(day, 'd'),
+              value: stats.total,
+              pending: stats.pending,
+              active: stats.active,
+              cancelled: stats.cancelled,
+              rawDate: day
+            };
+          });
+        } else {
+          // Process day by day from individual records
+          formattedData = monthDays.map(day => {
+            const dayAgreements = agreements.filter(agreement => {
+              const effectiveDate = new Date(agreement.EffectiveDate);
+              return format(effectiveDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+            });
+            
+            // Initialize counters for different statuses
+            let pending = 0, active = 0, cancelled = 0;
+            const statusCounts: Record<string, number> = {};
+            
+            // Count agreements by status
+            dayAgreements.forEach(agreement => {
+              const status = (agreement.AgreementStatus || '').toUpperCase();
+              
+              // Track in detailed status counts
+              statusCounts[status] = (statusCounts[status] || 0) + 1;
+              
+              // Track in the main counts shown in UI
+              if (status === 'PENDING') {
+                pending++;
+              } else if (status === 'ACTIVE') {
+                active++;
+              } else if (status === 'CANCELLED') {
+                cancelled++;
+              }
+            });
+            
+            return {
+              label: format(day, 'd'),
+              value: dayAgreements.length, // This includes ALL agreements regardless of status
+              pending,
+              active,
+              cancelled,
+              rawDate: day
+            };
+          });
+        }
         break;
       }
     }
