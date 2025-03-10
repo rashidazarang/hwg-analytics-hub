@@ -66,72 +66,40 @@ export async function fetchClaimsData({
         agreements!inner(DealerUUID, dealers(Payee))
       `, { count: includeCount ? 'exact' : undefined });
 
-    // First, we need to determine if we can use the optimized payment date filtering
-    // Let's check if the function exists in Supabase
-    let usePaymentDateFiltering = false;
+    console.log("[SHARED_CLAIMS] Setting up date filtering by payment dates");
+    console.log("[SHARED_CLAIMS] Date range:", {
+      from: dateRange.from.toISOString(),
+      to: dateRange.to.toISOString()
+    });
     
+    // We'll always attempt to use the payment date filtering function first
+    // If it fails, we'll fall back to traditional date filtering
     try {
-      // Try to check if the function exists by calling it with a simple test
-      await supabase.rpc('get_claims_with_payment_in_date_range', {
-        start_date: new Date("2000-01-01").toISOString(),
-        end_date: new Date("2000-01-02").toISOString()
-      });
-      
-      usePaymentDateFiltering = true;
-      console.log("[SHARED_CLAIMS] Found payment date filtering function, will use it for date filtering");
-    } catch (e) {
-      console.log("[SHARED_CLAIMS] Payment date filtering function not found, using traditional date filtering instead");
-      
-      // Apply traditional date range filter on claim dates
-      query = query.or(
-        `ReportedDate.gte.${dateRange.from.toISOString()},` +
-        `ReportedDate.lte.${dateRange.to.toISOString()},` +
-        `LastModified.gte.${dateRange.from.toISOString()},` +
-        `LastModified.lte.${dateRange.to.toISOString()}`
+      // Get IDs of claims with payments in the date range
+      const { data: claimsWithPayments, error: paymentRangeError } = await supabase.rpc(
+        'get_claims_with_payment_in_date_range', 
+        { 
+          start_date: dateRange.from.toISOString(), 
+          end_date: dateRange.to.toISOString() 
+        }
       );
-    }
-    
-    // If we can use payment date filtering, we need a more complex approach
-    if (usePaymentDateFiltering) {
-      try {
-        // Get IDs of claims with payments in the date range
-        const { data: paymentRangeClaimIds, error: paymentRangeError } = await supabase.rpc(
-          'get_claims_with_payment_in_date_range', 
-          { 
-            start_date: dateRange.from.toISOString(), 
-            end_date: dateRange.to.toISOString() 
-          }
-        );
+      
+      if (paymentRangeError) {
+        throw paymentRangeError;
+      }
+      
+      if (claimsWithPayments && Array.isArray(claimsWithPayments) && claimsWithPayments.length > 0) {
+        // Extract claim IDs with payments in range
+        const claimIds = claimsWithPayments.map(item => item.ClaimID);
+        console.log(`[SHARED_CLAIMS] Found ${claimIds.length} claims with payments in date range`);
         
-        if (paymentRangeError) {
-          throw paymentRangeError;
-        }
+        // Create an IN filter with these claim IDs
+        // The query will only return claims that have payments in the specified date range
+        query = query.in('ClaimID', claimIds);
+      } else {
+        console.log("[SHARED_CLAIMS] No claims with payments in date range, using traditional filters");
         
-        if (paymentRangeClaimIds && paymentRangeClaimIds.length > 0) {
-          // Extract the claim IDs from the result
-          const claimIdsWithPayments = paymentRangeClaimIds.map(r => r.ClaimID);
-          
-          // Include claims with reported/lastmodified dates in range OR payments in range
-          query = query.or(
-            `ClaimID.in.(${claimIdsWithPayments.map(id => `"${id}"`).join(',')})` + 
-            `,ReportedDate.gte.${dateRange.from.toISOString()},` +
-            `ReportedDate.lte.${dateRange.to.toISOString()},` + 
-            `LastModified.gte.${dateRange.from.toISOString()},` +
-            `LastModified.lte.${dateRange.to.toISOString()}`
-          );
-        } else {
-          // If no claims have payments in the range, fall back to traditional filtering
-          query = query.or(
-            `ReportedDate.gte.${dateRange.from.toISOString()},` +
-            `ReportedDate.lte.${dateRange.to.toISOString()},` +
-            `LastModified.gte.${dateRange.from.toISOString()},` +
-            `LastModified.lte.${dateRange.to.toISOString()}`
-          );
-        }
-      } catch (e) {
-        console.error("[SHARED_CLAIMS] Error using payment date filtering:", e);
-        
-        // Fall back to traditional date filtering
+        // Fall back to traditional date filtering if no claims with payments were found
         query = query.or(
           `ReportedDate.gte.${dateRange.from.toISOString()},` +
           `ReportedDate.lte.${dateRange.to.toISOString()},` +
@@ -139,6 +107,17 @@ export async function fetchClaimsData({
           `LastModified.lte.${dateRange.to.toISOString()}`
         );
       }
+    } catch (e) {
+      console.error("[SHARED_CLAIMS] Error using payment date filtering:", e);
+      
+      // Fall back to traditional date filtering
+      console.log("[SHARED_CLAIMS] Falling back to traditional date filtering");
+      query = query.or(
+        `ReportedDate.gte.${dateRange.from.toISOString()},` +
+        `ReportedDate.lte.${dateRange.to.toISOString()},` +
+        `LastModified.gte.${dateRange.from.toISOString()},` +
+        `LastModified.lte.${dateRange.to.toISOString()}`
+      );
     }
     
     // Apply dealer filter if provided
@@ -159,8 +138,8 @@ export async function fetchClaimsData({
       // CRITICAL FIX: We must override Supabase's default limit when no pagination is provided
       // Fetch records in batches to get around Supabase's default limit
       
-      // First, get the total count
-      // Use the same filtering conditions as the main query for consistency
+      // First, get the total count 
+      // We need to mirror the same filtering logic as the main query
       const countQuery = supabase
         .from("claims")
         .select(`
@@ -168,47 +147,33 @@ export async function fetchClaimsData({
           agreements!inner(DealerUUID)
         `, { count: 'exact', head: true });
       
-      // Apply the same date range logic as the main query
-      if (usePaymentDateFiltering) {
-        try {
-          // Get IDs of claims with payments in the date range
-          const { data: countPaymentRangeClaimIds, error: countPaymentRangeError } = await supabase.rpc(
-            'get_claims_with_payment_in_date_range', 
-            { 
-              start_date: dateRange.from.toISOString(), 
-              end_date: dateRange.to.toISOString() 
-            }
-          );
-          
-          if (countPaymentRangeError) {
-            throw countPaymentRangeError;
+      // Try to use payment date filtering for consistent counts
+      console.log("[SHARED_CLAIMS] Setting up count query with same date filtering");
+      try {
+        // Get IDs of claims with payments in the date range
+        const { data: countClaimsWithPayments, error: countPaymentRangeError } = await supabase.rpc(
+          'get_claims_with_payment_in_date_range', 
+          { 
+            start_date: dateRange.from.toISOString(), 
+            end_date: dateRange.to.toISOString() 
           }
+        );
+        
+        if (countPaymentRangeError) {
+          throw countPaymentRangeError;
+        }
+        
+        if (countClaimsWithPayments && Array.isArray(countClaimsWithPayments) && countClaimsWithPayments.length > 0) {
+          // Extract claim IDs with payments in range
+          const countClaimIds = countClaimsWithPayments.map(item => item.ClaimID);
+          console.log(`[SHARED_CLAIMS] Count query: Found ${countClaimIds.length} claims with payments in date range`);
           
-          if (countPaymentRangeClaimIds && countPaymentRangeClaimIds.length > 0) {
-            // Extract the claim IDs from the result
-            const countClaimIdsWithPayments = countPaymentRangeClaimIds.map(r => r.ClaimID);
-            
-            // Include claims with reported/lastmodified dates in range OR payments in range
-            countQuery.or(
-              `ClaimID.in.(${countClaimIdsWithPayments.map(id => `"${id}"`).join(',')})` + 
-              `,ReportedDate.gte.${dateRange.from.toISOString()},` +
-              `ReportedDate.lte.${dateRange.to.toISOString()},` + 
-              `LastModified.gte.${dateRange.from.toISOString()},` +
-              `LastModified.lte.${dateRange.to.toISOString()}`
-            );
-          } else {
-            // If no claims have payments in the range, fall back to traditional filtering
-            countQuery.or(
-              `ReportedDate.gte.${dateRange.from.toISOString()},` +
-              `ReportedDate.lte.${dateRange.to.toISOString()},` +
-              `LastModified.gte.${dateRange.from.toISOString()},` +
-              `LastModified.lte.${dateRange.to.toISOString()}`
-            );
-          }
-        } catch (e) {
-          console.error("[SHARED_CLAIMS] Error using payment date filtering for count query:", e);
+          // Apply the same IN filter to ensure consistent results
+          countQuery.in('ClaimID', countClaimIds);
+        } else {
+          console.log("[SHARED_CLAIMS] Count query: No claims with payments in date range, using traditional filters");
           
-          // Fall back to traditional date filtering
+          // Fall back to traditional date filtering if no claims with payments were found
           countQuery.or(
             `ReportedDate.gte.${dateRange.from.toISOString()},` +
             `ReportedDate.lte.${dateRange.to.toISOString()},` +
@@ -216,8 +181,11 @@ export async function fetchClaimsData({
             `LastModified.lte.${dateRange.to.toISOString()}`
           );
         }
-      } else {
-        // Traditional date range filter for count
+      } catch (e) {
+        console.error("[SHARED_CLAIMS] Error using payment date filtering for count query:", e);
+        
+        // Fall back to traditional date filtering
+        console.log("[SHARED_CLAIMS] Count query: Falling back to traditional date filtering");
         countQuery.or(
           `ReportedDate.gte.${dateRange.from.toISOString()},` +
           `ReportedDate.lte.${dateRange.to.toISOString()},` +

@@ -8,27 +8,24 @@ RETURNS TABLE(
     "ClaimID" text
 )
 LANGUAGE sql
-AS $$
-    -- Get claim IDs for claims with paid subclaims where the payment date (LastModified on subclaim) 
+AS $$$
+    -- Get claim IDs for claims with PAID subclaims where the Closed date (payment date)
     -- falls within the given date range
-    -- This query is important for filtering claims by their payment dates
     SELECT DISTINCT 
       c."ClaimID"
     FROM 
       claims c
     JOIN 
       -- Join with subclaims, filtering for PAID status and date range
+      -- Using Closed field which represents when the payment was made according to your context
       subclaims sc ON c."ClaimID" = sc."ClaimID" 
       AND sc."Status" = 'PAID'
-      AND (
-        -- We want subclaims where either the LastModified date is in range
-        -- OR there is a subclaim part with a payment date in range
-        sc."LastModified" BETWEEN start_date AND end_date
-        OR EXISTS (
-          SELECT 1 
-          FROM subclaim_parts sp
-          WHERE sp."SubClaimID" = sc."SubClaimID"
-          AND sp."PaidPrice" > 0
-        )
+      AND sc."Closed" BETWEEN start_date AND end_date
+      -- Ensure we only include subclaims with actual payments
+      AND EXISTS (
+        SELECT 1 
+        FROM subclaim_parts sp
+        WHERE sp."SubClaimID" = sc."SubClaimID"
+        AND COALESCE(CAST(sp."PaidPrice" AS numeric), 0) > 0
       );
 $$;

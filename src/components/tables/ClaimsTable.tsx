@@ -110,44 +110,55 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Payed',
       sortable: false,
       render: (row) => {
-        // Use the totalPaid field from the SQL query using get_claims_payment_info
-        // This comes from summing all PaidPrice values for PAID subclaims
+        // Use the totalPaid field from the improved SQL function
+        // This now correctly sums PaidPrice values from PAID subclaims
         
-        // Handle undefined, null, or non-numeric values
+        // Initialize amount - this ensures we always have a valid number
         let amount = 0;
         
-        // Enhanced handling of totalPaid to ensure correct data display
-        if (row.totalPaid !== undefined && row.totalPaid !== null) {
-          // Handle various data types that might come from the database or API
-          if (typeof row.totalPaid === 'string') {
-            // Parse string to number, defaulting to 0 if parsing fails
-            amount = parseFloat(row.totalPaid) || 0;
-          } else if (typeof row.totalPaid === 'number') {
-            // Direct numeric value
-            amount = row.totalPaid;
-          } else if (typeof row.totalPaid === 'object') {
-            // Handle PostgreSQL numeric type which may come as an object with a value property
-            if (row.totalPaid && row.totalPaid.hasOwnProperty('value')) {
-              amount = parseFloat(row.totalPaid.value) || 0;
+        try {
+          // Enhanced totalPaid handling with deep inspection for better debugging
+          if (row.totalPaid !== undefined && row.totalPaid !== null) {
+            // Case 1: Direct number value
+            if (typeof row.totalPaid === 'number') {
+              amount = row.totalPaid;
+            }
+            // Case 2: String that needs parsing
+            else if (typeof row.totalPaid === 'string') {
+              amount = parseFloat(row.totalPaid) || 0;
+            }
+            // Case 3: PostgreSQL numeric type with value property
+            else if (typeof row.totalPaid === 'object') {
+              if (row.totalPaid && 'value' in row.totalPaid) {
+                amount = parseFloat(row.totalPaid.value) || 0;
+              }
+              else if (row.totalPaid && 'toFixed' in row.totalPaid) {
+                // Handle case where it might be a Number object
+                amount = Number(row.totalPaid) || 0;
+              }
             }
           }
+
+          // Debug info to help troubleshoot - very detailed for diagnosis
+          if (process.env.NODE_ENV === 'development' && row.ClaimID) {
+            console.log(`[CLAIMS_TABLE] Payment for ${row.ClaimID}:`, {
+              rawValue: row.totalPaid,
+              valueType: typeof row.totalPaid,
+              finalAmount: amount,
+              isPrimitive: (typeof row.totalPaid !== 'object' || row.totalPaid === null),
+              objectDetails: (typeof row.totalPaid === 'object' && row.totalPaid !== null) ? 
+                Object.getOwnPropertyNames(row.totalPaid) : 'N/A'
+            });
+          }
         }
-        
-        // Debug info to help troubleshoot - very detailed for diagnosis
-        if (process.env.NODE_ENV === 'development') {
-          console.log(
-            `[CLAIMS_TABLE] Claim ${row.ClaimID} payment:` +
-            ` totalPaid=${JSON.stringify(row.totalPaid)},` +
-            ` type=${typeof row.totalPaid},` + 
-            ` subtype=${row.totalPaid && typeof row.totalPaid === 'object' ? 'object with keys: ' + Object.keys(row.totalPaid).join(',') : 'n/a'},` +
-            ` calculated=${amount}`
-          );
+        catch (err) {
+          console.error(`[CLAIMS_TABLE] Error parsing payment for claim ${row.ClaimID}:`, err);
         }
         
         // Always display the amount with dollar sign and 2 decimal places
         // Only apply green styling to positive amounts
         return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
-          {`$${amount.toFixed(2)}`}
+          {`$${Math.abs(amount).toFixed(2)}`}
         </span>;
       },
     },

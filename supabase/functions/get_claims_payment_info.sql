@@ -13,21 +13,23 @@ AS $$$
       c."ClaimID",
       c."AgreementID",
       -- Calculate the total paid amount by summing PaidPrice from parts of PAID subclaims
-      -- Cast to numeric to ensure consistent data type and handle nulls properly
-      COALESCE(SUM(CAST(sp."PaidPrice" AS numeric)), 0) AS totalpaid,
-      -- Find the most recent payment date using LastModified from PAID subclaims
-      MAX(sc."LastModified") AS lastpaymentdate
+      -- Use COALESCE to handle NULLs and convert to numeric to ensure type consistency
+      COALESCE(
+        (SELECT SUM(COALESCE(CAST(sp."PaidPrice" AS numeric), 0))
+         FROM subclaim_parts sp
+         JOIN subclaims s ON sp."SubClaimID" = s."SubClaimID"
+         WHERE s."ClaimID" = c."ClaimID" AND s."Status" = 'PAID'), 
+      0) AS totalpaid,
+      
+      -- Find the most recent payment date using Closed from PAID subclaims
+      -- This field represents when the payment was made according to your context
+      (SELECT MAX(s."Closed")
+       FROM subclaims s
+       WHERE s."ClaimID" = c."ClaimID" AND s."Status" = 'PAID') AS lastpaymentdate
     FROM 
       claims c
-    LEFT JOIN 
-      -- Join with subclaims, filtering for PAID status in the join condition
-      subclaims sc ON c."ClaimID" = sc."ClaimID" AND sc."Status" = 'PAID'
-    LEFT JOIN 
-      -- Join with subclaim_parts using SubClaimID
-      subclaim_parts sp ON sc."SubClaimID" = sp."SubClaimID"
     WHERE
       c."ClaimID" = ANY(claim_ids)
-    -- Group by claim identifiers
     GROUP BY 
       c."ClaimID", c."AgreementID";
 $$;
