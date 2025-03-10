@@ -99,6 +99,7 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         // Make status check case-insensitive and more robust
         const status = (agreement.AgreementStatus || '').toUpperCase();
         
+        // Count all agreements for respective statuses
         if (status === 'PENDING') {
           dealer.pending_contracts++;
           dealer.expected_revenue += revenue;
@@ -107,9 +108,18 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
           dealer.funded_revenue += revenue;
         } else if (status === 'CANCELLED') {
           dealer.cancelled_contracts++;
+        } else if (status === 'VOID') {
+          // Count VOID as CANCELLED for consistency
+          dealer.cancelled_contracts++;
+        } else if (status === 'CLAIMABLE') {
+          // Count CLAIMABLE as ACTIVE for consistency
+          dealer.active_contracts++;
+          dealer.funded_revenue += revenue;
         } else {
-          // For any other status, log it for debugging
+          // For any other status, add to active count for now (most likely closer to active than cancelled/pending)
           console.log(`[LEADERBOARD] Unhandled agreement status: ${status} for agreement ${agreement.AgreementID}`);
+          dealer.active_contracts++;
+          dealer.funded_revenue += revenue;
         }
       });
 

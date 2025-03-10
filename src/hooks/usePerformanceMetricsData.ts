@@ -73,6 +73,23 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
   }
 }
 
+// Helper function to normalize status codes
+function normalizeStatus(status: string): 'PENDING' | 'ACTIVE' | 'CANCELLED' {
+  status = (status || '').toUpperCase();
+  
+  if (status === 'PENDING') {
+    return 'PENDING';
+  } else if (status === 'ACTIVE' || status === 'CLAIMABLE') {
+    return 'ACTIVE';
+  } else if (status === 'CANCELLED' || status === 'VOID') {
+    return 'CANCELLED';
+  } else {
+    // Default unrecognized statuses to ACTIVE for now
+    console.log(`[PERFORMANCE] Normalizing unrecognized status: ${status} to ACTIVE`);
+    return 'ACTIVE';
+  }
+}
+
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, dealerFilter: string = '') {
   // Format dates simply without timezone conversion
   const startIso = startDate.toISOString();
@@ -80,9 +97,6 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
   
   console.log(`[PERFORMANCE] Fetching aggregated monthly data from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
 
-  // Skip timezone setting - it's not needed for basic querying
-  // and can cause performance issues when called repeatedly
-  
   // Build the query
   let query = supabase
     .from('agreements')
@@ -124,9 +138,6 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
   });
 
   if (data) {
-    // Track the number of agreements with non-standard statuses
-    let otherStatusCount = 0;
-    
     data.forEach(agreement => {
       const effectiveDate = new Date(agreement.EffectiveDate);
       // Simplify - just use the date as is
@@ -135,25 +146,18 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
       if (monthlyStats[monthKey]) {
         monthlyStats[monthKey].total++; // Always increment total
         
-        const status = (agreement.AgreementStatus || '').toUpperCase();
+        // Normalize status for consistent counting
+        const normalizedStatus = normalizeStatus(agreement.AgreementStatus);
         
-        if (status === 'PENDING') {
+        if (normalizedStatus === 'PENDING') {
           monthlyStats[monthKey].pending++;
-        } else if (status === 'ACTIVE') {
+        } else if (normalizedStatus === 'ACTIVE') {
           monthlyStats[monthKey].active++;
-        } else if (status === 'CANCELLED') {
+        } else if (normalizedStatus === 'CANCELLED') {
           monthlyStats[monthKey].cancelled++;
-        } else {
-          // Count agreements with other statuses
-          otherStatusCount++;
         }
       }
     });
-    
-    // Log information about agreements with non-standard statuses
-    if (otherStatusCount > 0) {
-      console.log(`[PERFORMANCE] Found ${otherStatusCount} agreements with statuses other than PENDING/ACTIVE/CANCELLED`);
-    }
   }
 
   return months.map(month => {
@@ -177,9 +181,6 @@ async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date, dealer
   const endIso = endDate.toISOString();
   
   console.log(`[PERFORMANCE] Fetching all agreements by status from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
-  
-  // No need to set timezone - it would cause extra overhead for every query
-  // The server timezone settings handle this
   
   // Build the query
   let query = supabase
@@ -278,17 +279,13 @@ export function usePerformanceMetricsData(
           
           // Count agreements by status - including ALL agreements in the total
           dayAgreements.forEach(agreement => {
-            const status = (agreement.AgreementStatus || '').toUpperCase();
-            if (status === 'PENDING') pending++;
-            else if (status === 'ACTIVE') active++;
-            else if (status === 'CANCELLED') cancelled++;
-            else other++; // Count other statuses separately for debugging
+            // Normalize status for consistent counting
+            const normalizedStatus = normalizeStatus(agreement.AgreementStatus);
+            
+            if (normalizedStatus === 'PENDING') pending++;
+            else if (normalizedStatus === 'ACTIVE') active++;
+            else if (normalizedStatus === 'CANCELLED') cancelled++;
           });
-          
-          // Log any day with significant discrepancy
-          if (other > 0) {
-            console.log(`[PERFORMANCE] Day ${format(day, 'yyyy-MM-dd')} has ${other} agreements with status other than PENDING/ACTIVE/CANCELLED`);
-          }
           
           return {
             label: format(day, 'EEE').toLowerCase(),
@@ -316,17 +313,13 @@ export function usePerformanceMetricsData(
           
           // Count agreements by status - including ALL agreements in the total
           dayAgreements.forEach(agreement => {
-            const status = (agreement.AgreementStatus || '').toUpperCase();
-            if (status === 'PENDING') pending++;
-            else if (status === 'ACTIVE') active++;
-            else if (status === 'CANCELLED') cancelled++;
-            else other++; // Count other statuses separately for debugging
+            // Normalize status for consistent counting
+            const normalizedStatus = normalizeStatus(agreement.AgreementStatus);
+            
+            if (normalizedStatus === 'PENDING') pending++;
+            else if (normalizedStatus === 'ACTIVE') active++;
+            else if (normalizedStatus === 'CANCELLED') cancelled++;
           });
-          
-          // Log any day with significant discrepancy
-          if (other > 0) {
-            console.log(`[PERFORMANCE] Day ${format(day, 'yyyy-MM-dd')} has ${other} agreements with status other than PENDING/ACTIVE/CANCELLED`);
-          }
           
           return {
             label: format(day, 'd'),

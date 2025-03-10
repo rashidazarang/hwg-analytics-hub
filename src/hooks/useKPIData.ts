@@ -29,48 +29,56 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         const fromDate = startDate.toISOString();
         const toDate = endDate.toISOString();
 
-        // Run these queries in parallel for better performance
-        const [
-          pendingContractsResult,
-          activeContractsResult,
-          cancelledContractsResult
-        ] = await Promise.all([
-          // Pending contracts - using EffectiveDate for consistency
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'PENDING')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+        // Get all agreements in the date range and count by status
+        const allContractsResult = await supabase
+          .from('agreements')
+          .select('AgreementStatus')
+          .gte('EffectiveDate', fromDate)
+          .lte('EffectiveDate', toDate)
+          .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true);
+        
+        if (allContractsResult.error) {
+          console.error('[KPI_DATA] Error fetching all contracts:', allContractsResult.error);
+          throw allContractsResult.error;
+        }
+        
+        // Initialize counters
+        let pendingContractsCount = 0;
+        let activeContractsCount = 0;
+        let cancelledContractsCount = 0;
+        
+        // Count by status
+        allContractsResult.data.forEach(agreement => {
+          const status = (agreement.AgreementStatus || '').toUpperCase();
           
-          // Active contracts - using EffectiveDate for consistency
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'ACTIVE')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
-          
-          // Cancelled contracts - using EffectiveDate for consistency
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'CANCELLED')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true)
-        ]);
+          if (status === 'PENDING') {
+            pendingContractsCount++;
+          } else if (status === 'ACTIVE' || status === 'CLAIMABLE') {
+            activeContractsCount++;
+          } else if (status === 'CANCELLED' || status === 'VOID') {
+            cancelledContractsCount++;
+          } else {
+            // For any other status, count as active by default
+            console.log(`[KPI_DATA] Unhandled agreement status: ${status} - counting as ACTIVE`);
+            activeContractsCount++;
+          }
+        });
 
-        const pendingContractsCount = pendingContractsResult.count || 0;
-        const activeContractsCount = activeContractsResult.count || 0;
-        const cancelledContractsCount = cancelledContractsResult.count || 0;
+        // Counts have already been calculated above from allContractsResult
 
-        console.log('[KPI_DATA] Contract counts:', {
+        // Log status distribution for debugging
+        const statusCounts: Record<string, number> = {};
+        allContractsResult.data.forEach(agreement => {
+          const status = (agreement.AgreementStatus || '').toUpperCase();
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        
+        console.log('[KPI_DATA] Status distribution in raw data:', statusCounts);
+        console.log('[KPI_DATA] Normalized contract counts:', {
           pending: pendingContractsCount,
           active: activeContractsCount,
-          cancelled: cancelledContractsCount
+          cancelled: cancelledContractsCount,
+          total: pendingContractsCount + activeContractsCount + cancelledContractsCount
         });
 
         // Use the shared claims data fetching function for consistent filtering
@@ -85,13 +93,8 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         console.log('[KPI_DATA] Claims fetched count:', claimsResult.data.length);
         console.log('[KPI_DATA] Claims breakdown:', claimsResult.statusBreakdown);
         
-        // Get total agreements count for this date range
-        const { count: totalAgreementsCount } = await supabase
-          .from('agreements')
-          .select('*', { count: 'exact', head: true })
-          .gte('EffectiveDate', fromDate)
-          .lte('EffectiveDate', toDate)
-          .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true);
+        // Calculate total agreements count from our already fetched data
+        const totalAgreementsCount = pendingContractsCount + activeContractsCount + cancelledContractsCount;
 
         // Calculate claim amounts from Deductible (if available)
         const totalClaimsAmount = claimsResult.data.reduce((sum, claim) => 
