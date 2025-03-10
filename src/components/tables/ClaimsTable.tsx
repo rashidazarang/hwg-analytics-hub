@@ -11,8 +11,8 @@ import {
   getTotalPaidValue 
 } from '@/hooks/useClaimPaymentData';
 
-// Increase default page size for better usability while keeping performance reasonable
-const DEFAULT_PAGE_SIZE = 200; // Increased from 100 records per page to ensure more claims display
+// Set a significantly larger page size to ensure we can display more claims
+const DEFAULT_PAGE_SIZE = 500; // Significantly increased to fix the "100 records only" issue
 
 interface ClaimsTableProps {
   className?: string; 

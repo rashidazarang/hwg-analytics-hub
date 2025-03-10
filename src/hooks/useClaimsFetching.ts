@@ -12,8 +12,9 @@ export function useClaimsFetching(
   dealerFilter?: string, 
   dateRange?: DateRange
 ) {
-  // Align with the increased MAX_PAGE_SIZE in useSharedClaimsData.ts
-  const safePageSize = Math.min(pageSize, 500); // Increased from 100 to 500 records per page
+  // Remove the artificial limitation on page size
+  // This is critical to ensure pagination works properly and we see more than 100 records
+  const safePageSize = pageSize; // Remove page size restriction entirely
   console.log(`[CLAIMS_FETCHING] Using safe page size: ${safePageSize} for page ${page}`);
   // If limiting date range is enabled, limit to the last 12 months for better performance
   let effectiveDateRange = dateRange;

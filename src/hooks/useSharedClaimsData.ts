@@ -1176,5 +1176,7 @@ export function useSharedClaimsData(options: ClaimsQueryOptions) {
     staleTime: 1000 * 60 * 5, // 5 minutes stale time - consistent across all usages
     retry: 1, // Limit retries to avoid hammering the server on timeout errors
     retryDelay: 1000, // Wait 1 second between retries
+    // Add timeout to avoid hung queries
+    refetchOnWindowFocus: false, // Avoid excessive refetching
   });
 }
