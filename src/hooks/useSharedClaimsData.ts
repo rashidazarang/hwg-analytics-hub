@@ -577,16 +577,30 @@ export async function fetchClaimsData({
           // Process the payment data from the RPC function
           const paymentMap = new Map();
           
+          console.log('[SHARED_CLAIMS] Payment data from RPC:', paymentData);
+          
           // Map the payment data by ClaimID for easy lookup
           paymentData.forEach(item => {
             // Parse the totalpaid value from the SQL function, ensuring it's a number
-            const totalPaidValue = typeof item.totalpaid === 'string' ? 
-              parseFloat(item.totalpaid) || 0 : 
-              (typeof item.totalpaid === 'number' ? item.totalpaid : 0);
+            let totalPaidValue = 0;
+            
+            // Handle different formats of totalpaid
+            if (item.totalpaid !== null && item.totalpaid !== undefined) {
+              if (typeof item.totalpaid === 'string') {
+                totalPaidValue = parseFloat(item.totalpaid) || 0;
+              } else if (typeof item.totalpaid === 'number') {
+                totalPaidValue = item.totalpaid;
+              } else if (typeof item.totalpaid === 'object' && item.totalpaid.hasOwnProperty('value')) {
+                // Handle Postgres numeric type which may come as object with value property
+                totalPaidValue = parseFloat(item.totalpaid.value) || 0;
+              }
+            }
             
             // Always set lastPaymentDate if it exists, even if the payment amount is zero
             // This is because a claim might have PAID status but with zero amount
             const paymentDate = item.lastpaymentdate ? new Date(item.lastpaymentdate) : null;
+            
+            console.log(`[SHARED_CLAIMS] Claim ${item.ClaimID} payment data - raw: ${item.totalpaid}, processed: ${totalPaidValue}, date: ${paymentDate}`);
             
             paymentMap.set(item.ClaimID, {
               totalPaid: totalPaidValue,

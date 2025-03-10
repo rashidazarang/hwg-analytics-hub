@@ -116,19 +116,32 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         // Handle undefined, null, or non-numeric values
         let amount = 0;
         
-        // Ensure we have a valid number for totalPaid
+        // Enhanced handling of totalPaid to ensure correct data display
         if (row.totalPaid !== undefined && row.totalPaid !== null) {
-          // Convert string to number if needed
-          amount = typeof row.totalPaid === 'string' 
-            ? parseFloat(row.totalPaid) 
-            : typeof row.totalPaid === 'number' 
-              ? row.totalPaid 
-              : 0;
+          // Handle various data types that might come from the database or API
+          if (typeof row.totalPaid === 'string') {
+            // Parse string to number, defaulting to 0 if parsing fails
+            amount = parseFloat(row.totalPaid) || 0;
+          } else if (typeof row.totalPaid === 'number') {
+            // Direct numeric value
+            amount = row.totalPaid;
+          } else if (typeof row.totalPaid === 'object') {
+            // Handle PostgreSQL numeric type which may come as an object with a value property
+            if (row.totalPaid && row.totalPaid.hasOwnProperty('value')) {
+              amount = parseFloat(row.totalPaid.value) || 0;
+            }
+          }
         }
         
-        // Debug info to help troubleshoot
+        // Debug info to help troubleshoot - very detailed for diagnosis
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[CLAIMS_TABLE] Claim ${row.ClaimID} payment: totalPaid=${row.totalPaid}, type=${typeof row.totalPaid}, calculated=${amount}`);
+          console.log(
+            `[CLAIMS_TABLE] Claim ${row.ClaimID} payment:` +
+            ` totalPaid=${JSON.stringify(row.totalPaid)},` +
+            ` type=${typeof row.totalPaid},` + 
+            ` subtype=${row.totalPaid && typeof row.totalPaid === 'object' ? 'object with keys: ' + Object.keys(row.totalPaid).join(',') : 'n/a'},` +
+            ` calculated=${amount}`
+          );
         }
         
         // Always display the amount with dollar sign and 2 decimal places

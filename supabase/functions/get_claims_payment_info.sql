@@ -8,12 +8,13 @@ RETURNS TABLE(
     lastpaymentdate timestamp without time zone
 )
 LANGUAGE sql
-AS $$
+AS $$$
     SELECT 
       c."ClaimID",
       c."AgreementID",
       -- Calculate the total paid amount by summing PaidPrice from parts of PAID subclaims
-      COALESCE(SUM(sp."PaidPrice"), 0) AS totalpaid,
+      -- Cast to numeric to ensure consistent data type and handle nulls properly
+      COALESCE(SUM(CAST(sp."PaidPrice" AS numeric)), 0) AS totalpaid,
       -- Find the most recent payment date using LastModified from PAID subclaims
       MAX(sc."LastModified") AS lastpaymentdate
     FROM 
