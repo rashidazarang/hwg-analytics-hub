@@ -73,10 +73,14 @@ export async function fetchSubclaimsForClaims(claimIds: string[]) {
   try {
     console.log(`[CLAIM_PAYMENT] Testing SQL function with claim ID: ${claimIds[0]}`);
     
+    // Fix for ClaimID type mismatch in test call
+    const isNumeric = claimIds.length > 0 && !isNaN(Number(claimIds[0]));
+    const formattedTestId = isNumeric ? Number(claimIds[0]) : claimIds[0];
+    
     const testResult = await supabase.rpc(
       'get_claims_payment_info',
       { 
-        claim_ids: [claimIds[0]],
+        claim_ids: [formattedTestId], // Using properly formatted ID
         max_results: 1
       }
     );
@@ -115,10 +119,21 @@ export async function fetchSubclaimsForClaims(claimIds: string[]) {
         console.log(`[CLAIM_PAYMENT] Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(claimIds.length/BATCH_SIZE)}, size: ${batchClaimIds.length}`);
         
         try {
+          // Fix for ClaimID type mismatch - ensure we're passing values in the correct type
+          const areClaimIdsNumeric = batchClaimIds.length > 0 && !isNaN(Number(batchClaimIds[0]));
+          
+          // Convert claim IDs to the appropriate type
+          const formattedClaimIds = areClaimIdsNumeric 
+            ? batchClaimIds.map(id => Number(id)) // Convert to numbers if they appear numeric
+            : batchClaimIds; // Keep as strings if they're not numeric
+            
+          console.log(`[CLAIM_PAYMENT] Using ${areClaimIdsNumeric ? 'numeric' : 'string'} claim IDs:`, 
+            formattedClaimIds.slice(0, 2)); // Log first two for debugging
+          
           const { data: batchResults, error: batchError } = await supabase.rpc(
             'get_claims_payment_info',
             { 
-              claim_ids: batchClaimIds,
+              claim_ids: formattedClaimIds,
               max_results: null // No arbitrary limit - get all results
             }
           );
@@ -156,29 +171,58 @@ export async function fetchSubclaimsForClaims(claimIds: string[]) {
         // Process and return the payment data
         const processedResults = allResults.map((item: any) => {
           try {
-            // Handle different formats of totalpaid to ensure we extract a number
-            let totalPaidValue = 0;
-            
-            if (item.totalpaid !== null && item.totalpaid !== undefined) {
+            // Enhanced function to handle different totalpaid formats
+            const extractTotalPaid = (value: any): number => {
+              // If value is null or undefined, return 0
+              if (value === null || value === undefined) return 0;
+              
               // Handle numeric type directly
-              if (typeof item.totalpaid === 'number') {
-                totalPaidValue = item.totalpaid;
-              } 
-              // Handle string representation of number
-              else if (typeof item.totalpaid === 'string') {
-                totalPaidValue = parseFloat(item.totalpaid) || 0;
-              } 
-              // Handle Postgres numeric type returned as object with a value property
-              else if (typeof item.totalpaid === 'object' && item.totalpaid !== null) {
-                if ('value' in item.totalpaid) {
-                  totalPaidValue = parseFloat(item.totalpaid.value) || 0;
-                } else {
-                  // Try to convert the object to a string and parse it
-                  const strValue = String(item.totalpaid);
-                  totalPaidValue = parseFloat(strValue) || 0;
+              if (typeof value === 'number') {
+                return isNaN(value) ? 0 : value;
+              }
+              
+              // Handle string representation
+              if (typeof value === 'string') {
+                const parsed = parseFloat(value);
+                return isNaN(parsed) ? 0 : parsed;
+              }
+              
+              // Handle Postgres numeric type (object with value property)
+              if (typeof value === 'object') {
+                // If the object has a value property
+                if (value && 'value' in value) {
+                  const parsed = parseFloat(value.value);
+                  return isNaN(parsed) ? 0 : parsed;
+                }
+                
+                // Try JSON value if present
+                if (value && 'json' in value) {
+                  try {
+                    const jsonVal = JSON.parse(value.json);
+                    return typeof jsonVal === 'number' ? jsonVal : 0;
+                  } catch (e) {
+                    console.error('[CLAIM_PAYMENT] Error parsing JSON value:', e);
+                    return 0;
+                  }
+                }
+                
+                // Last resort - try to stringify and parse the object
+                try {
+                  const strValue = String(value);
+                  const parsed = parseFloat(strValue);
+                  return isNaN(parsed) ? 0 : parsed;
+                } catch (e) {
+                  console.error('[CLAIM_PAYMENT] Error parsing object as string:', e);
+                  return 0;
                 }
               }
-            }
+              
+              // Default fallback
+              return 0;
+            };
+            
+            // Use the enhanced extraction function
+            const totalPaidValue = extractTotalPaid(item.totalpaid);
             
             // Log processing for debugging
             console.log(`[CLAIM_PAYMENT] Processed ${item.ClaimID}: `, {
@@ -438,10 +482,16 @@ export function useClaimPaymentData(claimId: string) {
       try {
         console.log(`[CLAIM_PAYMENT] Trying SQL function for claim ${claimId}`);
         
+        // Fix for ClaimID type mismatch when fetching individual claim
+        const isNumeric = !isNaN(Number(claimId));
+        const formattedClaimId = isNumeric ? Number(claimId) : claimId;
+        
+        console.log(`[CLAIM_PAYMENT] Processing individual claim ID as ${isNumeric ? 'numeric' : 'string'}: ${formattedClaimId}`);
+        
         const { data, error } = await supabase.rpc(
           'get_claims_payment_info',
           { 
-            claim_ids: [claimId],
+            claim_ids: [formattedClaimId], // Using properly formatted ID
             max_results: null // No limit - get all results
           }
         );
@@ -454,26 +504,58 @@ export function useClaimPaymentData(claimId: string) {
           const item = data[0];
           let totalPaidValue = 0;
           
-          // Handle different formats of totalpaid to ensure we extract a number
-          if (item.totalpaid !== null && item.totalpaid !== undefined) {
+          // Enhanced function to extract payment values consistently
+          const extractTotalPaid = (value: any): number => {
+            // If value is null or undefined, return 0
+            if (value === null || value === undefined) return 0;
+            
             // Handle numeric type directly
-            if (typeof item.totalpaid === 'number') {
-              totalPaidValue = item.totalpaid;
-            } 
-            // Handle string representation of number
-            else if (typeof item.totalpaid === 'string') {
-              totalPaidValue = parseFloat(item.totalpaid) || 0;
-            } 
-            // Handle Postgres numeric type returned as object with a value property
-            else if (typeof item.totalpaid === 'object' && item.totalpaid !== null) {
-              if ('value' in item.totalpaid) {
-                totalPaidValue = parseFloat(item.totalpaid.value) || 0;
-              } else {
-                // Try to convert the object to a string and parse it
-                const strValue = String(item.totalpaid);
-                totalPaidValue = parseFloat(strValue) || 0;
+            if (typeof value === 'number') {
+              return isNaN(value) ? 0 : value;
+            }
+            
+            // Handle string representation
+            if (typeof value === 'string') {
+              const parsed = parseFloat(value);
+              return isNaN(parsed) ? 0 : parsed;
+            }
+            
+            // Handle Postgres numeric type (object with value property)
+            if (typeof value === 'object') {
+              // If the object has a value property
+              if (value && 'value' in value) {
+                const parsed = parseFloat(value.value);
+                return isNaN(parsed) ? 0 : parsed;
+              }
+              
+              // Try JSON value if present
+              if (value && 'json' in value) {
+                try {
+                  const jsonVal = JSON.parse(value.json);
+                  return typeof jsonVal === 'number' ? jsonVal : 0;
+                } catch (e) {
+                  console.error('[CLAIM_PAYMENT] Error parsing JSON value:', e);
+                  return 0;
+                }
+              }
+              
+              // Last resort - try to stringify and parse the object
+              try {
+                const strValue = String(value);
+                const parsed = parseFloat(strValue);
+                return isNaN(parsed) ? 0 : parsed;
+              } catch (e) {
+                console.error('[CLAIM_PAYMENT] Error parsing object as string:', e);
+                return 0;
               }
             }
+            
+            // Default fallback
+            return 0;
+          };
+          
+          // Use the enhanced extraction function for consistent processing
+          const totalPaidValue = extractTotalPaid(item.totalpaid);
           }
           
           console.log(`[CLAIM_PAYMENT] Total paid for claim ${claimId} from SQL: $${totalPaidValue.toFixed(2)}`);
@@ -610,15 +692,50 @@ export function usePrefetchClaimsPaymentData(claimIds: string[] = []) {
   const queryClient = useQueryClient();
   const batchQueryKey = ['claims-payment-batch'];
   
-  // Fetch all payment data in one batch
-  const { data, isLoading } = useQuery({
+  // Fetch all payment data in one batch with improved error handling
+  const { data, isLoading, error } = useQuery({
     queryKey: batchQueryKey,
-    queryFn: () => fetchSubclaimsForClaims(claimIds),
+    queryFn: async () => {
+      console.log(`[CLAIM_PAYMENT] Prefetching payment data for ${claimIds.length} claims`);
+      
+      try {
+        // First try the RPC function (most efficient)
+        const results = await fetchSubclaimsForClaims(claimIds);
+        
+        if (results && results.length > 0) {
+          console.log(`[CLAIM_PAYMENT] Successfully prefetched ${results.length} payment records`);
+          
+          // Cache individual results for faster access
+          results.forEach(item => {
+            queryClient.setQueryData(['claim-payment', item.ClaimID], {
+              totalPaid: item.totalPaid,
+              lastPaymentDate: item.lastPaymentDate
+            });
+          });
+          
+          return results;
+        } else {
+          console.warn(`[CLAIM_PAYMENT] No payment data found for batch of ${claimIds.length} claims`);
+          return [];
+        }
+      } catch (batchError) {
+        console.error(`[CLAIM_PAYMENT] Error prefetching payment data:`, batchError);
+        
+        // Return empty array on error
+        return [];
+      }
+    },
     enabled: claimIds.length > 0,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1, // Only retry once
   });
   
-  return { data, isLoading };
+  // Log any errors
+  if (error) {
+    console.error(`[CLAIM_PAYMENT] Error in prefetch query:`, error);
+  }
+  
+  return { data, isLoading, error };
 }
 
 // In a component, you would use this hook like:

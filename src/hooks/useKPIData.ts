@@ -19,6 +19,9 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         fromDate: dateRange.from.toISOString(),
         toDate: dateRange.to.toISOString()
       });
+      
+      // IMPORTANT: Using optimized direct queries for better performance and to avoid timeouts
+      console.log('[KPI_DATA] Using optimized direct queries for better reliability');
 
       try {
         // Get date range for filtering with CST timezone
@@ -28,70 +31,120 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         const fromDate = startDate.toISOString();
         const toDate = endDate.toISOString();
 
-        // Try to use RPC for accurate counts
+        // Initialize variables
         let pendingContractsCount = 0;
         let activeContractsCount = 0;
         let cancelledContractsCount = 0;
         let totalContractsCount = 0;
         let statusDistribution: Record<string, number> = {};
-
-        // SKIP RPC entirely to avoid timeouts - go straight to direct queries
-        console.log('[KPI_DATA] Skipping RPC and using direct queries for better reliability');
         
-        // Run these queries in parallel for better performance
-        const [
-          pendingContractsResult,
-          activeContractsResult,
-          cancelledContractsResult,
-          totalContractsResult
-        ] = await Promise.all([
-          // Pending contracts - using EffectiveDate for consistency
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'PENDING')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+        // Critical performance improvement: Use a single query with different filters
+        // This dramatically reduces the number of concurrent database connections
+        
+        try {
+          console.log('[KPI_DATA] Using optimized query for agreement counts');
           
-          // Active contracts - using EffectiveDate for consistency
-          supabase
+          // Get aggregate counts by status in a single query
+          // This is more efficient than separate queries for each status
+          const { data: aggregateData, error: aggregateError } = await supabase
             .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'ACTIVE')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
-          
-          // Cancelled contracts - using EffectiveDate for consistency
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact' })
-            .eq('AgreementStatus', 'CANCELLED')
-            .gte('EffectiveDate', fromDate)
-            .lte('EffectiveDate', toDate)
-            .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
-          
-          // Total agreements count
-          supabase
-            .from('agreements')
-            .select('*', { count: 'exact', head: true })
+            .select('AgreementStatus, count(*)')
             .gte('EffectiveDate', fromDate)
             .lte('EffectiveDate', toDate)
             .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true)
-        ]);
+            .group('AgreementStatus');
+            
+          if (aggregateError) {
+            console.error('[KPI_DATA] Error in aggregate query:', aggregateError);
+            // Fall back to separate queries
+          } else if (aggregateData && Array.isArray(aggregateData)) {
+            console.log('[KPI_DATA] Successfully retrieved agreement counts:', aggregateData);
+            
+            // Process the aggregate data
+            aggregateData.forEach(item => {
+              const count = typeof item.count === 'number' ? item.count : 
+                           (typeof item.count === 'string' ? parseInt(item.count, 10) : 0);
+                           
+              if (item.AgreementStatus === 'PENDING') pendingContractsCount = count;
+              else if (item.AgreementStatus === 'ACTIVE') activeContractsCount = count;
+              else if (item.AgreementStatus === 'CANCELLED') cancelledContractsCount = count;
+            });
+            
+            // Calculate total from the aggregated results
+            totalContractsCount = pendingContractsCount + activeContractsCount + cancelledContractsCount;
+            
+            // Update status distribution
+            statusDistribution = {
+              'PENDING': pendingContractsCount,
+              'ACTIVE': activeContractsCount,
+              'CANCELLED': cancelledContractsCount
+            };
+            
+            console.log('[KPI_DATA] Calculated counts from aggregate query:', statusDistribution);
+          }
+        } catch (aggregateError) {
+          console.error('[KPI_DATA] Error in aggregate query:', aggregateError);
+        }
         
-        pendingContractsCount = pendingContractsResult.count || 0;
-        activeContractsCount = activeContractsResult.count || 0;
-        cancelledContractsCount = cancelledContractsResult.count || 0;
-        totalContractsCount = totalContractsResult.count || 0;
-        
-        // Add to status distribution for consistency
-        statusDistribution = {
-          'PENDING': pendingContractsCount,
-          'ACTIVE': activeContractsCount,
-          'CANCELLED': cancelledContractsCount
-        };
+        // If the aggregate query didn't work, fall back to separate queries
+        if (totalContractsCount === 0) {
+          console.log('[KPI_DATA] Falling back to parallel queries for agreement counts');
+          
+          // Run these queries in parallel for better performance
+          const [
+            pendingContractsResult,
+            activeContractsResult,
+            cancelledContractsResult,
+            totalContractsResult
+          ] = await Promise.all([
+            // Pending contracts - using EffectiveDate for consistency
+            supabase
+              .from('agreements')
+              .select('*', { count: 'exact', head: true }) // Use head:true to minimize data transfer
+              .eq('AgreementStatus', 'PENDING')
+              .gte('EffectiveDate', fromDate)
+              .lte('EffectiveDate', toDate)
+              .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+            
+            // Active contracts - using EffectiveDate for consistency
+            supabase
+              .from('agreements')
+              .select('*', { count: 'exact', head: true }) // Use head:true to minimize data transfer
+              .eq('AgreementStatus', 'ACTIVE')
+              .gte('EffectiveDate', fromDate)
+              .lte('EffectiveDate', toDate)
+              .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+            
+            // Cancelled contracts - using EffectiveDate for consistency
+            supabase
+              .from('agreements')
+              .select('*', { count: 'exact', head: true }) // Use head:true to minimize data transfer
+              .eq('AgreementStatus', 'CANCELLED')
+              .gte('EffectiveDate', fromDate)
+              .lte('EffectiveDate', toDate)
+              .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true),
+            
+            // Total agreements count
+            supabase
+              .from('agreements')
+              .select('*', { count: 'exact', head: true })
+              .gte('EffectiveDate', fromDate)
+              .lte('EffectiveDate', toDate)
+              .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true)
+          ]);
+          
+          pendingContractsCount = pendingContractsResult.count || 0;
+          activeContractsCount = activeContractsResult.count || 0;
+          cancelledContractsCount = cancelledContractsResult.count || 0;
+          totalContractsCount = totalContractsResult.count || 0;
+          
+          // Add to status distribution for consistency
+          statusDistribution = {
+            'PENDING': pendingContractsCount,
+            'ACTIVE': activeContractsCount,
+            'CANCELLED': cancelledContractsCount
+          };
+        }
         }
         
         console.log('[KPI_DATA] Contract counts:', {

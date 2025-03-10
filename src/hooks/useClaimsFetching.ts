@@ -3,8 +3,8 @@ import { DateRange } from '@/lib/dateUtils';
 
 // No default page size here - we'll use the value passed from the component
 
-// Add this constant to control the date range limiting for performance
-const USE_LIMITED_DATE_RANGE = false; // Set to false to avoid limiting date range and show all claims
+// Ensure date range limiting is disabled to show all claims by LastModified date
+const USE_LIMITED_DATE_RANGE = false; // Keep this false to ensure we respect user-selected date ranges
 
 export function useClaimsFetching(
   page: number, 
@@ -12,8 +12,9 @@ export function useClaimsFetching(
   dealerFilter?: string, 
   dateRange?: DateRange
 ) {
-  // Apply a safety limit to page size to prevent timeouts
-  const safePageSize = Math.min(pageSize, 100); // Limit to 100 records per page for performance
+  // Align with the increased MAX_PAGE_SIZE in useSharedClaimsData.ts
+  const safePageSize = Math.min(pageSize, 500); // Increased from 100 to 500 records per page
+  console.log(`[CLAIMS_FETCHING] Using safe page size: ${safePageSize} for page ${page}`);
   // If limiting date range is enabled, limit to the last 12 months for better performance
   let effectiveDateRange = dateRange;
   

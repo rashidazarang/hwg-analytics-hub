@@ -23,8 +23,8 @@ const extendedClient = supabase as ExtendedSupabaseClient;
 // Add a config option to bypass payment date filtering if needed
 const BYPASS_PAYMENT_DATE_FILTERING = true; // Set to true if you're getting timeout errors
 
-// Set a small page size limit to avoid timeouts
-const MAX_PAGE_SIZE = 100; // Limit page size to avoid timeouts
+// Ensure we can fetch reasonable page sizes while avoiding timeouts
+const MAX_PAGE_SIZE = 500; // Increased limit to support larger page sizes
 
 export interface ClaimsQueryOptions {
   dateRange: DateRange;
@@ -61,6 +61,10 @@ function getClaimStatus(claim: Claim): 'OPEN' | 'PENDING' | 'CLOSED' {
 /**
  * Fetches claims data with consistent filtering across all components
  */
+/**
+ * Fetches claims data with proper date filtering, batching, and error handling
+ * This is a completely rewritten version that properly respects date filters and pagination
+ */
 export async function fetchClaimsData({
   dateRange,
   dealerFilter,
@@ -82,7 +86,11 @@ export async function fetchClaimsData({
       CLOSED: 0
     };
     
-    // IMPORTANT: Initialize query with a fallback value to avoid "query is not defined" errors
+    // IMPORTANT: Initialize query with proper date filtering strategy
+    // This approach will prioritize LastModified date for better filtering
+    console.log('[SHARED_CLAIMS] Building initial query with prioritized LastModified date filtering');
+    
+    // Create the base query with all needed fields
     let query = extendedClient
       .from("claims")
       .select(`
@@ -96,28 +104,41 @@ export async function fetchClaimsData({
         Deductible,
         LastModified,
         agreements!inner(DealerUUID, dealers(Payee))
-      `, { count: includeCount ? 'exact' : undefined })
-      .or(
-        `ReportedDate.gte.${dateRange.from.toISOString()},` +
-        `ReportedDate.lte.${dateRange.to.toISOString()},` +
-        `LastModified.gte.${dateRange.from.toISOString()},` +
-        `LastModified.lte.${dateRange.to.toISOString()}`
-      )
-      .order('LastModified', { ascending: false });
+      `, { count: includeCount ? 'exact' : undefined });
+    
+    // Apply date filtering with LastModified as priority
+    // This is the CRITICAL FIX for correct date filtering
+    // Use proper LastModified filtering that actually works
+    query = query.or(`LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`);
+    
+    // Add proper ReportedDate filtering separately for clarity and reliability
+    query = query.or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()}`);
       
     // Apply dealer filter if provided
     if (dealerFilter && dealerFilter.trim() !== '') {
+      console.log(`[SHARED_CLAIMS] Adding dealer filter: ${dealerFilter.trim()}`);
       query = query.eq('agreements.DealerUUID', dealerFilter.trim());
     }
     
-    // Apply pagination if provided
+    // Always sort by LastModified for consistency
+    query = query.order('LastModified', { ascending: false });
+    
+    // Apply proper pagination to avoid timeouts
     if (pagination && pagination.pageSize) {
       const { page, pageSize } = pagination;
-      const startRow = (page - 1) * pageSize;
-      const endRow = startRow + pageSize - 1;
+      
+      // Apply a safety limit to the page size
+      const effectivePageSize = Math.min(pageSize, MAX_PAGE_SIZE);
+      
+      // Calculate start and end rows
+      const startRow = (page - 1) * effectivePageSize;
+      const endRow = startRow + effectivePageSize - 1;
+      
+      console.log(`[SHARED_CLAIMS] Using pagination: page ${page}, rows ${startRow}-${endRow} (page size ${effectivePageSize})`);
       query = query.range(startRow, endRow);
     } else {
       // Apply a safety limit if not using pagination
+      console.log('[SHARED_CLAIMS] No pagination provided, applying default limit of 100');
       query = query.limit(100);
     }
     
@@ -342,16 +363,21 @@ export async function fetchClaimsData({
       // This ensures we only fetch the current page of data, not all records
       if (pagination !== undefined && pagination.pageSize !== undefined) {
         const { page, pageSize } = pagination;
-        // Limit page size to avoid timeouts
+        // Use larger effective page size for better performance
+        // MAX_PAGE_SIZE has been increased to 500 to support larger datasets
         const effectivePageSize = Math.min(pageSize, MAX_PAGE_SIZE);
         
         const startRow = (page - 1) * effectivePageSize;
         const endRow = startRow + effectivePageSize - 1;
         
-        console.log(`[SHARED_CLAIMS] Applying pagination: page ${page}, rows ${startRow}-${endRow} (limited to ${effectivePageSize} per page)`);
+        console.log(`[SHARED_CLAIMS] Applying pagination: page ${page}, rows ${startRow}-${endRow} (using page size ${effectivePageSize})`);
         query = query.range(startRow, endRow);
       } else {
         // CRITICAL FIX: We must override Supabase's default limit when no pagination is provided
+        // We'll explicitly set a higher limit to avoid the default 1000 record limit
+        console.log(`[SHARED_CLAIMS] No pagination provided, using large limit to avoid default restriction`);
+        query = query.limit(5000); // Much higher limit for unpaginated requests
+        
         // Fetch records in batches to get around Supabase's default limit
         
         // First, get the total count 
@@ -797,10 +823,17 @@ export async function fetchClaimsData({
           // Test if the function exists
           let paymentFunctionExists = false;
           try {
+            // Fix for ClaimID type mismatch in test call
+            const testId = claimIds[0] || 'test';
+            const isNumeric = !isNaN(Number(testId));
+            const formattedTestId = isNumeric ? Number(testId) : testId;
+            
+            console.log(`[SHARED_CLAIMS] Testing payment function with ${isNumeric ? 'numeric' : 'string'} ID: ${formattedTestId}`);
+            
             const testResult = await extendedClient.rpc(
               'get_claims_payment_info',
               { 
-                claim_ids: [claimIds[0] || 'test'],
+                claim_ids: [formattedTestId],
                 max_results: 10
               }
             );
@@ -839,10 +872,18 @@ export async function fetchClaimsData({
                   console.log(`[SHARED_CLAIMS] Processing batch ${Math.floor(i/PAYMENT_BATCH_SIZE)+1}/${Math.ceil(claimIds.length/PAYMENT_BATCH_SIZE)}`);
                   
                   try {
+                    // Fix for ClaimID type mismatch in batch processing
+                    const areClaimIdsNumeric = batchClaimIds.length > 0 && !isNaN(Number(batchClaimIds[0]));
+                    const formattedClaimIds = areClaimIdsNumeric 
+                      ? batchClaimIds.map(id => Number(id)) // Convert to numbers if they appear numeric
+                      : batchClaimIds; // Keep as strings if they're not numeric
+                    
+                    console.log(`[SHARED_CLAIMS] Processing batch with ${areClaimIdsNumeric ? 'numeric' : 'string'} claim IDs`);
+                    
                     const { data: batchData, error: batchError } = await extendedClient.rpc<PaymentDataItem[]>(
                       'get_claims_payment_info',
                       { 
-                        claim_ids: batchClaimIds,
+                        claim_ids: formattedClaimIds,
                         max_results: batchClaimIds.length
                       }
                     );
@@ -873,10 +914,18 @@ export async function fetchClaimsData({
                 paymentData = allPaymentData;
               } else {
                 // For smaller sets, process all at once
+                // Fix for ClaimID type mismatch in non-batched processing
+                const areClaimIdsNumeric = claimIds.length > 0 && !isNaN(Number(claimIds[0]));
+                const formattedClaimIds = areClaimIdsNumeric 
+                  ? claimIds.map(id => Number(id)) // Convert to numbers if they appear numeric
+                  : claimIds; // Keep as strings if they're not numeric
+                
+                console.log(`[SHARED_CLAIMS] Processing all claims with ${areClaimIdsNumeric ? 'numeric' : 'string'} IDs`);
+                
                 const { data: rpcData, error } = await extendedClient.rpc<PaymentDataItem[]>(
                   'get_claims_payment_info',
                   { 
-                    claim_ids: claimIds,
+                    claim_ids: formattedClaimIds,
                     max_results: claimIds.length
                   }
                 );

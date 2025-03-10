@@ -11,7 +11,8 @@ import {
   getTotalPaidValue 
 } from '@/hooks/useClaimPaymentData';
 
-const PAGE_SIZE = 100; // Changed to 100 to match AgreementsTable
+// Increase default page size for better usability while keeping performance reasonable
+const DEFAULT_PAGE_SIZE = 200; // Increased from 100 records per page to ensure more claims display
 
 interface ClaimsTableProps {
   className?: string; 
@@ -27,7 +28,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   dateRange
 }) => {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
   // Only reset pagination when core filters change
@@ -57,7 +58,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     error 
   } = useClaimsFetching(page, pageSize, dealerFilter, dateRange);
   
-  // Log any errors and handle timeout errors specifically
+  // Log errors and handle specific error types for better user feedback
   useEffect(() => {
     if (error) {
       console.error('[CLAIMS_TABLE] Error fetching claims data:', error);
@@ -68,10 +69,16 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
            (error as any).code === '57014' || // Statement timeout error code
            error.message.includes('statement timeout'))) {
         console.log('[CLAIMS_TABLE] Detected timeout error, showing friendly message');
-        // You could display a user-friendly message here
+        
+        // For timeout errors, adjust the page size to be smaller for next attempt
+        if (pageSize > 50) {
+          console.log('[CLAIMS_TABLE] Reducing page size to avoid future timeouts');
+          setPageSize(50); // Reduce page size for better performance
+          setPage(1); // Reset to first page with new size
+        }
       }
     }
-  }, [error]);
+  }, [error, pageSize]);
   
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
@@ -152,57 +159,98 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Payed',
       sortable: false,
       render: (row) => {
-        // Use the custom hook to calculate payment info directly from subclaims
-        // We'll use a render prop pattern with memoization for performance
-        const PaymentDisplay = React.memo(({ claimId }: { claimId: string }) => {
-          const { totalPaidValue, isLoading } = useClaimPaymentData(claimId);
+        // Fully redesigned payment display component with better error handling, fallbacks and consistent formatting
+        const PaymentDisplay = React.memo(({ claim }: { claim: any }) => {
+          // First try to get payment data from the custom hook
+          const { totalPaidValue, isLoading } = useClaimPaymentData(claim.ClaimID);
           
+          // Enhanced function to extract payment values consistently
+          const extractPaymentValue = (value: any): number => {
+            // If value is null or undefined, return 0
+            if (value === null || value === undefined) return 0;
+            
+            // Handle numeric type directly
+            if (typeof value === 'number') {
+              return isNaN(value) ? 0 : value;
+            }
+            
+            // Handle string representation
+            if (typeof value === 'string') {
+              const parsed = parseFloat(value);
+              return isNaN(parsed) ? 0 : parsed;
+            }
+            
+            // Handle object types (like Postgres numeric)
+            if (typeof value === 'object') {
+              // If the object has a value property
+              if (value && 'value' in value) {
+                const parsed = parseFloat(value.value);
+                return isNaN(parsed) ? 0 : parsed;
+              }
+              
+              // Try JSON value if present
+              if (value && 'json' in value) {
+                try {
+                  const jsonVal = JSON.parse(value.json);
+                  return typeof jsonVal === 'number' ? jsonVal : 0;
+                } catch (e) {
+                  console.error('[CLAIMS_TABLE] Error parsing JSON value:', e);
+                  return 0;
+                }
+              }
+              
+              // Last resort - try to stringify and parse the object
+              try {
+                const strValue = String(value);
+                const parsed = parseFloat(strValue);
+                return isNaN(parsed) ? 0 : parsed;
+              } catch (e) {
+                console.error('[CLAIMS_TABLE] Error parsing object as string:', e);
+                return 0;
+              }
+            }
+            
+            // Default fallback
+            return 0;
+          };
+          
+          // Function to format payment amount consistently with currency formatting
+          const formatPayment = (amount: number) => {
+            return (
+              <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
+                {`$${amount.toFixed(2)}`}
+              </span>
+            );
+          };
+          
+          // First priority: Use the hook data if it's available and not loading
+          if (!isLoading && totalPaidValue !== undefined) {
+            console.log(`[CLAIMS_TABLE] Using hook payment data for ${claim.ClaimID}: ${totalPaidValue}`);
+            return formatPayment(totalPaidValue);
+          }
+          
+          // Second priority: Try to extract payment from the row data
+          if (claim.totalPaid !== undefined) {
+            try {
+              const amount = extractPaymentValue(claim.totalPaid);
+              console.log(`[CLAIMS_TABLE] Using row payment data for ${claim.ClaimID}: ${amount}`);
+              return formatPayment(amount);
+            } catch (err) {
+              console.error(`[CLAIMS_TABLE] Error extracting payment from row:`, err);
+            }
+          }
+          
+          // If we're still loading and couldn't extract data, show the loading state
           if (isLoading) {
             return <span className="text-muted-foreground">Loading...</span>;
           }
           
-          // Display the payment amount with proper formatting
-          const amount = totalPaidValue || 0;
-          return (
-            <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
-              {`$${amount.toFixed(2)}`}
-            </span>
-          );
+          // Final fallback: Return zero
+          return formatPayment(0);
         });
         
-        // Fallback for when direct SQL-calculated payment info is available
-        if (row.totalPaid !== undefined && row.totalPaid !== null) {
-          try {
-            // Initialize amount - this ensures we always have a valid number
-            let amount = 0;
-            
-            // Enhanced totalPaid handling with deep inspection
-            if (typeof row.totalPaid === 'number') {
-              amount = row.totalPaid;
-            } else if (typeof row.totalPaid === 'string') {
-              amount = parseFloat(row.totalPaid) || 0;
-            } else if (typeof row.totalPaid === 'object') {
-              if (row.totalPaid && 'value' in row.totalPaid) {
-                amount = parseFloat(row.totalPaid.value) || 0;
-              } else if (row.totalPaid && typeof row.totalPaid.toString === 'function') {
-                // Try using toString() and parsing the result
-                const strValue = row.totalPaid.toString();
-                amount = parseFloat(strValue) || 0;
-              }
-            }
-            
-            // Always display the amount with dollar sign and 2 decimal places
-            // Only apply green styling to positive amounts
-            return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
-              {`$${Math.abs(amount).toFixed(2)}`}
-            </span>;
-          } catch (err) {
-            console.error(`[CLAIMS_TABLE] Error rendering payment for claim ${row.ClaimID}:`, err);
-          }
-        }
-        
-        // Return the payment display component with the claim ID as fallback
-        return <PaymentDisplay claimId={row.ClaimID} />;
+        // Return payment display with the full row for context
+        return <PaymentDisplay claim={row} />;
       },
     },
     {
@@ -210,50 +258,89 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Most Recent Payment',
       sortable: false,
       render: (row) => {
-        // Use the custom hook to calculate the last payment date
-        const PaymentDateDisplay = React.memo(({ claimId }: { claimId: string }) => {
-          const { lastPaymentDate, isLoading } = useClaimPaymentData(claimId);
+        // Fully redesigned payment date display with better error handling, consistent formatting and fallbacks
+        const PaymentDateDisplay = React.memo(({ claim }: { claim: any }) => {
+          // First try to get payment data from the custom hook
+          const { lastPaymentDate, isLoading } = useClaimPaymentData(claim.ClaimID);
           
+          // Enhanced function to extract and validate a date
+          const extractAndValidateDate = (value: any): Date | null => {
+            if (!value) return null;
+            
+            try {
+              let date: Date | null = null;
+              
+              // If already a Date object
+              if (value instanceof Date) {
+                date = value;
+              } 
+              // If ISO string or similar format
+              else if (typeof value === 'string') {
+                date = new Date(value);
+              } 
+              // If timestamp number
+              else if (typeof value === 'number') {
+                date = new Date(value);
+              }
+              // If object with toISOString or similar
+              else if (typeof value === 'object' && value !== null) {
+                if ('toISOString' in value && typeof value.toISOString === 'function') {
+                  return value;
+                } else if ('date' in value && value.date) {
+                  return new Date(value.date);
+                } else {
+                  // Try to stringify and parse
+                  const strValue = String(value);
+                  date = new Date(strValue);
+                }
+              }
+              
+              // Validate the date is valid
+              return (date && !isNaN(date.getTime())) ? date : null;
+            } catch (e) {
+              console.error(`[CLAIMS_TABLE] Error extracting date:`, e);
+              return null;
+            }
+          };
+          
+          // Function to format payment date consistently
+          const formatDate = (date: Date | null) => {
+            if (date && !isNaN(date.getTime())) {
+              return <span>{format(date, 'MMM d, yyyy')}</span>;
+            } else {
+              return <span className="text-muted-foreground">-</span>;
+            }
+          };
+          
+          // First priority: Use the hook data if it's available and not loading
+          if (!isLoading && lastPaymentDate) {
+            const validDate = extractAndValidateDate(lastPaymentDate);
+            if (validDate) {
+              console.log(`[CLAIMS_TABLE] Using hook payment date for ${claim.ClaimID}: ${validDate.toISOString()}`);
+              return formatDate(validDate);
+            }
+          }
+          
+          // Second priority: Try to extract date from the row data
+          if (claim.lastPaymentDate) {
+            const rowDate = extractAndValidateDate(claim.lastPaymentDate);
+            if (rowDate) {
+              console.log(`[CLAIMS_TABLE] Using row payment date for ${claim.ClaimID}: ${rowDate.toISOString()}`);
+              return formatDate(rowDate);
+            }
+          }
+          
+          // If we're still loading and couldn't extract data, show the loading state
           if (isLoading) {
             return <span className="text-muted-foreground">Loading...</span>;
           }
           
-          // Format the payment date if available
-          if (lastPaymentDate && !isNaN(lastPaymentDate.getTime())) {
-            return <span>{format(lastPaymentDate, 'MMM d, yyyy')}</span>;
-          } else {
-            return <span className="text-muted-foreground">-</span>;
-          }
+          // Final fallback: No date available
+          return <span className="text-muted-foreground">-</span>;
         });
         
-        // Fallback for when direct SQL-calculated payment date is available
-        if (row.lastPaymentDate) {
-          try {
-            // It could be a Date object, string, or timestamp
-            let paymentDate: Date;
-            
-            if (row.lastPaymentDate instanceof Date) {
-              paymentDate = row.lastPaymentDate;
-            } else if (typeof row.lastPaymentDate === 'string') {
-              paymentDate = new Date(row.lastPaymentDate);
-            } else if (typeof row.lastPaymentDate === 'number') {
-              paymentDate = new Date(row.lastPaymentDate);
-            } else {
-              // If it's some unexpected type, use the hook-based approach
-              return <PaymentDateDisplay claimId={row.ClaimID} />;
-            }
-            
-            // Check if date is valid before formatting
-            if (!isNaN(paymentDate.getTime())) {
-              return <span>{format(paymentDate, 'MMM d, yyyy')}</span>;
-            }
-          } catch (err) {
-            console.error(`[CLAIMS_TABLE] Error rendering payment date for claim ${row.ClaimID}:`, err);
-          }
-        }
-        
-        // Use hook-based approach as fallback
-        return <PaymentDateDisplay claimId={row.ClaimID} />;
+        // Return payment date display with the full row for context
+        return <PaymentDateDisplay claim={row} />;
       },
     },
     {
