@@ -117,31 +117,10 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Payed',
       sortable: false,
       render: (row) => {
-        // Calculate total paid amount from subclaims
-        let amount = 0;
+        // For now, display a placeholder since we have removed the subclaims data
+        return <span className="text-muted-foreground">N/A</span>;
         
-        if (row.subclaims && Array.isArray(row.subclaims)) {
-          // Filter only PAID subclaims
-          const paidSubclaims = row.subclaims.filter(subclaim => subclaim.Status === 'PAID');
-          
-          // Sum up all PaidPrice values from subclaim_parts
-          paidSubclaims.forEach(subclaim => {
-            if (subclaim.subclaim_parts && Array.isArray(subclaim.subclaim_parts)) {
-              subclaim.subclaim_parts.forEach(part => {
-                if (part.PaidPrice) {
-                  amount += parseFloat(part.PaidPrice) || 0;
-                }
-              });
-            }
-          });
-        } else if (row.totalPaid) {
-          // Fallback to totalPaid if subclaims are not available
-          amount = parseFloat(row.totalPaid.toString()) || 0;
-        }
-        
-        return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
-          {amount > 0 ? `$${amount.toFixed(2)}` : 'N/A'}
-        </span>;
+        // In the future, we can re-implement this with a separate query for subclaims data
       },
     },
     {
@@ -149,27 +128,10 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Most Recent Payment',
       sortable: false,
       render: (row) => {
-        // Find the most recent payment date from PAID subclaims
-        let latestDate = null;
+        // For now, display a placeholder since we have removed the subclaims data
+        return <span className="text-muted-foreground">N/A</span>;
         
-        if (row.subclaims && Array.isArray(row.subclaims)) {
-          // Filter only PAID subclaims with Closed dates
-          const paidSubclaimsWithDates = row.subclaims
-            .filter(subclaim => subclaim.Status === 'PAID' && subclaim.Closed)
-            .map(subclaim => new Date(subclaim.Closed));
-          
-          // Find the most recent date
-          if (paidSubclaimsWithDates.length > 0) {
-            latestDate = new Date(Math.max(...paidSubclaimsWithDates.map(date => date.getTime())));
-          }
-        } else if (row.lastPaymentDate) {
-          // Fallback to lastPaymentDate if subclaims are not available
-          latestDate = new Date(row.lastPaymentDate);
-        }
-        
-        return latestDate ? 
-          format(latestDate, 'MMM d, yyyy') : 
-          <span className="text-muted-foreground">N/A</span>;
+        // In the future, we can re-implement this with a separate query for subclaims data
       },
     },
     {

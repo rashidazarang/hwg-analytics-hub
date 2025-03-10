@@ -50,6 +50,7 @@ export async function fetchClaimsData({
     console.log(`[SHARED_CLAIMS] Using date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
     
     // Start building the query with all needed fields
+    // Note: We avoid the nested subclaims fetch to prevent relationship ambiguity
     let query = supabase
       .from("claims")
       .select(`
@@ -62,13 +63,7 @@ export async function fetchClaimsData({
         Correction,
         Deductible,
         LastModified,
-        agreements!inner(DealerUUID, dealers(Payee)),
-        subclaims!left(
-          ClaimID,
-          Status,
-          Closed,
-          subclaim_parts!left(SubClaimID, PaidPrice)
-        )
+        agreements!inner(DealerUUID, dealers(Payee))
       `, { count: includeCount ? 'exact' : undefined });
 
     // Apply date range filter using ReportedDate (primary) or LastModified (fallback)
@@ -140,13 +135,7 @@ export async function fetchClaimsData({
               Correction,
               Deductible,
               LastModified,
-              agreements!inner(DealerUUID, dealers(Payee)),
-              subclaims!left(
-                ClaimID,
-                Status,
-                Closed,
-                subclaim_parts!left(SubClaimID, PaidPrice)
-              )
+              agreements!inner(DealerUUID, dealers(Payee))
             `)
             .or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()},LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`)
             .order('LastModified', { ascending: false })
@@ -182,12 +171,19 @@ export async function fetchClaimsData({
             statusBreakdown[status as keyof typeof statusBreakdown]++;
           }
         });
+
+        // Add payment info fields to each claim
+        const claimsWithPaymentInfo = allData.map(claim => ({
+          ...claim,
+          totalPaid: 0,  // Default value
+          lastPaymentDate: null  // Default value
+        }));
         
         console.log(`[SHARED_CLAIMS] Fetched all ${allData.length} claims in ${totalBatches} batches`);
         console.log('[SHARED_CLAIMS] Status breakdown:', statusBreakdown);
         
         return {
-          data: allData,
+          data: claimsWithPaymentInfo,
           count: totalCount,
           statusBreakdown
         };
@@ -222,11 +218,19 @@ export async function fetchClaimsData({
       }
     });
 
+    // Add totalPaid and lastPaymentDate fields for each claim
+    // This is a simplified approach that doesn't require fetching subclaims
+    const claimsWithPaymentInfo = claims.map(claim => ({
+      ...claim,
+      totalPaid: 0,  // Default value
+      lastPaymentDate: null  // Default value
+    }));
+
     console.log(`[SHARED_CLAIMS] Fetched ${claims.length} claims. Total count: ${count || 'N/A'}`);
     console.log('[SHARED_CLAIMS] Status breakdown:', statusBreakdown);
 
     return {
-      data: claims,
+      data: claimsWithPaymentInfo,
       count,
       statusBreakdown
     };
