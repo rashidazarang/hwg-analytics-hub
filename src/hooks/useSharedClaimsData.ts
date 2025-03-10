@@ -120,7 +120,8 @@ export async function fetchClaimsData({
           'get_claims_with_payment_in_date_range', 
           { 
             start_date: new Date('2000-01-01').toISOString(), 
-            end_date: new Date('2000-01-02').toISOString() 
+            end_date: new Date('2000-01-02').toISOString(),
+            max_results: 10
           }
         );
         
@@ -134,7 +135,7 @@ export async function fetchClaimsData({
             { 
               start_date: dateRange.from.toISOString(), 
               end_date: dateRange.to.toISOString(),
-              max_results: 5000 // Add a limit
+              max_results: 5000 // Limit to 5000 results
             }
           );
           
@@ -312,7 +313,7 @@ export async function fetchClaimsData({
                 'get_claims_payment_info',
                 { 
                   claim_ids: [claimIds[0] || 'test'],
-                  timeout_ms: 3000 // Use a shorter timeout for testing
+                  max_results: 10
                 }
               );
               
@@ -353,7 +354,7 @@ export async function fetchClaimsData({
                       'get_claims_payment_info',
                       { 
                         claim_ids: batchClaimIds,
-                        max_results: PAYMENT_BATCH_SIZE 
+                        max_results: batchClaimIds.length
                       }
                     );
                     
@@ -633,7 +634,7 @@ export async function fetchClaimsData({
                     'get_claims_payment_info',
                     { 
                       claim_ids: batchClaimIds,
-                      max_results: PAYMENT_BATCH_SIZE 
+                      max_results: batchClaimIds.length
                     }
                   );
                   
