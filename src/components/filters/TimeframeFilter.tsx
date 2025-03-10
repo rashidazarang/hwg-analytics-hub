@@ -24,7 +24,7 @@ const TimeframeFilter: React.FC<TimeframeFilterProps> = ({
   const options: Array<{ value: TimeframeOption; label: string }> = [
     { value: 'week', label: 'Week' },
     { value: 'month', label: 'Month' },
-    { value: '6months', label: '6 Months' },
+    { value: '6months', label: isFirstHalf ? 'H1 (Jan-Jun)' : 'H2 (Jul-Dec)' },
     { value: 'year', label: 'Year' },
   ];
 

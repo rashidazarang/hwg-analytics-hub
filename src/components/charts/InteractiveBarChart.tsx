@@ -150,8 +150,18 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         dateRange = `${format(firstDate, 'MMM d')} - ${format(lastDate, 'MMM d, yyyy')}`;
         break;
       case '6months':
-        // For 6 months timeframe, show the full date range
-        dateRange = `${format(firstDate, 'MMM yyyy')} - ${format(lastDate, 'MMM yyyy')}`;
+        // For 6 months timeframe, explicitly show H1/H2 format
+        const month = firstDate.getMonth();
+        const year = firstDate.getFullYear();
+        
+        if (month === 0) { // January = first half of year
+          dateRange = `H1 (Jan-Jun) ${year}`;
+        } else if (month === 6) { // July = second half of year
+          dateRange = `H2 (Jul-Dec) ${year}`;
+        } else {
+          // Fallback if date doesn't align with half-years
+          dateRange = `${format(firstDate, 'MMM')} - ${format(lastDate, 'MMM')} ${year}`;
+        }
         break;
       case 'year':
         dateRange = `Full Year ${format(firstDate, 'yyyy')}`;
@@ -237,6 +247,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationEasing="ease-in-out"
               />
               <Bar 
+                dataKey="active" 
                 name="Active" 
                 stackId="a" 
                 fill={CHART_COLORS.active}
@@ -245,10 +256,9 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationDuration={600}
                 animationBegin={100}
                 animationEasing="ease-in-out"
-                // Combine active and claimable
-                dataKey={(dataPoint) => (dataPoint.active || 0) + (dataPoint.claimable || 0)}
               />
               <Bar 
+                dataKey="cancelled" 
                 name="Cancelled" 
                 stackId="a" 
                 fill={CHART_COLORS.cancelled}
@@ -257,8 +267,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationDuration={600}
                 animationBegin={200}
                 animationEasing="ease-in-out"
-                // Combine cancelled and void
-                dataKey={(dataPoint) => (dataPoint.cancelled || 0) + (dataPoint.void || 0)}
               />
             </BarChart>
           </ResponsiveContainer>

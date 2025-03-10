@@ -60,17 +60,30 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // For 6 months timeframe, show rolling 6 months
-      // Current month minus 5 months = 6 months total
-      const startSixMonths = addMonths(startOfMonth(now), offsetPeriods * 6);
-      const endSixMonths = endOfMonth(addMonths(startSixMonths, 5));
-      return { start: startSixMonths, end: endSixMonths };
+      // For 6 months timeframe, show calendar half-years (H1: Jan-Jun, H2: Jul-Dec)
+      // Even offset: first half of the year (Jan-Jun), Odd offset: second half (Jul-Dec)
+      const isFirstHalf = offsetPeriods % 2 === 0;
+      const yearOffset = Math.floor(offsetPeriods / 2);
+      const targetYear = currentYear + yearOffset;
+      
+      if (isFirstHalf) {
+        // First half of year (Jan-Jun)
+        const startDate = new Date(targetYear, 0, 1); // January 1st
+        const endDate = new Date(targetYear, 5, 30); // June 30th
+        return { start: startDate, end: endDate };
+      } else {
+        // Second half of year (Jul-Dec)
+        const startDate = new Date(targetYear, 6, 1); // July 1st
+        const endDate = new Date(targetYear, 11, 31); // December 31st
+        return { start: startDate, end: endDate };
+      }
     
     case 'year':
       // For full year view, show Jan-Dec of the selected year
-      const yearOffset = offsetPeriods;
-      const startYear = new Date(currentYear + yearOffset, 0, 1); // January 1st
-      const endYear = endOfMonth(new Date(currentYear + yearOffset, 11, 1)); // Last day of December
+      const yearOffset2 = offsetPeriods;
+      const targetYear2 = currentYear + yearOffset2;
+      const startYear = new Date(targetYear2, 0, 1); // January 1st
+      const endYear = new Date(targetYear2, 11, 31); // December 31st
       return { start: startYear, end: endYear };
       
     default:
@@ -671,7 +684,56 @@ export function usePerformanceMetricsData(
         });
       }
       
-      // For longer timeframes, return as is but ensure chronological order
+      // For longer timeframes (6months, year), ensure we have the correct number of months
+      if (timeframe === '6months' || timeframe === 'year') {
+        // For 6 months view, ensure we have exactly 6 months
+        // For year view, ensure we have exactly 12 months
+        const expectedMonths = timeframe === '6months' ? 6 : 12;
+        
+        // Create a map of existing data points by month
+        const monthMap = new Map();
+        sortedData.forEach(point => {
+          const monthKey = format(point.rawDate, 'yyyy-MM');
+          monthMap.set(monthKey, point);
+        });
+        
+        // Generate expected months
+        const expectedData = [];
+        const monthInterval = { 
+          start: startDate, 
+          end: endDate 
+        };
+        
+        // Get all months in the interval
+        const allMonths = eachMonthOfInterval(monthInterval);
+        
+        // Ensure we have the correct number of months
+        for (let i = 0; i < Math.min(allMonths.length, expectedMonths); i++) {
+          const month = allMonths[i];
+          const monthKey = format(month, 'yyyy-MM');
+          
+          if (monthMap.has(monthKey)) {
+            // Use existing data
+            expectedData.push(monthMap.get(monthKey));
+          } else {
+            // Create zeroed data for missing month
+            expectedData.push({
+              label: format(month, 'MMM').toLowerCase(),
+              value: 0,
+              pending: 0,
+              active: 0,
+              claimable: 0,
+              cancelled: 0,
+              void: 0,
+              rawDate: month
+            });
+          }
+        }
+        
+        return expectedData;
+      }
+      
+      // For other timeframes, just return sorted data
       return sortedData;
     }
     
