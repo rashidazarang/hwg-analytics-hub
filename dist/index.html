@@ -3,151 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Claim Analytics Hub</title>
-    <meta name="description" content="Claim Analytics Dashboard" />
-    <meta name="author" content="Claude" />
-    <meta property="og:image" content="./og-image.png" />
-    <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f9fafb;
-      }
-      
-      .app-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-      }
-      
-      .main-content {
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        padding: 30px;
-        margin-top: 20px;
-      }
-      
-      h1 {
-        color: #2563eb;
-        margin-bottom: 0.5em;
-      }
-      
-      .success-message {
-        background-color: #dcfce7;
-        border-left: 4px solid #16a34a;
-        padding: 15px;
-        border-radius: 4px;
-        margin: 20px 0;
-      }
-      
-      .loading-spinner {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid rgba(0,0,0,0.1);
-        border-radius: 50%;
-        border-top-color: #2563eb;
-        animation: spin 1s ease-in-out infinite;
-        margin-right: 10px;
-        vertical-align: middle;
-      }
-      
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-      
-      #react-status {
-        margin-top: 20px;
-        padding: 15px;
-        border-radius: 8px;
-        background-color: #f3f4f6;
-      }
-      
-      button {
-        background-color: #2563eb;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-      }
-      
-      button:hover {
-        background-color: #1d4ed8;
-      }
-    </style>
-    <script type="module" crossorigin src="./assets/index-B2vpe0Ak.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BPYNFPET.css">
+    <title>claim-analytics-hub</title>
+    <meta name="description" content="Lovable Generated Project" />
+    <meta name="author" content="Lovable" />
+    <meta property="og:image" content="/og-image.png" />
+    <script type="module" crossorigin src="/assets/index-B2vpe0Ak.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BPYNFPET.css">
   </head>
-  
+
   <body>
-    <!-- Static content that will always show -->
-    <div class="app-container">
-      <div class="main-content">
-        <h1>Claim Analytics Hub - Server Test</h1>
-        
-        <div class="success-message">
-          <strong>Success!</strong> If you can see this page, the server is running correctly.
-        </div>
-        
-        <p>This is a static HTML page served from the development server.</p>
-        <p>The server is responding to requests at this URL.</p>
-        
-        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
-        
-        <!-- React app mount point -->
-        <div id="root">
-          <!-- React app will render here if it loads successfully -->
-        </div>
-        
-        <div id="react-status">
-          <span class="loading-spinner"></span> Waiting for React to initialize...
-        </div>
-        
-        <button id="testApi">Test API Connection</button>
-        <div id="apiResult" style="margin-top: 10px;"></div>
-      </div>
-    </div>
-    
-    <!-- Try to load React app -->
-    
-    <script>
-      // Update status after 3 seconds
-      setTimeout(() => {
-        const reactStatus = document.getElementById('react-status');
-        const rootEl = document.getElementById('root');
-        
-        if (rootEl.children.length > 0) {
-          reactStatus.innerHTML = '<span style="color: #16a34a;">✓</span> React has initialized successfully!';
-        } else {
-          reactStatus.innerHTML = '<span style="color: #dc2626;">✗</span> React failed to initialize. There might be an issue with the JavaScript bundle.';
-        }
-      }, 3000);
-      
-      // Test API button
-      document.getElementById('testApi').addEventListener('click', async () => {
-        const resultEl = document.getElementById('apiResult');
-        resultEl.innerHTML = '<span class="loading-spinner"></span> Testing API connection...';
-        
-        try {
-          const response = await fetch('./api/health-check.json');
-          if (response.ok) {
-            const data = await response.json();
-            resultEl.innerHTML = `<div style="color: #16a34a;">API responded successfully!</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
-          } else {
-            resultEl.innerHTML = `<div style="color: #dc2626;">API returned error ${response.status}: ${response.statusText}</div>`;
-          }
-        } catch (error) {
-          resultEl.innerHTML = `<div style="color: #dc2626;">Connection error: ${error.message}</div>`;
-        }
-      });
-      
-      // Log page load in console
-      console.log('Static HTML page loaded at:', new Date().toISOString());
-      console.log('Page URL:', window.location.href);
-    </script>
+    <div id="root"></div>
+    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   </body>
 </html>
