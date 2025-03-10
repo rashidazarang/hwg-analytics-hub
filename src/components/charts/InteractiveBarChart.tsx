@@ -27,12 +27,14 @@ const CHART_COLORS = {
   void: '#FF8A65'       // Orange/Red
 };
 
-const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+// Define CustomTooltip as a proper component with access to props
+const CustomTooltip = ({ active, payload, label, externalTimeframe }: TooltipProps<number, string> & { externalTimeframe?: TimeframeOption }) => {
   if (active && payload && payload.length) {
     const dataPoint = payload[0].payload as PerformanceDataPoint;
     
     let formattedDate, tooltipContent;
     
+    // Detect if this is a month date point by checking if it's the first day of a month
     const isMonthView = format(dataPoint.rawDate, 'd') === '1';
     
     if (isMonthView) {
@@ -42,16 +44,31 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
     }
     
     // Calculate totals to ensure tooltip displays exactly the same data as bars
+    // Add defensive programming with null/undefined checks
     const pendingCount = dataPoint.pending || 0;
     const activeCount = dataPoint.active || 0;
     const claimableCount = dataPoint.claimable || 0;
     const cancelledCount = dataPoint.cancelled || 0;
     const voidCount = dataPoint.void || 0;
     
-    // Ensure total value is sum of all statuses for consistency
-    const totalValue = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
+    // Calculate the sum of all status counts - this should match the total value
+    const calculatedTotal = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
     
-    const currentTimeframe = timeframe || 'month'; // Provide default if undefined
+    // The displayed total should always be the sum of individual status counts
+    const totalValue = calculatedTotal;
+    
+    // Verify that our calculated total matches the dataPoint value
+    // This is especially important for Day view where we need accurate counts
+    if (calculatedTotal !== (dataPoint.value || 0)) {
+      console.warn("[PERFORMANCE] Mismatch detected: Tooltip total does not match total agreements count.");
+      console.warn(`[PERFORMANCE] Calculated: ${calculatedTotal}, Provided: ${dataPoint.value || 0}`);
+    }
+    
+    // Use the external timeframe prop or fallback to a default
+    const currentTimeframe = externalTimeframe || 'month';
+    
+    // For Day view, show a slightly different UI to highlight the separate status counts
+    const isDayView = currentTimeframe === 'day';
     
     tooltipContent = (
       <>
@@ -78,7 +95,12 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
             Void: {voidCount.toLocaleString()}
           </p>
         </div>
-        {currentTimeframe !== 'day' && (
+        {isDayView && (
+          <div className="mt-2 text-xs text-gray-500">
+            Each bar represents a different contract status
+          </div>
+        )}
+        {!isDayView && (
           <div className="mt-2 text-xs text-gray-500">
             Click to view detailed breakdown
           </div>
@@ -134,6 +156,12 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
     const dataPoint = data.activePayload[0].payload as PerformanceDataPoint;
     const date = dataPoint.rawDate;
     
+    console.log('[PERFORMANCE] Bar clicked:', {
+      date: date.toISOString(),
+      timeframe: timeframe || 'month',
+      dataPoint
+    });
+    
     // Use a safe timeframe value with a default
     const safeTimeframe = timeframe || 'month';
     
@@ -142,15 +170,25 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
       case 'year':
       case '6months':
         // Drill down to month view when clicking on a month in year/6months view
+        console.log('[PERFORMANCE] Drilling down from year/6months to month view for:', format(date, 'MMM yyyy'));
         onDrilldown(date, 'month');
         break;
       case 'month':
+        // Drill down to day view when clicking on a day in month view
+        console.log('[PERFORMANCE] Drilling down from month view to day view for:', format(date, 'MMM d, yyyy'));
+        onDrilldown(date, 'day');
+        break;
       case 'week':
-        // Drill down to day view when clicking on a day in month/week view
+        // Drill down to day view when clicking on a day in week view
+        console.log('[PERFORMANCE] Drilling down from week view to day view for:', format(date, 'MMM d, yyyy'));
         onDrilldown(date, 'day');
         break;
       // No drilldown from day view
+      case 'day':
+        console.log('[PERFORMANCE] Already at day view, no further drill down');
+        break;
       default:
+        console.log('[PERFORMANCE] Unknown timeframe:', safeTimeframe);
         break;
     }
   }, [timeframe, onDrilldown]);
@@ -287,6 +325,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               }}
               className={cn("animate-fade-in", isTransitioning ? "opacity-100" : "")}
               onClick={handleBarClick}
+              // BarChart defaults to vertical layout, which is what we want
+              barCategoryGap={(timeframe || 'month') === 'day' ? '20%' : '10%'} // More space between categories for day view
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis 
@@ -304,17 +344,19 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 domain={[0, 'auto']}
                 width={30}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
+              <Tooltip content={<CustomTooltip externalTimeframe={timeframe} />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
               
               {(timeframe || 'month') === 'day' ? (
-                // For day view, display each status as a separate bar
+                // For day view, display each status as a separate non-stacked bar
+                // Each contract status has its own individual bar
                 <>
+                  <Legend />
                   <Bar 
                     dataKey="pending" 
                     name="Pending" 
                     fill={CHART_COLORS.pending}  
-                    radius={[0, 0, 0, 0]}
-                    maxBarSize={55}
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
                     animationDuration={600}
                     animationBegin={0}
                     animationEasing="ease-in-out"
@@ -324,8 +366,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     dataKey="active" 
                     name="Active" 
                     fill={CHART_COLORS.active}
-                    radius={[0, 0, 0, 0]}
-                    maxBarSize={55}
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
                     animationDuration={600}
                     animationBegin={100}
                     animationEasing="ease-in-out"
@@ -335,8 +377,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     dataKey="claimable" 
                     name="Claimable" 
                     fill={CHART_COLORS.claimable}
-                    radius={[0, 0, 0, 0]}
-                    maxBarSize={55}
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
                     animationDuration={600}
                     animationBegin={200}
                     animationEasing="ease-in-out"
@@ -346,8 +388,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     dataKey="cancelled" 
                     name="Cancelled" 
                     fill={CHART_COLORS.cancelled}
-                    radius={[0, 0, 0, 0]}
-                    maxBarSize={55}
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
                     animationDuration={600}
                     animationBegin={300}
                     animationEasing="ease-in-out"
@@ -357,8 +399,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     dataKey="void" 
                     name="Void" 
                     fill={CHART_COLORS.void}
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={55}
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={50}
                     animationDuration={600}
                     animationBegin={400}
                     animationEasing="ease-in-out"
@@ -366,7 +408,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                   />
                 </>
               ) : (
-                // For other views, use stacked bars like before
+                // For other views, use stacked bars with all statuses clearly represented
                 <>
                   <Bar 
                     dataKey="pending" 
@@ -381,8 +423,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     isAnimationActive={true}
                   />
                   <Bar 
-                    // Combine active and claimable for display
-                    dataKey={(data) => (data.active || 0) + (data.claimable || 0)}
+                    dataKey="active"
                     name="Active" 
                     stackId="a" 
                     fill={CHART_COLORS.active}
@@ -394,15 +435,38 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                     isAnimationActive={true}
                   />
                   <Bar 
-                    // Combine cancelled and void for display
-                    dataKey={(data) => (data.cancelled || 0) + (data.void || 0)}
+                    dataKey="claimable"
+                    name="Claimable" 
+                    stackId="a" 
+                    fill={CHART_COLORS.claimable}
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={(timeframe || 'month') === 'week' ? 45 : (timeframe || 'month') === 'month' ? 18 : 30}
+                    animationDuration={600}
+                    animationBegin={150}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                  <Bar 
+                    dataKey="cancelled"
                     name="Cancelled" 
                     stackId="a" 
                     fill={CHART_COLORS.cancelled}
-                    radius={[6, 6, 0, 0]}
+                    radius={[0, 0, 0, 0]}
                     maxBarSize={(timeframe || 'month') === 'week' ? 45 : (timeframe || 'month') === 'month' ? 18 : 30}
                     animationDuration={600}
                     animationBegin={200}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                  <Bar 
+                    dataKey="void"
+                    name="Void" 
+                    stackId="a" 
+                    fill={CHART_COLORS.void}
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={(timeframe || 'month') === 'week' ? 45 : (timeframe || 'month') === 'month' ? 18 : 30}
+                    animationDuration={600}
+                    animationBegin={250}
                     animationEasing="ease-in-out"
                     isAnimationActive={true}
                   />

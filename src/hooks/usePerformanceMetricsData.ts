@@ -46,6 +46,9 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
   const now = new Date();
   const currentYear = now.getFullYear();
   
+  // Get current month (0-11)
+  const currentMonth = now.getMonth();
+  
   switch (timeframe) {
     case 'day':
       // For day view, either use the specific date or offset from current day
@@ -57,6 +60,16 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case 'week':
+      // If a specific date is provided, use that as the base for the week
+      if (specificDate) {
+        const baseWeekDate = startOfWeek(specificDate, { weekStartsOn: 1 });
+        const targetWeek = addWeeks(baseWeekDate, offsetPeriods);
+        return {
+          start: targetWeek,
+          end: endOfWeek(targetWeek, { weekStartsOn: 1 })
+        };
+      }
+      
       return {
         start: addWeeks(startOfWeek(now, { weekStartsOn: 1 }), offsetPeriods),
         end: addWeeks(endOfWeek(now, { weekStartsOn: 1 }), offsetPeriods)
@@ -77,28 +90,59 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // For 6 months timeframe:
+      // Improved 6 months view logic:
       // - Always show exactly Jan-Jun or Jul-Dec periods
-      // - The offset determines which period and year to show
-      // - Even offsets (0, 2, 4) show Jan-Jun, odd offsets (1, 3, 5) show Jul-Dec
+      // - If specificDate is provided, use that date's year and determine half based on the date's month
+      // - Otherwise, determine which half of the year we're currently in, and adjust based on offset
       
-      // First calculate what year we should be showing
-      // Every 2 offset periods = 1 full year
-      const yearOffset = Math.floor(Math.abs(offsetPeriods) / 2);
+      let targetYear, isFirstHalf;
       
-      // Handle positive vs negative offsets differently
-      let targetYear;
-      let isFirstHalf;
-      
-      if (offsetPeriods >= 0) {
-        // For positive offsets (moving forward in time)
-        targetYear = currentYear + yearOffset;
-        isFirstHalf = offsetPeriods % 2 === 0; // Even offsets = first half
+      if (specificDate) {
+        // If a specific date is provided, use that year and determine which half based on the month
+        targetYear = specificDate.getFullYear();
+        isFirstHalf = specificDate.getMonth() < 6; // 0-5 (Jan-Jun) = first half, 6-11 (Jul-Dec) = second half
+        
+        // Apply offset in 6-month increments
+        const halfYearOffset = Math.floor(offsetPeriods / 2);
+        targetYear += halfYearOffset;
+        
+        // If offset is odd, flip which half we're showing
+        if (offsetPeriods % 2 !== 0) {
+          isFirstHalf = !isFirstHalf;
+        }
       } else {
-        // For negative offsets (moving backward in time)
-        targetYear = currentYear - yearOffset;
-        isFirstHalf = Math.abs(offsetPeriods) % 2 === 1; // For negative offsets, odd absolute values = first half
+        // No specific date, determine based on current date and offset
+        
+        // Determine if we're currently in the first half of the year
+        const currentIsFirstHalf = currentMonth < 6; // Jan-Jun
+        
+        // Calculate the initial half-year periods offset from current half
+        // Each offset is one half-year period (6 months)
+        const baseOffset = offsetPeriods;
+        
+        // Calculate how many full years to offset
+        const yearOffset = Math.floor(Math.abs(baseOffset) / 2);
+        
+        if (baseOffset >= 0) {
+          // For positive offsets (moving forward in time)
+          targetYear = currentYear + Math.floor(baseOffset / 2);
+          
+          // Determine which half to show
+          // If current half + offset is even, show same half as current
+          // If current half + offset is odd, show opposite half
+          isFirstHalf = (currentIsFirstHalf && baseOffset % 2 === 0) || 
+                         (!currentIsFirstHalf && baseOffset % 2 !== 0);
+        } else {
+          // For negative offsets (moving backward in time)
+          targetYear = currentYear - Math.ceil(Math.abs(baseOffset) / 2);
+          
+          // Similar logic for negative direction
+          isFirstHalf = (currentIsFirstHalf && baseOffset % 2 === 0) || 
+                         (!currentIsFirstHalf && baseOffset % 2 !== 0);
+        }
       }
+      
+      console.log(`[PERFORMANCE] 6months view: year=${targetYear}, half=${isFirstHalf ? 'Jan-Jun' : 'Jul-Dec'}, offset=${offsetPeriods}`);
       
       // Create the date range based on which half-year we need
       if (isFirstHalf) {
@@ -114,8 +158,17 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       }
     
     case 'year':
-      // Always show Jan-Dec for the selected year
-      const targetYear2 = currentYear + offsetPeriods;
+      // If specificDate is provided, use that year as the base
+      let yearBase;
+      
+      if (specificDate) {
+        yearBase = specificDate.getFullYear();
+      } else {
+        yearBase = currentYear;
+      }
+      
+      // Apply the offset to the base year
+      const targetYear2 = yearBase + offsetPeriods;
       
       // Ensure we get the full calendar year from January 1st to December 31st
       const startYear = new Date(targetYear2, 0, 1); // January 1st
@@ -522,26 +575,31 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
 }
 
 /**
- * Fetches data for a single day, either as hourly data points or as a single data point
- * This is used for the "Day" view to display contract statuses by hour
+ * Fetches data for a single day, showing all contract statuses as separate bars
+ * This is used for the "Day" view where each status type has its own individual bar
  */
 async function fetchSingleDayData(startDate: Date, endDate: Date, dealerFilter: string = ''): Promise<PerformanceDataPoint[]> {
-  // Format dates
+  // Format dates for consistent ISO format
   const startIso = startDate.toISOString();
   const endIso = endDate.toISOString();
   
   console.log(`[PERFORMANCE] Fetching single day data from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
+  console.log(`[PERFORMANCE] Day view date: ${format(startDate, 'yyyy-MM-dd')}`);
   
   try {
-    // Query for all agreements for this day with status breakdown
+    // Query for all agreements for this specific day only (not hourly breakdown)
+    // We just want the contracts for the full day with their status breakdowns
     let query = supabase
       .from('agreements')
-      .select('EffectiveDate, AgreementStatus');
+      .select('EffectiveDate, AgreementStatus, id');
     
-    // Apply date range filter
+    // Apply date range filter for the specific day
+    // Ensure we're only getting data for exactly this day
     query = query
       .gte('EffectiveDate', startIso)
       .lte('EffectiveDate', endIso);
+    
+    console.log(`[PERFORMANCE] Day view SQL query: FROM agreements SELECT EffectiveDate, AgreementStatus, id WHERE EffectiveDate >= '${startIso}' AND EffectiveDate <= '${endIso}'${dealerFilter ? ` AND DealerUUID = '${dealerFilter}'` : ''}`);
     
     // Apply dealer filter if provided
     if (dealerFilter) {
@@ -556,26 +614,64 @@ async function fetchSingleDayData(startDate: Date, endDate: Date, dealerFilter: 
       throw new Error(error.message);
     }
     
-    // Group data by status
-    const pendingCount = data?.filter(a => a.AgreementStatus === 'PENDING')?.length || 0;
-    const activeCount = data?.filter(a => a.AgreementStatus === 'ACTIVE')?.length || 0;
-    const claimableCount = data?.filter(a => a.AgreementStatus === 'CLAIMABLE')?.length || 0;
-    const cancelledCount = data?.filter(a => a.AgreementStatus === 'CANCELLED')?.length || 0;
-    const voidCount = data?.filter(a => a.AgreementStatus === 'VOID')?.length || 0;
+    // Log detailed data for debugging
+    console.log(`[PERFORMANCE] Day view query returned ${data?.length || 0} agreements`);
     
-    // Get the total count
+    // Log status distribution for debugging
+    if (data && data.length > 0) {
+      const statusCounts: Record<string, number> = {};
+      data.forEach(agreement => {
+        const status = (agreement.AgreementStatus || '').toUpperCase();
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+      console.log('[PERFORMANCE] Status distribution in day view:', statusCounts);
+    }
+    
+    // Group data by status with proper uppercase normalization
+    // This ensures consistent counting regardless of case variations in the database
+    const pendingCount = data?.filter(a => (a.AgreementStatus || '').toUpperCase() === 'PENDING')?.length || 0;
+    const activeCount = data?.filter(a => (a.AgreementStatus || '').toUpperCase() === 'ACTIVE')?.length || 0;
+    const claimableCount = data?.filter(a => (a.AgreementStatus || '').toUpperCase() === 'CLAIMABLE')?.length || 0;
+    const cancelledCount = data?.filter(a => (a.AgreementStatus || '').toUpperCase() === 'CANCELLED')?.length || 0;
+    const voidCount = data?.filter(a => (a.AgreementStatus || '').toUpperCase() === 'VOID')?.length || 0;
+    
+    // Get the total count which should be the sum of all status counts
     const totalCount = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
+    
+    // Verify that our total count matches the actual data length
+    if (totalCount !== (data?.length || 0)) {
+      console.warn(`[PERFORMANCE] Mismatch detected: Total status sum (${totalCount}) does not match raw agreement count (${data?.length || 0})`);
+      
+      // Log more details to help diagnose the issue
+      const unknownStatuses = data?.filter(a => {
+        const status = (a.AgreementStatus || '').toUpperCase();
+        return !['PENDING', 'ACTIVE', 'CLAIMABLE', 'CANCELLED', 'VOID'].includes(status);
+      });
+      
+      if (unknownStatuses && unknownStatuses.length > 0) {
+        console.warn(`[PERFORMANCE] Found ${unknownStatuses.length} agreements with unknown statuses:`);
+        unknownStatuses.forEach((a, i) => {
+          if (i < 5) { // Only log the first 5 to avoid console flood
+            console.warn(`[PERFORMANCE] Unknown status: "${a.AgreementStatus}" for agreement ID ${a.id}`);
+          }
+        });
+      }
+    }
+    
+    // Log detailed output for debugging as specified
+    console.log(`[PERFORMANCE] Day View Data: Pending=${pendingCount}, Active=${activeCount}, Claimable=${claimableCount}, Cancelled=${cancelledCount}, Void=${voidCount}, Total=${totalCount}`);
     
     // Format the date for display
     const formattedDate = format(startDate, 'MMM d, yyyy');
     
-    // Return as a single data point for the day view
-    // This will be displayed as separate bars in the chart
+    // For Day view, we return a single data point but ensure each status is represented clearly
+    // This will be displayed with separate bars for each status in the chart
     return [
       {
         label: formattedDate,
-        value: totalCount,
+        value: totalCount, // Total for reference
         rawDate: startDate,
+        // Ensure all status values are properly set for separate bars
         pending: pendingCount,
         active: activeCount,
         claimable: claimableCount,
@@ -585,7 +681,7 @@ async function fetchSingleDayData(startDate: Date, endDate: Date, dealerFilter: 
     ];
   } catch (err) {
     console.error('[PERFORMANCE] Error with single day data query:', err);
-    // Return empty data on error
+    // Return empty data on error with appropriate structure for day view
     return [
       {
         label: format(startDate, 'MMM d, yyyy'),

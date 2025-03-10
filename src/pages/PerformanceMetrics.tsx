@@ -129,48 +129,83 @@ const PerformanceMetrics: React.FC = () => {
   );
 
   useEffect(() => {
-    if (loading || !data || data.length === 0) {
+    // Add error logging
+    if (error) {
+      console.error("[PERFORMANCE] Error occurred while fetching data:", error);
+    }
+    
+    // Skip if loading or no data
+    if (loading || !data) {
+      return;
+    }
+    
+    // Check for empty data
+    if (data.length === 0) {
+      console.log("[PERFORMANCE] No data returned for the selected period");
+      // Update KPIs with empty data to reset previous values
+      updatePerformanceData(
+        [], 
+        timeframe, 
+        { from: startDate, to: endDate }, 
+        dealerFilter,
+        { pending: 0, active: 0, claimable: 0, cancelled: 0, void: 0 }
+      );
       return;
     }
 
     // Calculate totals from data points to display in KPI cards
     // We want exact values, not averages, to match the chart
     const calculateTotals = () => {
-      // Sum all status counts across all data points
-      // This will match exactly what is shown in the chart
-      const totalPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
-      const totalActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
-      const totalClaimable = data.reduce((sum, point) => sum + (point.claimable || 0), 0);
-      const totalCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
-      const totalVoid = data.reduce((sum, point) => sum + (point.void || 0), 0);
-      
-      // Log the totals for debugging
-      console.log("[PERFORMANCE] Status totals for KPI calculations:", { 
-        totalPending, 
-        totalActive,
-        totalClaimable,
-        totalCancelled,
-        totalVoid,
-        totalDataPoints: data.length,
-        totalSum: totalPending + totalActive + totalClaimable + totalCancelled + totalVoid
-      });
-      
-      // Return the exact totals, not averages, so KPIs match chart data exactly
-      return {
-        pending: totalPending,
-        active: totalActive,
-        claimable: totalClaimable,
-        cancelled: totalCancelled,
-        void: totalVoid
-      };
+      try {
+        // Sum all status counts across all data points with null/undefined checks
+        // This will match exactly what is shown in the chart
+        const totalPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
+        const totalActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
+        const totalClaimable = data.reduce((sum, point) => sum + (point.claimable || 0), 0);
+        const totalCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
+        const totalVoid = data.reduce((sum, point) => sum + (point.void || 0), 0);
+        
+        // Log the totals for debugging
+        console.log("[PERFORMANCE] Status totals for KPI calculations:", { 
+          totalPending, 
+          totalActive,
+          totalClaimable,
+          totalCancelled,
+          totalVoid,
+          totalDataPoints: data.length,
+          totalSum: totalPending + totalActive + totalClaimable + totalCancelled + totalVoid
+        });
+        
+        // Return the exact totals, not averages, so KPIs match chart data exactly
+        return {
+          pending: totalPending || 0,
+          active: totalActive || 0,
+          claimable: totalClaimable || 0,
+          cancelled: totalCancelled || 0,
+          void: totalVoid || 0
+        };
+      } catch (err) {
+        console.error("[PERFORMANCE] Error calculating totals:", err);
+        // Return zero values if calculation fails
+        return {
+          pending: 0,
+          active: 0,
+          claimable: 0,
+          cancelled: 0,
+          void: 0
+        };
+      }
     };
     
     // Update shared performance data with exact totals
     const statusTotals = calculateTotals();
     const dateRangeForKPI = {
-      from: startDate,
-      to: endDate
+      from: startDate || new Date(),
+      to: endDate || new Date()
     };
+    
+    // Log the actual update for debugging
+    console.log(`[PERFORMANCE] Updating performance data for timeframe: ${timeframe}, with ${data.length} data points`);
     
     updatePerformanceData(
       data, 
@@ -180,7 +215,7 @@ const PerformanceMetrics: React.FC = () => {
       statusTotals
     );
     
-  }, [statusFetchKey, startDate, endDate, data, updatePerformanceData, loading, dealerFilter]);
+  }, [statusFetchKey, startDate, endDate, data, updatePerformanceData, loading, dealerFilter, error, timeframe]);
 
   const timeframeSubnavbar = (
     <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 w-full">
