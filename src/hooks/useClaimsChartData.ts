@@ -1,6 +1,7 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { DateRange } from '@/lib/dateUtils';
-import { useSharedClaimsData } from './useSharedClaimsData-fixed';
+import { useSharedClaimsData } from './useSharedClaimsData';
 
 export function useClaimsChartData(dateRange: DateRange, dealershipFilter?: string) {
   // Use the shared claims data hook without pagination

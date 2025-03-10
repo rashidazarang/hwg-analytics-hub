@@ -48,19 +48,16 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
       try {
         // Use the optimized RPC function with explicit limit and timeout settings
         // This should prevent the query from timing out
-        
-        // First set the timezone
-        await supabase.rpc('set_timezone', { 
-          timezone_name: 'America/Chicago' // CST timezone
-        });
-        
-        // Then make the RPC call directly with type assertion to handle TypeScript errors
-        // @ts-ignore - Suppress TypeScript error about the RPC function name
-        const { data, error } = await supabase.rpc('get_top_dealers_optimized', {
-          start_date: startDate.toISOString(),
-          end_date: endDate.toISOString(),
-          limit_count: 10 // Only fetch top 10 dealers
-        });
+        const { data, error } = await executeWithCSTTimezone(
+          supabase,
+          (client) => client.rpc('get_top_dealers_optimized', {
+            start_date: startDate.toISOString(),
+            end_date: endDate.toISOString(),
+            limit_count: 10 // Only fetch top 10 dealers
+          }).options({
+            count: 'exact'
+          })
+        );
 
         if (error) {
           console.error('[LEADERBOARD] Error fetching optimized top dealers:', error);
@@ -70,20 +67,18 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
         console.log('[LEADERBOARD] Successfully fetched top dealers:', data?.length || 0);
 
         // Process the data to fit our expected structure
-        const topDealers = Array.isArray(data) 
-          ? data.map((dealer: any) => ({
-              dealer_uuid: dealer.dealer_uuid || '',
-              dealer_name: dealer.dealer_name || '',
-              total_contracts: Number(dealer.total_contracts || 0),
-              active_contracts: Number(dealer.active_contracts || 0),
-              pending_contracts: Number(dealer.pending_contracts || 0), 
-              cancelled_contracts: Number(dealer.cancelled_contracts || 0),
-              total_revenue: Number(dealer.total_revenue || 0),
-              expected_revenue: Number(dealer.expected_revenue || 0),
-              funded_revenue: Number(dealer.funded_revenue || 0),
-              cancellation_rate: Number(dealer.cancellation_rate || 0)
-            }))
-          : [];
+        const topDealers = (data || []).map((dealer: any) => ({
+          dealer_uuid: dealer.dealer_uuid || '',
+          dealer_name: dealer.dealer_name || '',
+          total_contracts: Number(dealer.total_contracts || 0),
+          active_contracts: Number(dealer.active_contracts || 0),
+          pending_contracts: Number(dealer.pending_contracts || 0), 
+          cancelled_contracts: Number(dealer.cancelled_contracts || 0),
+          total_revenue: Number(dealer.total_revenue || 0),
+          expected_revenue: Number(dealer.expected_revenue || 0),
+          funded_revenue: Number(dealer.funded_revenue || 0),
+          cancellation_rate: Number(dealer.cancellation_rate || 0)
+        }));
 
         // Calculate summary KPIs from top dealers
         const summary: TopDealersSummary = {
@@ -134,24 +129,22 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
         
         // Fallback to a simpler query approach that's less likely to timeout
         try {
-          // Set timezone first
-          await supabase.rpc('set_timezone', { 
-            timezone_name: 'America/Chicago' // CST timezone
-          });
-
           // Use a direct query with pagination that only gets the necessary fields
-          const { data: dealersData, error: dealersError } = await supabase
-            .from('agreements')
-            .select(`
-              dealers:DealerUUID (
-                DealerUUID,
-                Payee
-              ),
-              AgreementStatus
-            `)
-            .gte('EffectiveDate', startDate.toISOString())
-            .lte('EffectiveDate', endDate.toISOString())
-            .limit(5000); // Limit to a reasonable number of rows
+          const { data: dealersData, error: dealersError } = await executeWithCSTTimezone(
+            supabase,
+            (client) => client
+              .from('agreements')
+              .select(`
+                dealers:DealerUUID (
+                  DealerUUID,
+                  Payee
+                ),
+                AgreementStatus
+              `)
+              .gte('EffectiveDate', startDate.toISOString())
+              .lte('EffectiveDate', endDate.toISOString())
+              .limit(5000) // Limit to a reasonable number of rows
+          );
 
           if (dealersError) {
             console.error('[LEADERBOARD] Error fetching dealers in fallback mode:', dealersError);

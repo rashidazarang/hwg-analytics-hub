@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRange, setCSTHours } from '@/lib/dateUtils';
 import { KPIData } from '@/lib/types';
-import { fetchClaimsData } from './useSharedClaimsData-fixed';
+import { fetchClaimsData } from './useSharedClaimsData';
 
 interface UseKPIDataProps {
   dateRange: DateRange;
