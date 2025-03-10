@@ -275,30 +275,37 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
 
   const { dateRange } = getDateRange();
 
-  const CustomLegend = () => (
-    <div className="flex flex-wrap justify-center items-center gap-4 mt-2 mb-4">
-      <div className="flex items-center">
-        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.pending}}></span>
-        <span className="text-sm text-gray-600">Pending</span>
+  const CustomLegend = () => {
+    // Don't render legend in day view
+    if (timeframe === 'day') {
+      return null;
+    }
+    
+    return (
+      <div className="flex flex-wrap justify-center items-center gap-4 mt-2 mb-4">
+        <div className="flex items-center">
+          <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.pending}}></span>
+          <span className="text-sm text-gray-600">Pending</span>
+        </div>
+        <div className="flex items-center">
+          <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.active}}></span>
+          <span className="text-sm text-gray-600">Active</span>
+        </div>
+        <div className="flex items-center">
+          <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.claimable}}></span>
+          <span className="text-sm text-gray-600">Claimable</span>
+        </div>
+        <div className="flex items-center">
+          <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
+          <span className="text-sm text-gray-600">Cancelled</span>
+        </div>
+        <div className="flex items-center">
+          <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.void}}></span>
+          <span className="text-sm text-gray-600">Void</span>
+        </div>
       </div>
-      <div className="flex items-center">
-        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.active}}></span>
-        <span className="text-sm text-gray-600">Active</span>
-      </div>
-      <div className="flex items-center">
-        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.claimable}}></span>
-        <span className="text-sm text-gray-600">Claimable</span>
-      </div>
-      <div className="flex items-center">
-        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
-        <span className="text-sm text-gray-600">Cancelled</span>
-      </div>
-      <div className="flex items-center">
-        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.void}}></span>
-        <span className="text-sm text-gray-600">Void</span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className={cn("bg-white p-5 rounded-xl shadow-sm border border-gray-100 chart-container", className)} ref={containerRef}>
@@ -350,7 +357,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 // For day view, display each status as a separate non-stacked bar
                 // Each contract status has its own individual bar
                 <>
-                  <Legend />
                   <Bar 
                     dataKey="pending" 
                     name="Pending" 
