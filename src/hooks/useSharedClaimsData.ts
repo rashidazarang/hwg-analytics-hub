@@ -1,9 +1,41 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { PostgrestResponse } from '@supabase/supabase-js';
 import { DateRange } from '@/lib/dateUtils';
 import { getClaimStatus } from '@/utils/claimUtils';
 import { Claim } from '@/lib/types';
+import { Database } from '../../supabase/schema';
+import { ClaimWithPaymentInDateRangeResult, ClaimPaymentInfoResult } from '../../supabase/types';
+
+// Extend the Supabase types to include our custom RPC functions
+declare module '@supabase/supabase-js' {
+  interface SupabaseClient<
+    Database = any,
+    SchemaName extends string & keyof Database = 'public' extends keyof Database
+      ? 'public'
+      : string & keyof Database,
+  > {
+    rpc<
+      Name extends string,
+      Args extends Record<string, unknown> = Record<string, unknown>,
+    >(
+      fn: Name,
+      args?: Args,
+      options?: {
+        head?: boolean;
+        count?: 'exact' | 'planned' | 'estimated';
+      },
+    ): Promise<
+      PostgrestResponse<
+        Name extends 'get_claims_with_payment_in_date_range'
+          ? ClaimWithPaymentInDateRangeResult[]
+          : Name extends 'get_claims_payment_info'
+          ? ClaimPaymentInfoResult[]
+          : any
+      >
+    >;
+  }
+}
 
 export interface ClaimsQueryOptions {
   dateRange: DateRange;
@@ -114,7 +146,8 @@ export async function fetchClaimsData({
             console.error("[SHARED_CLAIMS] Error getting claims with payments:", paymentRangeError);
           } else if (claimsWithPayments && Array.isArray(claimsWithPayments) && claimsWithPayments.length > 0) {
             // Extract claim IDs with payments in range
-            const claimIds = claimsWithPayments.map(item => item.ClaimID);
+            const typedClaimsWithPayments = claimsWithPayments as unknown as ClaimWithPaymentInDateRangeResult[];
+            const claimIds = typedClaimsWithPayments.map(item => item.ClaimID);
             console.log(`[SHARED_CLAIMS] Found ${claimIds.length} claims with payments in date range`);
             
             // Clear previous date filter and use claim IDs instead
@@ -366,9 +399,10 @@ export async function fetchClaimsData({
               const paymentMap = new Map();
               
               // Map the payment data by ClaimID for easy lookup
-              paymentData.forEach(item => {
+              const typedPaymentData = paymentData as unknown as ClaimPaymentInfoResult[];
+              typedPaymentData.forEach(item => {
                 paymentMap.set(item.ClaimID, {
-                  totalPaid: parseFloat(item.totalpaid) || 0,
+                  totalPaid: parseFloat(String(item.totalpaid)) || 0,
                   lastPaymentDate: item.lastpaymentdate ? new Date(item.lastpaymentdate) : null
                 });
               });
@@ -571,7 +605,8 @@ export async function fetchClaimsData({
           console.log('[SHARED_CLAIMS] Payment data from RPC:', paymentData);
           
           // Map the payment data by ClaimID for easy lookup
-          paymentData.forEach(item => {
+          const typedPaymentData = paymentData as unknown as ClaimPaymentInfoResult[];
+          typedPaymentData.forEach(item => {
             // Parse the totalpaid value from the SQL function, ensuring it's a number
             let totalPaidValue = 0;
             
@@ -581,9 +616,12 @@ export async function fetchClaimsData({
                 totalPaidValue = parseFloat(item.totalpaid) || 0;
               } else if (typeof item.totalpaid === 'number') {
                 totalPaidValue = item.totalpaid;
-              } else if (typeof item.totalpaid === 'object' && item.totalpaid.hasOwnProperty('value')) {
+              } else if (typeof item.totalpaid === 'object' && 
+                         item.totalpaid !== null && 
+                         'value' in item.totalpaid) {
                 // Handle Postgres numeric type which may come as object with value property
-                totalPaidValue = parseFloat(item.totalpaid.value) || 0;
+                const numericValue = (item.totalpaid as any).value;
+                totalPaidValue = parseFloat(numericValue) || 0;
               }
             }
             
