@@ -27,8 +27,21 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
 
   // Only reset pagination when core filters change
   useEffect(() => {
+    console.log('🔍 ClaimsTable - Filter values changed:', {
+      dealerFilter,
+      searchQuery,
+      dateRange: dateRange ? 
+        { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() } : 
+        'undefined'
+    });
+    
+    // Reset to page 1 when filters change
     setPage(1);
     setLocalSearchQuery(searchQuery);
+    
+    // We don't need to explicitly invalidate queries here since
+    // the useClaimsFetching hook uses the current filter values
+    // in its query key
   }, [dealerFilter, searchQuery, dateRange]);
 
   // Fetch claims data with all filters
@@ -111,13 +124,35 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
 
   // Handlers
   const handleSearch = (term: string) => {
+    console.log("🔍 Claims search term updated:", term);
     setLocalSearchQuery(term);
     setPage(1); // Reset page only when searching
+    
+    // If we're clearing a previous search, refresh the data to ensure
+    // we get the full dataset back
+    if (!term.trim() && localSearchQuery.trim()) {
+      console.log("🔄 Clearing search term, refreshing claims data");
+      // The hook will re-fetch data without the search filter
+    }
   };
 
-  // Calculate the actual total displayed count
+  // Fixed: When using search term with DB query, we need to keep pagination working
+  // Local filtering is only applied to the current page of results
   const displayedCount = filteredClaims.length;
-  const effectiveTotalCount = localSearchQuery ? displayedCount : totalCount;
+  
+  // Always use the total count from the database for pagination
+  // This ensures proper pagination when dealer filter returns many records
+  const effectiveTotalCount = totalCount;
+  
+  // Log pagination and filtering details for debugging
+  console.log('Claims Pagination details:', {
+    currentPage: page,
+    pageSize: pageSize,
+    totalCount: totalCount,
+    displayedAfterFiltering: displayedCount,
+    effectiveTotalForPagination: effectiveTotalCount,
+    dealerFilter
+  });
 
   return (
     <div className={className}>
