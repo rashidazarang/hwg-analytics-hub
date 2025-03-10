@@ -13,7 +13,9 @@ const performanceDataAtom = atom<{
   averages: {
     pending: number;
     active: number;
+    claimable: number;
     cancelled: number;
+    void: number;
   };
 }>({
   data: [],
@@ -26,7 +28,9 @@ const performanceDataAtom = atom<{
   averages: {
     pending: 0,
     active: 0,
+    claimable: 0,
     cancelled: 0,
+    void: 0,
   }
 });
 
@@ -41,7 +45,9 @@ export function useSharedPerformanceData() {
     averages: {
       pending: number;
       active: number;
+      claimable: number;
       cancelled: number;
+      void: number;
     }
   ) => {
     setPerformanceData({

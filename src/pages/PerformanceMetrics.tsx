@@ -2,12 +2,79 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import TimeframeFilter, { TimeframeOption } from '@/components/filters/TimeframeFilter';
 import InteractiveBarChart from '@/components/charts/InteractiveBarChart';
 import { usePerformanceMetricsData } from '@/hooks/usePerformanceMetricsData';
-import KPISection from '@/components/metrics/KPISection';
+import KPICard from '@/components/metrics/KPICard';
 import { DateRange } from '@/lib/dateUtils';
 import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
 import { supabase } from '@/integrations/supabase/client';
 import Dashboard from '@/components/layout/Dashboard';
 import DealershipSearch from '@/components/search/DealershipSearch';
+import { FileSignature, AlertTriangle, Clock, BarChart, CircleDollarSign, CheckSquare, XCircle } from 'lucide-react';
+
+// Custom KPI Section specifically for Performance page that shows all status types separately
+const PerformanceKPISection: React.FC = () => {
+  const { performanceData } = useSharedPerformanceData();
+  
+  // Check if we have any data yet
+  const hasData = performanceData.data && performanceData.data.length > 0;
+  
+  // Get the summed totals rather than averages
+  const totalPending = hasData ? performanceData.data.reduce((sum, point) => sum + point.pending, 0) : 0;
+  const totalActive = hasData ? performanceData.data.reduce((sum, point) => sum + point.active, 0) : 0;
+  const totalClaimable = hasData ? performanceData.data.reduce((sum, point) => sum + point.claimable, 0) : 0;
+  const totalCancelled = hasData ? performanceData.data.reduce((sum, point) => sum + point.cancelled, 0) : 0;
+  const totalVoid = hasData ? performanceData.data.reduce((sum, point) => sum + point.void, 0) : 0;
+  const totalContracts = totalPending + totalActive + totalClaimable + totalCancelled + totalVoid;
+  
+  // Show loading state if we don't have data yet
+  const isLoading = !hasData;
+  
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 w-full mb-6 animate-fade-in">
+      <KPICard
+        title="Total Contracts"
+        value={isLoading ? "..." : totalContracts.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description={`Total contracts in selected period`}
+        icon={CircleDollarSign}
+        color="primary"
+      />
+      <KPICard
+        title="Pending"
+        value={isLoading ? "..." : totalPending.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description={`Pending contracts`}
+        icon={Clock}
+        color="warning"
+      />
+      <KPICard
+        title="Active"
+        value={isLoading ? "..." : totalActive.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description={`Active contracts`}
+        icon={FileSignature}
+        color="success"
+      />
+      <KPICard
+        title="Claimable"
+        value={isLoading ? "..." : totalClaimable.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description={`Claimable contracts`}
+        icon={CheckSquare}
+        color="success"
+      />
+      <KPICard
+        title="Cancelled"
+        value={isLoading ? "..." : totalCancelled.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description={`Cancelled contracts`}
+        icon={AlertTriangle}
+        color="destructive"
+      />
+      <KPICard
+        title="Void"
+        value={isLoading ? "..." : totalVoid.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description={`Void contracts`}
+        icon={XCircle}
+        color="destructive"
+      />
+    </div>
+  );
+};
 
 const PerformanceMetrics: React.FC = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>('month');
@@ -59,7 +126,9 @@ const PerformanceMetrics: React.FC = () => {
       // Sum all status counts across all data points
       const totalPending = data.reduce((sum, point) => sum + point.pending, 0);
       const totalActive = data.reduce((sum, point) => sum + point.active, 0);
+      const totalClaimable = data.reduce((sum, point) => sum + point.claimable, 0);
       const totalCancelled = data.reduce((sum, point) => sum + point.cancelled, 0);
+      const totalVoid = data.reduce((sum, point) => sum + point.void, 0);
       
       // Find non-zero data points for averaging
       const nonZeroDataPoints = data.filter(point => point.value > 0).length;
@@ -68,8 +137,10 @@ const PerformanceMetrics: React.FC = () => {
       // Only log this once instead of thousands of times
       console.log("[PERFORMANCE] Status totals for KPI calculations:", { 
         totalPending, 
-        totalActive, 
+        totalActive,
+        totalClaimable,
         totalCancelled,
+        totalVoid,
         nonZeroDataPoints,
         divisionFactor
       });
@@ -77,12 +148,16 @@ const PerformanceMetrics: React.FC = () => {
       // Calculate averages
       const pendingAvg = Math.round(totalPending / divisionFactor);
       const activeAvg = Math.round(totalActive / divisionFactor);
+      const claimableAvg = Math.round(totalClaimable / divisionFactor);
       const cancelledAvg = Math.round(totalCancelled / divisionFactor);
+      const voidAvg = Math.round(totalVoid / divisionFactor);
       
       return {
         pending: pendingAvg,
         active: activeAvg,
-        cancelled: cancelledAvg
+        claimable: claimableAvg,
+        cancelled: cancelledAvg,
+        void: voidAvg
       };
     };
     
@@ -127,7 +202,7 @@ const PerformanceMetrics: React.FC = () => {
   return (
     <Dashboard
       onDateRangeChange={handleDateRangeChange}
-      kpiSection={<KPISection />}
+      kpiSection={<PerformanceKPISection />}
       pageTitle="Performance Metrics"
       subnavbar={timeframeSubnavbar}
       hideDefaultDateFilter={true} // This prop will indicate to hide the DateRangeFilter

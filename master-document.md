@@ -110,7 +110,15 @@ src/
   - Date filtering based on `EffectiveDate`
 - **Claims**
   - Linked to **Agreements** via `AgreementID`
+  - Linked to **Subclaims** via `ClaimID`
   - Date filtering based on `LastModified`
+- **Subclaims**
+  - Linked to **Claims** via `ClaimID`
+  - Linked to **Subclaim Parts** via `SubClaimID`
+  - Date filtering based on `LastModified`
+- **Subclaim Parts**
+  - Linked to **Subclaims** via `SubClaimID`
+  - Contains part details and pricing information
 - **Dealers**
   - Stores info like `DealerUUID`, `PayeeID`, `Payee`, contact details
 - **Option Surcharges**
@@ -184,6 +192,65 @@ export interface Claim {
 }
 ```
 
+#### Subclaim
+
+```typescript
+export interface Subclaim {
+  _id: string;
+  Md5: string;
+  ClaimID: string;
+  SubClaimID: string;
+  Reference?: string | null;
+  Status?: string | null;
+  Created?: Date | string | null;
+  Odometer?: number | null;
+  Closed?: Date | string | null;
+  PayeeID?: string | null;
+  Payee?: string | null;
+  Deductible?: number | null;
+  RepairOrder?: string | null;
+  Complaint?: string | null;
+  Cause?: string | null;
+  Correction?: string | null;
+  LastModified?: Date | string | null;
+  job_run?: string | null;
+  ServiceWriter?: string | null;
+  ServiceWriterPhone?: string | null;
+  ApprovalCode?: string | null;
+  SecurityCode?: string | null;
+  LicensePlate?: string | null;
+  ComplaintID?: string | null;
+  CauseID?: string | null;
+  CorrectionID?: string | null;
+  claims?: {
+    ClaimID: string;
+    AgreementID?: string | null;
+  } | null;
+}
+```
+
+#### Subclaim Part
+
+```typescript
+export interface SubclaimPart {
+  _id: string;
+  Md5: string;
+  SubClaimID: string;
+  PartNumber?: string | null;
+  Description?: string | null;
+  Quantity?: number | null;
+  job_run?: string | null;
+  QuotedPrice?: number | null;
+  ApprovedPrice?: number | null;
+  PaidPrice?: number | null;
+  PartType?: string | null;
+  subclaims?: {
+    SubClaimID: string;
+    ClaimID?: string | null;
+  } | null;
+}
+```
+
 #### Dealer
 
 ```typescript
@@ -223,6 +290,8 @@ export interface OptionSurchargePrice {
 
 - `agreements`: Stores agreement data
 - `claims`: Stores claim data
+- `subclaims`: Stores subclaim data
+- `subclaim_parts`: Stores subclaim parts data
 - `dealers`: Stores dealer information
 - `option_surcharge_price`: Stores option surcharge pricing
 - `profiles`: Stores user profile data including admin status
@@ -237,16 +306,74 @@ We use an `etl.js` script that extracts from MongoDB collections, transforms the
 
 1. **dealers** → upsert into `dealers` table
 2. **claims** → upsert into `claims` table (incremental via `LastModified`)
-3. **agreements** → upsert into `agreements` table (incremental via `Md5`)
-4. **option-surcharge-price** → upsert into `option_surcharge_price` table, matching `_id`
+3. **subclaims** → upsert into `subclaims` table (incremental via `Md5`)
+4. **subclaim-parts** → upsert into `subclaim_parts` table (incremental via `Md5`)
+5. **agreements** → upsert into `agreements` table (incremental via `Md5`)
+6. **option-surcharge-price** → upsert into `option_surcharge_price` table, matching `_id`
 
 ### Key ETL Features
 
-- **`_id`** from Mongo as the primary key for certain tables (e.g., `option_surcharge_price`)
+- **`_id`** from Mongo as the primary key for certain tables (e.g., `option_surcharge_price`, `subclaims`, `subclaim_parts`)
 - **`Md5`** to detect changes (if it differs from the last known value, we update the row)
 - **Incremental** approach avoids re-importing data that hasn't changed
+- **Case sensitivity handling** for column names in PostgreSQL schema
+- **Pagination** for handling large datasets when querying Supabase
 - Mark **missing agreements** as inactive (`IsActive=false`) if they no longer appear in Mongo
 - Each record has an `Md5` fingerprint - if it changes, that record is updated in Supabase
+
+### ETL Data Flow
+
+```
+MongoDB                         Supabase
+---------                      ----------
+dealers          --------→     dealers
+claims           --------→     claims
+subclaims        --------→     subclaims
+subclaim-parts   --------→     subclaim_parts
+agreements       --------→     agreements
+option-surcharge-price ----→   option_surcharge_price
+```
+
+### Important ETL Implementation Details
+
+1. **Case Sensitivity**: PostgreSQL column names are case-sensitive when created with double quotes. Our ETL script handles this by:
+   - Using quoted column names in `onConflict` options: `{ onConflict: '"_id"' }`
+   - Ensuring column names match exactly as defined in Supabase schema
+   - Using proper case in all column references
+
+2. **Pagination**: To overcome Supabase query limitations, we implement pagination when fetching existing records:
+   ```javascript
+   let processedData = [];
+   let from = 0;
+   const pageSize = 1000; // Supabase's typical limit
+   
+   while (true) {
+     const { data, error } = await supabase
+       .from("table_name")
+       .select("columns")
+       .range(from, from + pageSize - 1);
+     
+     if (error || !data || data.length === 0) break;
+     
+     processedData.push(...data);
+     if (data.length < pageSize) break; // No more records
+     from += pageSize;
+   }
+   ```
+
+3. **Decimal128 Handling**: MongoDB's Decimal128 values are converted to standard JavaScript numbers:
+   ```javascript
+   value ? parseFloat(value.toString()) : null
+   ```
+
+4. **Timestamp Normalization**: Placeholder timestamps like "0001-01-01T01:01:01" are converted to null:
+   ```javascript
+   function normalizeTimestamp(dateVal) {
+     if (!dateVal) return null;
+     // Check if it's the placeholder timestamp and return null if it is
+     // Otherwise return the original date
+   }
+   ```
 
 ---
 
@@ -1140,7 +1267,65 @@ Below is the detailed schema information for our core tables.
 - `LastModified` must be used for date filtering.
 - Claims status is determined using `getClaimStatus()` function, not stored directly.
 
-### 3. dealers
+### 3. subclaims
+
+| Column             | Data Type                      | Description                                  |
+|--------------------|--------------------------------|----------------------------------------------|
+| _id                | text                           | Primary key (from MongoDB _id)               |
+| Md5                | text                           | Fingerprint for dedup and change detection   |
+| ClaimID            | character varying              | Links to claims.ClaimID                      |
+| SubClaimID         | character varying              | Unique subclaim identifier                   |
+| Reference          | text                           | Reference information                        |
+| Status             | text                           | Status (e.g., PAID, DENIED, APPROVED, OPEN)  |
+| Created            | timestamp without time zone    | Creation datetime                            |
+| Odometer           | numeric                        | Odometer reading                             |
+| Closed             | timestamp without time zone    | Date/time subclaim was closed                |
+| PayeeID            | character varying              | ID for the payee                             |
+| Payee              | text                           | Name of the payee                            |
+| Deductible         | numeric                        | Deductible amount                            |
+| RepairOrder        | text                           | Repair order number or reference             |
+| Complaint          | text                           | Complaint description                        |
+| Cause              | text                           | Cause of the issue                           |
+| Correction         | text                           | Correction/work done                         |
+| LastModified       | timestamp without time zone    | Last update datetime                         |
+| job_run            | uuid                           | Identifies the ETL job run or batch          |
+| ServiceWriter      | text                           | Service writer's name                        |
+| ServiceWriterPhone | text                           | Service writer's phone number                |
+| ApprovalCode       | text                           | Additional approval code field               |
+| SecurityCode       | text                           | Security code                                |
+| LicensePlate       | text                           | License plate                                |
+| ComplaintID        | character varying              | Additional complaint reference               |
+| CauseID            | character varying              | Additional cause reference                   |
+| CorrectionID       | character varying              | Additional correction reference              |
+
+*Notes*:  
+- `LastModified` should be used for date filtering.
+- `_id` is from MongoDB and serves as primary key.
+- `SubClaimID` is the business identifier for the subclaim.
+- Column names are case-sensitive and must match exactly in queries and ETL.
+
+### 4. subclaim_parts
+
+| Column         | Data Type                      | Description                                  |
+|----------------|--------------------------------|----------------------------------------------|
+| _id            | text                           | Primary key (from MongoDB _id)               |
+| Md5            | text                           | Fingerprint for dedup and change detection   |
+| SubClaimID     | character varying              | Links to subclaims.SubClaimID                |
+| PartNumber     | text                           | Part number or code                          |
+| Description    | text                           | Description of part or labor                 |
+| Quantity       | numeric                        | Numeric quantity                             |
+| job_run        | uuid                           | ETL job run or batch ID                      |
+| QuotedPrice    | numeric                        | Quoted price from repair estimate            |
+| ApprovedPrice  | numeric                        | Approved price after review                  |
+| PaidPrice      | numeric                        | Actually paid price                          |
+| PartType       | text                           | Type of item (PART, LABOR, TAX, etc.)        |
+
+*Notes*:  
+- `_id` is from MongoDB and serves as primary key.
+- `SubClaimID` is used to link to the subclaims table.
+- All price fields are numeric and should be formatted appropriately.
+
+### 5. dealers
 
 | Column           | Data Type                      | Description                                  |
 |------------------|--------------------------------|----------------------------------------------|
@@ -1158,7 +1343,7 @@ Below is the detailed schema information for our core tables.
 | Fax              | text                           | Fax number                                   |
 | EMail            | text                           | Email address                                |
 
-### 4. option_surcharge_price
+### 6. option_surcharge_price
 
 | Column           | Data Type                      | Description                                  |
 |------------------|--------------------------------|----------------------------------------------|
@@ -1171,7 +1356,7 @@ Below is the detailed schema information for our core tables.
 | inserted_at      | timestamp with time zone       | Insert timestamp                             |
 | updated_at       | timestamp with time zone       | Update timestamp                             |
 
-### 5. profiles
+### 7. profiles
 
 | Column           | Data Type                      | Description                                  |
 |------------------|--------------------------------|----------------------------------------------|
@@ -1219,6 +1404,16 @@ The `etl.js` script is a Node.js application that:
   - Primary key: `id`
   - Incremental updates via `LastModified`
   
+- `MongoDB "subclaims"` → `Supabase.subclaims`
+  - Primary key: `_id` (from MongoDB)
+  - Change detection via `Md5` checksum
+  - Case sensitivity handling for column names 
+
+- `MongoDB "subclaim-parts"` → `Supabase.subclaim_parts`
+  - Primary key: `_id` (from MongoDB)
+  - Change detection via `Md5` checksum
+  - Links to subclaims via `SubClaimID`
+  
 - `MongoDB "agreements"` → `Supabase.agreements`
   - Primary key: `id`
   - Change detection via `Md5` checksum
@@ -1227,6 +1422,40 @@ The `etl.js` script is a Node.js application that:
 - `MongoDB "option-surcharge-price"` → `Supabase.option_surcharge_price`
   - Primary key: `_id`
   - Change detection via `md5` checksum
+
+### ETL Processing Order
+
+The processing order is important to maintain referential integrity:
+
+1. **Dealers**: Processed first to ensure `DealerUUID` references exist
+2. **Claims**: Processed next to ensure `ClaimID` references exist 
+3. **Subclaims**: Processed after claims to ensure foreign key relationships
+4. **Subclaim Parts**: Processed after subclaims to ensure proper linking
+5. **Agreements**: Processed with links to dealers
+6. **Option Surcharge Price**: Processed for pricing information
+
+### ETL Case Sensitivity Handling
+
+The ETL script handles PostgreSQL's case sensitivity requirements:
+
+- Column names with mixed case in Supabase must be referenced with the exact same case
+- `onConflict` parameters use double quotes for column names: `{ onConflict: '"_id"' }`
+- All data mappings ensure proper case for column names
+
+### ETL Script Execution
+
+Run the ETL process with:
+
+```bash
+node etl.js
+```
+
+Environment variables for the ETL script:
+```
+MONGODB_URI=mongodb://username:password@hostname:port/database
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE=your-service-role-key
+```
 
 ## Setup & Installation
 
@@ -1701,6 +1930,17 @@ const [selectedItem, setSelectedItem] = useState(null);
 5. Modify the queries to use fewer nested subqueries
 6. Consider breaking up large date ranges into smaller chunks
 
+### Case Sensitivity Issues
+
+**Symptom**: Errors like "Could not find the 'Column' column of 'table' in the schema cache"
+
+**Potential solutions**:
+1. Verify column names in the ETL script match exactly with Supabase schema (including case)
+2. Use double quotes in `onConflict` parameters: `{ onConflict: '"ColumnName"' }`
+3. Update the ETL mapping to use the correct case for column names
+4. Check the console logs for specific error messages indicating which column has issues
+5. For subclaims/subclaim_parts, ensure case-sensitive fields like "Cause", "Complaint", etc. match exactly
+
 ### Performance Issues
 
 **Symptom**: Slow loading or rendering
@@ -1735,6 +1975,18 @@ const [selectedItem, setSelectedItem] = useState(null);
 5. Check if any transformations are applied differently across components
 6. Review any component-specific filters that might be applied
 
+### Subclaim Data Issues
+
+**Symptom**: Subclaims or subclaim parts data not appearing or showing errors
+
+**Potential solutions**:
+1. Check ETL logs for any errors during subclaim processing
+2. Verify the correct processing order: claims → subclaims → subclaim_parts
+3. Ensure column names match exactly with the Supabase schema
+4. Check for any foreign key constraint violations
+5. Verify pagination is implemented for large dataset queries
+6. Check for proper MongoDB collection references in the ETL script
+
 ### Common Pitfalls and Issues to Avoid
 
 1. **Inconsistent Filtering**:
@@ -1754,7 +2006,12 @@ const [selectedItem, setSelectedItem] = useState(null);
    - Failing to handle changed `Md5` in `agreements` or `option_surcharge_price`
    - Not accounting for inactive agreements in metrics
 
-5. **Browser Console Errors**:
+5. **Case Sensitivity Issues**:
+   - Using the wrong case for column names in Supabase queries
+   - Not using double quotes for case-sensitive column names
+   - Column name mismatch between ETL script and Supabase schema
+
+6. **Browser Console Errors**:
    - React key warnings in lists and tables
    - Type errors with null/undefined values
    - Inconsistent prop validation

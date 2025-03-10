@@ -17,9 +17,11 @@ interface InteractiveBarChartProps {
 }
 
 const CHART_COLORS = {
-  pending: '#F8B427',
-  active: '#4CAF50',
-  cancelled: '#FF6961'
+  pending: '#F8B427',   // Yellow/Orange
+  active: '#4CAF50',    // Green
+  claimable: '#8BC34A', // Light Green
+  cancelled: '#FF6961', // Red
+  void: '#FF8A65'       // Orange/Red
 };
 
 const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
@@ -49,8 +51,16 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
             Active: {dataPoint.active.toLocaleString()}
           </p>
           <p className="flex items-center">
+            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.claimable}}></span>
+            Claimable: {dataPoint.claimable.toLocaleString()}
+          </p>
+          <p className="flex items-center">
             <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
             Cancelled: {dataPoint.cancelled.toLocaleString()}
+          </p>
+          <p className="flex items-center">
+            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.void}}></span>
+            Void: {dataPoint.void.toLocaleString()}
           </p>
         </div>
       </>
@@ -173,8 +183,16 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         <span className="text-sm text-gray-600">Active</span>
       </div>
       <div className="flex items-center">
+        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.claimable}}></span>
+        <span className="text-sm text-gray-600">Claimable</span>
+      </div>
+      <div className="flex items-center">
         <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
         <span className="text-sm text-gray-600">Cancelled</span>
+      </div>
+      <div className="flex items-center">
+        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.void}}></span>
+        <span className="text-sm text-gray-600">Void</span>
       </div>
     </div>
   );
@@ -245,14 +263,36 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationEasing="ease-in-out"
               />
               <Bar 
+                dataKey="claimable" 
+                name="Claimable" 
+                stackId="a" 
+                fill={CHART_COLORS.claimable}
+                radius={[0, 0, 0, 0]}
+                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                animationDuration={600}
+                animationBegin={150}
+                animationEasing="ease-in-out"
+              />
+              <Bar 
                 dataKey="cancelled" 
                 name="Cancelled" 
                 stackId="a" 
                 fill={CHART_COLORS.cancelled}
-                radius={[6, 6, 0, 0]}
+                radius={[0, 0, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
                 animationBegin={200}
+                animationEasing="ease-in-out"
+              />
+              <Bar 
+                dataKey="void" 
+                name="Void" 
+                stackId="a" 
+                fill={CHART_COLORS.void}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                animationDuration={600}
+                animationBegin={250}
                 animationEasing="ease-in-out"
               />
             </BarChart>
