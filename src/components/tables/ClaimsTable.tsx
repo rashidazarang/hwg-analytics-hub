@@ -81,7 +81,7 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     },
     {
       key: 'AgreementID',
-      title: 'Agreement ID',
+      title: 'Agreement Number',
       sortable: false,
       searchable: true,
       render: (row) => row.AgreementID || '',
@@ -106,18 +106,11 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         : <span className="text-muted-foreground">N/A</span>,
     },
     {
-      key: 'Closed',
-      title: 'Closed Date',
-      sortable: false,
-      render: (row) => row.Closed ? format(new Date(row.Closed), 'MMM d, yyyy')
-        : <span className="text-muted-foreground">N/A</span>,
-    },
-    {
       key: 'Payed',
       title: 'Payed',
       sortable: false,
       render: (row) => {
-        // Use the totalPaid field from our data fetching
+        // Use the totalPaid field from the SQL query using get_claims_payment_info
         // Handle undefined, null, or non-numeric values
         const amount = typeof row.totalPaid === 'number' ? row.totalPaid : 0;
         

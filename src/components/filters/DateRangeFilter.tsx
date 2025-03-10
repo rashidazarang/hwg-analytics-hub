@@ -31,20 +31,20 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange, 
   // Use global date range atom if not performance page
   const [globalDateRange, setGlobalDateRange] = useAtom(globalDateRangeAtom);
   
-  // Set default preset to 'ytd'
-  const [preset, setPreset] = useState<DateRangePreset>('ytd');
+  // Set default preset to 'mtd' (30 days) instead of 'ytd' (full year)
+  const [preset, setPreset] = useState<DateRangePreset>('mtd');
   
   // Use local state for the calendar selection before applying
   const [tempDateRange, setTempDateRange] = useState<DateRange>(
     isPerformancePage 
-      ? (dateRange || getPresetDateRange('ytd')) 
+      ? (dateRange || getPresetDateRange('mtd')) 
       : globalDateRange
   );
   
   // This is what's displayed in the UI
   const [localDateRange, setLocalDateRange] = useState<DateRange>(
     isPerformancePage 
-      ? (dateRange || getPresetDateRange('ytd')) 
+      ? (dateRange || getPresetDateRange('mtd')) 
       : globalDateRange
   );
   
@@ -79,7 +79,32 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange, 
   const handleCalendarSelect = useCallback((range: DateRange | undefined) => {
     if (range?.from && range?.to) {
       console.log("Calendar selection changed:", range);
-      setTempDateRange(range);
+      
+      // Check for invalid dates or ranges
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of current day
+      
+      // Validate the date range
+      let validRange = { ...range };
+      
+      // Don't allow dates in the future
+      if (validRange.from > today) {
+        validRange.from = today;
+        console.log("Adjusted start date to today (was in the future)");
+      }
+      
+      if (validRange.to > today) {
+        validRange.to = today;
+        console.log("Adjusted end date to today (was in the future)");
+      }
+      
+      // Make sure end date is not before start date
+      if (validRange.to < validRange.from) {
+        validRange.to = validRange.from;
+        console.log("Adjusted end date to match start date (was before start date)");
+      }
+      
+      setTempDateRange(validRange);
       setPreset('custom');
     }
   }, []);
@@ -87,16 +112,48 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange, 
   const handleApply = useCallback((rangeToApply = tempDateRange) => {
     console.log("Applying date range:", rangeToApply);
     
+    // Perform additional validation to protect against invalid date selections
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    let validRange = { ...rangeToApply };
+    let hasChanges = false;
+    
+    // Validate that dates aren't in the future
+    if (validRange.from > today) {
+      validRange.from = today;
+      hasChanges = true;
+      console.log("Corrected future start date in handleApply");
+    }
+    
+    if (validRange.to > today) {
+      validRange.to = today;
+      hasChanges = true;
+      console.log("Corrected future end date in handleApply");
+    }
+    
+    // Ensure end date is not before start date
+    if (validRange.to < validRange.from) {
+      validRange.to = validRange.from;
+      hasChanges = true;
+      console.log("Corrected end date that was before start date in handleApply");
+    }
+    
+    // If we made corrections, update the temp state
+    if (hasChanges) {
+      setTempDateRange(validRange);
+    }
+    
     // Update the displayed date range
-    setLocalDateRange(rangeToApply);
+    setLocalDateRange(validRange);
     
     // Update global state if not performance page
     if (!isPerformancePage) {
-      setGlobalDateRange(rangeToApply);
+      setGlobalDateRange(validRange);
     }
     
     // Notify parent component
-    onChange(rangeToApply);
+    onChange(validRange);
     setIsOpen(false);
   }, [tempDateRange, onChange, setGlobalDateRange, isPerformancePage]);
   
