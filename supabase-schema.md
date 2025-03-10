@@ -218,3 +218,40 @@
 | profiles                     | updated_at                     | timestamp with time zone    |
 | profiles                     | first_name                     | text                        |
 | profiles                     | last_name                      | text                        |
+| subclaim_parts               | _id                            | text                        |
+| subclaim_parts               | SubClaimID                     | character varying           |
+| subclaim_parts               | PartNumber                     | text                        |
+| subclaim_parts               | Description                    | text                        |
+| subclaim_parts               | Quantity                       | numeric                     |
+| subclaim_parts               | job_run                        | uuid                        |
+| subclaim_parts               | QuotedPrice                    | numeric                     |
+| subclaim_parts               | ApprovedPrice                  | numeric                     |
+| subclaim_parts               | PaidPrice                      | numeric                     |
+| subclaim_parts               | PartType                       | text                        |
+| subclaim_parts               | Md5                            | text                        |
+| subclaims                    | _id                            | text                        |
+| subclaims                    | Md5                            | text                        |
+| subclaims                    | ClaimID                        | character varying           |
+| subclaims                    | SubClaimID                     | character varying           |
+| subclaims                    | Reference                      | text                        |
+| subclaims                    | Status                         | text                        |
+| subclaims                    | Created                        | timestamp without time zone |
+| subclaims                    | Odometer                       | numeric                     |
+| subclaims                    | Closed                         | timestamp without time zone |
+| subclaims                    | PayeeID                        | character varying           |
+| subclaims                    | Payee                          | text                        |
+| subclaims                    | Deductible                     | numeric                     |
+| subclaims                    | RepairOrder                    | text                        |
+| subclaims                    | Complaint                      | text                        |
+| subclaims                    | Cause                          | text                        |
+| subclaims                    | Correction                     | text                        |
+| subclaims                    | LastModified                   | timestamp without time zone |
+| subclaims                    | job_run                        | uuid                        |
+| subclaims                    | ServiceWriter                  | text                        |
+| subclaims                    | ServiceWriterPhone             | text                        |
+| subclaims                    | ApprovalCode                   | text                        |
+| subclaims                    | SecurityCode                   | text                        |
+| subclaims                    | LicensePlate                   | text                        |
+| subclaims                    | ComplaintID                    | character varying           |
+| subclaims                    | CauseID                        | character varying           |
+| subclaims                    | CorrectionID                   | character varying           |

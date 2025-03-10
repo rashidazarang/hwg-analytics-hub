@@ -8,9 +8,14 @@ import DataTable, { Column } from '@/components/tables/DataTable';
 interface TopDealersTableProps {
   data: TopDealer[];
   isLoading: boolean;
+  hideSearch?: boolean; // New prop to control search visibility
 }
 
-const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) => {
+const TopDealersTable: React.FC<TopDealersTableProps> = ({ 
+  data, 
+  isLoading,
+  hideSearch = false // Default to showing search
+}) => {
   const columns: Column<TopDealer>[] = [
     {
       key: 'rank',
@@ -89,7 +94,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({ data, isLoading }) =>
         rowKey={(row) => row.dealer_name}
         loading={isLoading}
         searchConfig={{
-          enabled: true,
+          enabled: !hideSearch, // Only enable search if hideSearch is false
           placeholder: "Search dealers...",
           searchKeys: ['dealer_name'],
         }}

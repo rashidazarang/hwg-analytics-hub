@@ -77,7 +77,7 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
 
 /**
  * Fetches monthly data for longer timeframe views
- * Uses SQL functions with multiple fallbacks
+ * Uses fixed SQL functions with proper DATE_TRUNC grouping
  */
 async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: string = '') {
   const startIso = startDate.toISOString();
@@ -85,8 +85,43 @@ async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: st
   
   console.log(`[PERFORMANCE] Fetching monthly agreements from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
   
+  // Try first using our optimized count_agreements_by_date function with month grouping
   try {
-    // First try the detailed status breakdown function
+    const { data: monthlyGroupedData, error: groupedError } = await supabase.rpc('count_agreements_by_date', {
+      from_date: startIso,
+      to_date: endIso,
+      dealer_uuid: dealerFilter || null,
+      group_by: 'month'
+    });
+    
+    if (!groupedError && monthlyGroupedData && monthlyGroupedData.length > 0) {
+      console.log('[PERFORMANCE] Successfully used count_agreements_by_date with month grouping:', monthlyGroupedData.length, 'months');
+      console.log('[PERFORMANCE] First few months:', monthlyGroupedData.slice(0, 3));
+      
+      // Map the data to our expected format
+      return monthlyGroupedData.map(item => {
+        const monthDate = new Date(item.date_group + '-01'); // Convert YYYY-MM to YYYY-MM-DD
+        return {
+          label: format(monthDate, 'MMM').toLowerCase(),
+          value: parseInt(item.total_count),
+          pending: parseInt(item.pending_count),
+          active: parseInt(item.active_count),
+          claimable: parseInt(item.claimable_count),
+          cancelled: parseInt(item.cancelled_count),
+          void: parseInt(item.void_count),
+          rawDate: monthDate
+        };
+      });
+    }
+    
+    // Fallback to the original function if the new approach failed
+    console.log('[PERFORMANCE] count_agreements_by_date with month grouping failed, trying fetch_monthly_agreement_counts_with_status');
+  } catch (groupedErr) {
+    console.error('[PERFORMANCE] Error using count_agreements_by_date with month grouping:', groupedErr);
+  }
+  
+  try {
+    // Try the detailed status breakdown function
     const { data: monthlyData, error: functionError } = await supabase.rpc('fetch_monthly_agreement_counts_with_status', {
       start_date: startIso,
       end_date: endIso,
@@ -170,6 +205,7 @@ async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: st
     
     if (monthlyData && monthlyData.length > 0) {
       console.log('[PERFORMANCE] Successfully used fetch_monthly_agreement_counts_with_status:', monthlyData.length, 'months');
+      console.log('[PERFORMANCE] First few months:', monthlyData.slice(0, 3));
       
       // Convert the detailed monthly data to our expected format
       return monthlyData.map(item => {
@@ -327,7 +363,7 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
 
 /**
  * Fetches agreement data for daily view, showing actual counts per day
- * Uses the SQL function to aggregate data efficiently
+ * Uses the fixed SQL function to aggregate data efficiently with proper date grouping
  */
 async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, dealerFilter: string = '') {
   // Format dates
@@ -337,7 +373,7 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
   console.log(`[PERFORMANCE] Fetching daily agreements from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
   
   try {
-    // Use the dedicated SQL function for daily data
+    // Use the fixed SQL function for daily data with proper DATE_TRUNC grouping
     const { data: dailyData, error } = await supabase.rpc('count_agreements_by_date', {
       from_date: startIso,
       to_date: endIso,
@@ -376,6 +412,7 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
     
     if (dailyData && dailyData.length > 0) {
       console.log('[PERFORMANCE] Successfully used count_agreements_by_date:', dailyData.length, 'days');
+      console.log('[PERFORMANCE] First 5 days of data:', dailyData.slice(0, 5));
       
       // Get all days in the interval to ensure complete data
       const days = eachDayOfInterval({ start: startDate, end: endDate });
@@ -383,7 +420,9 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
       // Create a map of the SQL data for fast lookups
       const dateMap = new Map();
       dailyData.forEach(row => {
-        dateMap.set(row.date_group, {
+        // Convert date_group string back to Date for proper comparison
+        const dateKey = row.date_group;
+        dateMap.set(dateKey, {
           total: parseInt(row.total_count),
           pending: parseInt(row.pending_count),
           active: parseInt(row.active_count),
