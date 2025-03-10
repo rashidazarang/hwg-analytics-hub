@@ -48,19 +48,11 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
           </p>
           <p className="flex items-center">
             <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.active}}></span>
-            Active: {dataPoint.active.toLocaleString()}
-          </p>
-          <p className="flex items-center">
-            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.claimable}}></span>
-            Claimable: {dataPoint.claimable.toLocaleString()}
+            Active: {(dataPoint.active + (dataPoint.claimable || 0)).toLocaleString()}
           </p>
           <p className="flex items-center">
             <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
-            Cancelled: {dataPoint.cancelled.toLocaleString()}
-          </p>
-          <p className="flex items-center">
-            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.void}}></span>
-            Void: {dataPoint.void.toLocaleString()}
+            Cancelled: {(dataPoint.cancelled + (dataPoint.void || 0)).toLocaleString()}
           </p>
         </div>
       </>
@@ -158,13 +150,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         dateRange = `${format(firstDate, 'MMM d')} - ${format(lastDate, 'MMM d, yyyy')}`;
         break;
       case '6months':
-        // For 6 months timeframe, explicitly mention if it's H1 or H2
-        const isFirstHalf = firstDate.getMonth() === 0; // January = first half
-        if (isFirstHalf) {
-          dateRange = `H1 (Jan-Jun) ${format(firstDate, 'yyyy')}`;
-        } else {
-          dateRange = `H2 (Jul-Dec) ${format(firstDate, 'yyyy')}`;
-        }
+        // For 6 months timeframe, show the full date range
+        dateRange = `${format(firstDate, 'MMM yyyy')} - ${format(lastDate, 'MMM yyyy')}`;
         break;
       case 'year':
         dateRange = `Full Year ${format(firstDate, 'yyyy')}`;
@@ -189,16 +176,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         <span className="text-sm text-gray-600">Active</span>
       </div>
       <div className="flex items-center">
-        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.claimable}}></span>
-        <span className="text-sm text-gray-600">Claimable</span>
-      </div>
-      <div className="flex items-center">
         <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
         <span className="text-sm text-gray-600">Cancelled</span>
-      </div>
-      <div className="flex items-center">
-        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.void}}></span>
-        <span className="text-sm text-gray-600">Void</span>
       </div>
     </div>
   );
@@ -258,7 +237,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationEasing="ease-in-out"
               />
               <Bar 
-                dataKey="active" 
                 name="Active" 
                 stackId="a" 
                 fill={CHART_COLORS.active}
@@ -267,39 +245,20 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationDuration={600}
                 animationBegin={100}
                 animationEasing="ease-in-out"
+                // Combine active and claimable
+                dataKey={(dataPoint) => (dataPoint.active || 0) + (dataPoint.claimable || 0)}
               />
               <Bar 
-                dataKey="claimable" 
-                name="Claimable" 
-                stackId="a" 
-                fill={CHART_COLORS.claimable}
-                radius={[0, 0, 0, 0]}
-                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
-                animationDuration={600}
-                animationBegin={150}
-                animationEasing="ease-in-out"
-              />
-              <Bar 
-                dataKey="cancelled" 
                 name="Cancelled" 
                 stackId="a" 
                 fill={CHART_COLORS.cancelled}
-                radius={[0, 0, 0, 0]}
+                radius={[6, 6, 0, 0]}
                 maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
                 animationDuration={600}
                 animationBegin={200}
                 animationEasing="ease-in-out"
-              />
-              <Bar 
-                dataKey="void" 
-                name="Void" 
-                stackId="a" 
-                fill={CHART_COLORS.void}
-                radius={[6, 6, 0, 0]}
-                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
-                animationDuration={600}
-                animationBegin={250}
-                animationEasing="ease-in-out"
+                // Combine cancelled and void
+                dataKey={(dataPoint) => (dataPoint.cancelled || 0) + (dataPoint.void || 0)}
               />
             </BarChart>
           </ResponsiveContainer>

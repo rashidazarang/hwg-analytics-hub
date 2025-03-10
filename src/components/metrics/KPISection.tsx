@@ -33,17 +33,15 @@ const KPISection: React.FC = () => {
       break;
   }
   
+  // Calculate cancellation rate
+  const cancellationRate = isLoading || !kpiData
+    ? 0
+    : kpiData.totalAgreements > 0
+      ? (kpiData.cancelledContracts / kpiData.totalAgreements) * 100
+      : 0;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 w-full mb-6 animate-fade-in">
-      <KPICard
-        title="Total Contracts"
-        value={isLoading 
-          ? "..." 
-          : kpiData?.totalAgreements.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "0"}
-        description={`Total contracts in selected date range`}
-        icon={CircleDollarSign}
-        color="primary"
-      />
       <KPICard
         title="Pending Contracts"
         value={isLoading 
@@ -70,6 +68,15 @@ const KPISection: React.FC = () => {
         description={`Cancelled contracts in selected date range`}
         icon={AlertTriangle}
         color="destructive"
+      />
+      <KPICard
+        title="Cancellation Rate"
+        value={isLoading 
+          ? "..." 
+          : `${cancellationRate.toFixed(1)}%`}
+        description={`Percentage of cancelled contracts`}
+        icon={BarChart}
+        color={cancellationRate > 10 ? "destructive" : (cancellationRate > 5 ? "warning" : "default")}
       />
     </div>
   );
