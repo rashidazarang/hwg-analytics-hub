@@ -117,10 +117,12 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Payed',
       sortable: false,
       render: (row) => {
-        // For now, display a placeholder since we have removed the subclaims data
-        return <span className="text-muted-foreground">N/A</span>;
+        // Use the totalPaid field from our data fetching
+        const amount = row.totalPaid !== undefined ? row.totalPaid : 0;
         
-        // In the future, we can re-implement this with a separate query for subclaims data
+        return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
+          {amount > 0 ? `$${amount.toFixed(2)}` : 'N/A'}
+        </span>;
       },
     },
     {
@@ -128,10 +130,10 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Most Recent Payment',
       sortable: false,
       render: (row) => {
-        // For now, display a placeholder since we have removed the subclaims data
-        return <span className="text-muted-foreground">N/A</span>;
-        
-        // In the future, we can re-implement this with a separate query for subclaims data
+        // Use the lastPaymentDate field from our data fetching
+        return row.lastPaymentDate ? 
+          format(new Date(row.lastPaymentDate), 'MMM d, yyyy') : 
+          <span className="text-muted-foreground">N/A</span>;
       },
     },
     {
