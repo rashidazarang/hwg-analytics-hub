@@ -132,7 +132,7 @@ export async function fetchClaimsData({
                 { 
                   start_date: new Date('2000-01-01').toISOString(), 
                   end_date: new Date('2000-01-02').toISOString(),
-                  max_results: 10
+                  max_results: null // Don't limit test query
                 }
               );
               
@@ -146,7 +146,7 @@ export async function fetchClaimsData({
                   { 
                     start_date: dateRange.from.toISOString(), 
                     end_date: dateRange.to.toISOString(),
-                    max_results: 5000 // Limit to 5000 results
+                    max_results: null // No arbitrary limits - get all relevant results
                   }
                 );
                 
@@ -988,8 +988,8 @@ export async function fetchClaimsData({
           LastModified,
           agreements!inner(DealerUUID, dealers(Payee))
         `)
-        .order('LastModified', { ascending: false })
-        .limit(100); // Just get some data to prevent complete failure
+        .order('LastModified', { ascending: false });
+        // No longer limiting results to fix KPI issues
       
       if (dealerFilter && dealerFilter.trim() !== '') {
         fallbackQuery.eq('agreements.DealerUUID', dealerFilter.trim());

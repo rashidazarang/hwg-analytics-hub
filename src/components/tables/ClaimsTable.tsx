@@ -4,6 +4,12 @@ import DataTable, { Column } from './DataTable';
 import { DateRange } from '@/lib/dateUtils';
 import ClaimStatusBadge from '@/components/claims/ClaimStatusBadge';
 import { useClaimsFetching } from '@/hooks/useClaimsFetching';
+import { 
+  useClaimPaymentData, 
+  usePrefetchClaimsPaymentData, 
+  getLastPaymentDate, 
+  getTotalPaidValue 
+} from '@/hooks/useClaimPaymentData';
 
 const PAGE_SIZE = 1000;
 
@@ -51,7 +57,11 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   
   const claims = useMemo(() => claimsData?.data || [], [claimsData]);
   const totalCount = useMemo(() => claimsData?.count || 0, [claimsData]);
-
+  
+  // Prefetch payment data for all claims in current view
+  const claimIds = useMemo(() => claims.map(claim => claim.ClaimID), [claims]);
+  usePrefetchClaimsPaymentData(claimIds);
+  
   // Apply client-side search filtering only
   const filteredClaims = useMemo(() => {
     console.log('🔍 ClaimsTable: Filtering claims with searchQuery:', localSearchQuery);
@@ -124,51 +134,57 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Payed',
       sortable: false,
       render: (row) => {
-        // Enhanced payment amount display with robust error handling
-        try {
-          // Initialize amount - this ensures we always have a valid number
-          let amount = 0;
+        // Use the custom hook to calculate payment info directly from subclaims
+        // We'll use a render prop pattern with memoization for performance
+        const PaymentDisplay = React.memo(({ claimId }: { claimId: string }) => {
+          const { totalPaidValue, isLoading } = useClaimPaymentData(claimId);
           
-          // Log payment data for debugging
-          console.log(`[CLAIMS_TABLE] Payment data for ${row.ClaimID}:`, {
-            totalPaid: row.totalPaid,
-            type: typeof row.totalPaid,
-            hasValue: row.totalPaid !== undefined && row.totalPaid !== null,
-            objectInspect: typeof row.totalPaid === 'object' ? Object.keys(row.totalPaid || {}) : 'not an object'
-          });
+          if (isLoading) {
+            return <span className="text-muted-foreground">Loading...</span>;
+          }
           
-          // Enhanced totalPaid handling with deep inspection
-          if (row.totalPaid !== undefined && row.totalPaid !== null) {
-            // Case 1: Direct number value
+          // Display the payment amount with proper formatting
+          const amount = totalPaidValue || 0;
+          return (
+            <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
+              {`$${amount.toFixed(2)}`}
+            </span>
+          );
+        });
+        
+        // Fallback for when direct SQL-calculated payment info is available
+        if (row.totalPaid !== undefined && row.totalPaid !== null) {
+          try {
+            // Initialize amount - this ensures we always have a valid number
+            let amount = 0;
+            
+            // Enhanced totalPaid handling with deep inspection
             if (typeof row.totalPaid === 'number') {
               amount = row.totalPaid;
-            }
-            // Case 2: String that needs parsing
-            else if (typeof row.totalPaid === 'string') {
+            } else if (typeof row.totalPaid === 'string') {
               amount = parseFloat(row.totalPaid) || 0;
-            }
-            // Case 3: Object with value property (PostgreSQL numeric type)
-            else if (typeof row.totalPaid === 'object') {
+            } else if (typeof row.totalPaid === 'object') {
               if (row.totalPaid && 'value' in row.totalPaid) {
                 amount = parseFloat(row.totalPaid.value) || 0;
-              }
-              else if (row.totalPaid && typeof row.totalPaid.toString === 'function') {
+              } else if (row.totalPaid && typeof row.totalPaid.toString === 'function') {
                 // Try using toString() and parsing the result
                 const strValue = row.totalPaid.toString();
                 amount = parseFloat(strValue) || 0;
               }
             }
+            
+            // Always display the amount with dollar sign and 2 decimal places
+            // Only apply green styling to positive amounts
+            return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
+              {`$${Math.abs(amount).toFixed(2)}`}
+            </span>;
+          } catch (err) {
+            console.error(`[CLAIMS_TABLE] Error rendering payment for claim ${row.ClaimID}:`, err);
           }
-          
-          // Always display the amount with dollar sign and 2 decimal places
-          // Only apply green styling to positive amounts
-          return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
-            {`$${Math.abs(amount).toFixed(2)}`}
-          </span>;
-        } catch (err) {
-          console.error(`[CLAIMS_TABLE] Error rendering payment for claim ${row.ClaimID}:`, err);
-          return <span className="text-muted-foreground">$0.00</span>;
         }
+        
+        // Return the payment display component with the claim ID as fallback
+        return <PaymentDisplay claimId={row.ClaimID} />;
       },
     },
     {
@@ -176,20 +192,25 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       title: 'Most Recent Payment',
       sortable: false,
       render: (row) => {
-        try {
-          // Enhanced date display with better error handling
+        // Use the custom hook to calculate the last payment date
+        const PaymentDateDisplay = React.memo(({ claimId }: { claimId: string }) => {
+          const { lastPaymentDate, isLoading } = useClaimPaymentData(claimId);
           
-          // Debug info to help troubleshoot
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[CLAIMS_TABLE] Claim ${row.ClaimID} payment date:`, {
-              hasDateProp: row.hasOwnProperty('lastPaymentDate'),
-              dateValue: row.lastPaymentDate,
-              dateType: row.lastPaymentDate ? typeof row.lastPaymentDate : 'null'
-            });
+          if (isLoading) {
+            return <span className="text-muted-foreground">Loading...</span>;
           }
           
-          // Handle various cases for lastPaymentDate
-          if (row.lastPaymentDate) {
+          // Format the payment date if available
+          if (lastPaymentDate && !isNaN(lastPaymentDate.getTime())) {
+            return <span>{format(lastPaymentDate, 'MMM d, yyyy')}</span>;
+          } else {
+            return <span className="text-muted-foreground">-</span>;
+          }
+        });
+        
+        // Fallback for when direct SQL-calculated payment date is available
+        if (row.lastPaymentDate) {
+          try {
             // It could be a Date object, string, or timestamp
             let paymentDate: Date;
             
@@ -200,22 +221,21 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
             } else if (typeof row.lastPaymentDate === 'number') {
               paymentDate = new Date(row.lastPaymentDate);
             } else {
-              // If it's some unexpected type, show a dash
-              return <span className="text-muted-foreground">-</span>;
+              // If it's some unexpected type, use the hook-based approach
+              return <PaymentDateDisplay claimId={row.ClaimID} />;
             }
             
             // Check if date is valid before formatting
             if (!isNaN(paymentDate.getTime())) {
-              return format(paymentDate, 'MMM d, yyyy');
+              return <span>{format(paymentDate, 'MMM d, yyyy')}</span>;
             }
+          } catch (err) {
+            console.error(`[CLAIMS_TABLE] Error rendering payment date for claim ${row.ClaimID}:`, err);
           }
-          
-          // For null/undefined/invalid lastPaymentDate, show a dash
-          return <span className="text-muted-foreground">-</span>;
-        } catch (err) {
-          console.error(`[CLAIMS_TABLE] Error rendering payment date for claim ${row.ClaimID}:`, err);
-          return <span className="text-muted-foreground">-</span>;
         }
+        
+        // Use hook-based approach as fallback
+        return <PaymentDateDisplay claimId={row.ClaimID} />;
       },
     },
     {
