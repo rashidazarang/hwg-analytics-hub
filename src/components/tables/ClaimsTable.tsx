@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
@@ -112,6 +111,60 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       sortable: false,
       render: (row) => row.Closed ? format(new Date(row.Closed), 'MMM d, yyyy')
         : <span className="text-muted-foreground">N/A</span>,
+    },
+    {
+      key: 'Payed',
+      title: 'Payed',
+      sortable: false,
+      render: (row) => {
+        // Calculate total paid amount from subclaims
+        let amount = 0;
+        
+        if (row.subclaims && Array.isArray(row.subclaims)) {
+          // Filter only PAID subclaims
+          const paidSubclaims = row.subclaims.filter(subclaim => subclaim.Status === 'PAID');
+          
+          // Sum up all PaidPrice values from subclaim_parts
+          paidSubclaims.forEach(subclaim => {
+            if (subclaim.subclaim_parts && Array.isArray(subclaim.subclaim_parts)) {
+              subclaim.subclaim_parts.forEach(part => {
+                if (part.PaidPrice) {
+                  amount += parseFloat(part.PaidPrice) || 0;
+                }
+              });
+            }
+          });
+        }
+        
+        return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
+          {amount > 0 ? `$${amount.toFixed(2)}` : 'N/A'}
+        </span>;
+      },
+    },
+    {
+      key: 'MostRecentPayment',
+      title: 'Most Recent Payment',
+      sortable: false,
+      render: (row) => {
+        // Find the most recent payment date from PAID subclaims
+        let latestDate = null;
+        
+        if (row.subclaims && Array.isArray(row.subclaims)) {
+          // Filter only PAID subclaims with Closed dates
+          const paidSubclaimsWithDates = row.subclaims
+            .filter(subclaim => subclaim.Status === 'PAID' && subclaim.Closed)
+            .map(subclaim => new Date(subclaim.Closed));
+          
+          // Find the most recent date
+          if (paidSubclaimsWithDates.length > 0) {
+            latestDate = new Date(Math.max(...paidSubclaimsWithDates.map(date => date.getTime())));
+          }
+        }
+        
+        return latestDate ? 
+          format(latestDate, 'MMM d, yyyy') : 
+          <span className="text-muted-foreground">N/A</span>;
+      },
     },
     {
       key: 'LastModified',

@@ -16,10 +16,15 @@ const TimeframeFilter: React.FC<TimeframeFilterProps> = ({
   onChange,
   className = '',
 }) => {
+  // Get the current date to determine which half of the year we're in
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const isFirstHalf = currentMonth < 6; // 0-5 = Jan-Jun, 6-11 = Jul-Dec
+  
   const options: Array<{ value: TimeframeOption; label: string }> = [
     { value: 'week', label: 'Week' },
     { value: 'month', label: 'Month' },
-    { value: '6months', label: '6 Months' },
+    { value: '6months', label: isFirstHalf ? 'H1 (Jan-Jun)' : 'H2 (Jul-Dec)' },
     { value: 'year', label: 'Year' },
   ];
 

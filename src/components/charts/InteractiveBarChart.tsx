@@ -158,10 +158,16 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         dateRange = `${format(firstDate, 'MMM d')} - ${format(lastDate, 'MMM d, yyyy')}`;
         break;
       case '6months':
-        dateRange = `${format(firstDate, 'MMM yyyy')} - ${format(lastDate, 'MMM yyyy')}`;
+        // For 6 months timeframe, explicitly mention if it's H1 or H2
+        const isFirstHalf = firstDate.getMonth() === 0; // January = first half
+        if (isFirstHalf) {
+          dateRange = `H1 (Jan-Jun) ${format(firstDate, 'yyyy')}`;
+        } else {
+          dateRange = `H2 (Jul-Dec) ${format(firstDate, 'yyyy')}`;
+        }
         break;
       case 'year':
-        dateRange = `${format(firstDate, 'MMM yyyy')} - ${format(lastDate, 'MMM yyyy')}`;
+        dateRange = `Full Year ${format(firstDate, 'yyyy')}`;
         break;
       default:
         dateRange = "";
@@ -318,7 +324,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
           variant="outline" 
           size="sm" 
           onClick={handleNext}
-          disabled={isLoading || (currentOffset >= 1)}
+          disabled={isLoading || currentOffset === 0}
           className="border-gray-200 hover:bg-gray-50"
         >
           <ChevronRight className="h-4 w-4" />

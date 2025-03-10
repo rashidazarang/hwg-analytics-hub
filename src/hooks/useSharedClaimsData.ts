@@ -57,7 +57,13 @@ export async function fetchClaimsData({
         Correction,
         Deductible,
         LastModified,
-        agreements!inner(DealerUUID, dealers(Payee))
+        agreements!inner(DealerUUID, dealers(Payee)),
+        subclaims!left(
+          ClaimID,
+          Status,
+          Closed,
+          subclaim_parts!left(SubClaimID, PaidPrice)
+        )
       `, { count: includeCount ? 'exact' : undefined });
 
     // Always apply date range filter using LastModified for consistency
@@ -131,7 +137,13 @@ export async function fetchClaimsData({
               Correction,
               Deductible,
               LastModified,
-              agreements!inner(DealerUUID, dealers(Payee))
+              agreements!inner(DealerUUID, dealers(Payee)),
+              subclaims!left(
+                ClaimID,
+                Status,
+                Closed,
+                subclaim_parts!left(SubClaimID, PaidPrice)
+              )
             `)
             .gte('LastModified', dateRange.from.toISOString())
             .lte('LastModified', dateRange.to.toISOString())

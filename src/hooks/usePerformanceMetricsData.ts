@@ -44,6 +44,7 @@ export interface PerformanceData {
 
 export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods: number = 0): { start: Date; end: Date } {
   const now = new Date();
+  const currentYear = now.getFullYear() + offsetPeriods;
   
   switch (timeframe) {
     case 'week':
@@ -59,16 +60,28 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      return {
-        start: startOfMonth(addMonths(now, offsetPeriods * 6)),
-        end: endOfMonth(addMonths(now, (offsetPeriods * 6) + 5))
-      };
+      // For 6 months timeframe, show H1 (Jan-Jun) or H2 (Jul-Dec) of the year
+      const isFirstHalf = offsetPeriods % 2 === 0; // Even offset = first half, odd = second half
+      const yearOffset = Math.floor(offsetPeriods / 2); // How many full years to offset
+      
+      const targetYear = currentYear + yearOffset;
+      
+      if (isFirstHalf) {
+        // First half of the year (Jan-Jun)
+        const startDate = new Date(targetYear, 0, 1); // January 1st
+        const endDate = endOfMonth(new Date(targetYear, 5, 1)); // Last day of June
+        return { start: startDate, end: endDate };
+      } else {
+        // Second half of the year (Jul-Dec)
+        const startDate = new Date(targetYear, 6, 1); // July 1st
+        const endDate = endOfMonth(new Date(targetYear, 11, 1)); // Last day of December
+        return { start: startDate, end: endDate };
+      }
     
     case 'year':
-      return {
-        start: startOfYear(addYears(now, offsetPeriods)),
-        end: endOfYear(addYears(now, offsetPeriods))
-      };
+      const startDate = new Date(currentYear, 0, 1); // January 1st
+      const endDate = endOfMonth(new Date(currentYear, 11, 1)); // Last day of December
+      return { start: startDate, end: endDate };
       
     default:
       return { start: startOfWeek(now), end: endOfWeek(now) };

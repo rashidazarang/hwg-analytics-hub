@@ -53,6 +53,8 @@ export interface Claim {
   CorrectionID?: string | null;
   ComplaintID?: string | null;
   LastModified?: string | null;
+  totalPaid?: number | null;
+  lastPaymentDate?: Date | string | null;
   agreements?: {
     DealerUUID?: string | null;
     dealers?: {
