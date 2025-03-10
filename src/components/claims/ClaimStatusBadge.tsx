@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getClaimStatus, statusVariants } from '@/utils/claimUtils';
+import { Claim } from '@/lib/types';
 
 interface ClaimStatusBadgeProps {
-  claim: any;
+  claim: Claim;
 }
 
 /**

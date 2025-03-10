@@ -1,41 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { PostgrestResponse } from '@supabase/supabase-js';
 import { DateRange } from '@/lib/dateUtils';
 import { getClaimStatus } from '@/utils/claimUtils';
 import { Claim } from '@/lib/types';
-import { Database } from '../../supabase/schema';
-import { ClaimWithPaymentInDateRangeResult, ClaimPaymentInfoResult } from '../../supabase/types';
+import { PostgrestError } from '@supabase/supabase-js';
 
-// Extend the Supabase types to include our custom RPC functions
-declare module '@supabase/supabase-js' {
-  interface SupabaseClient<
-    Database = any,
-    SchemaName extends string & keyof Database = 'public' extends keyof Database
-      ? 'public'
-      : string & keyof Database,
-  > {
-    rpc<
-      Name extends string,
-      Args extends Record<string, unknown> = Record<string, unknown>,
-    >(
-      fn: Name,
-      args?: Args,
-      options?: {
-        head?: boolean;
-        count?: 'exact' | 'planned' | 'estimated';
-      },
-    ): Promise<
-      PostgrestResponse<
-        Name extends 'get_claims_with_payment_in_date_range'
-          ? ClaimWithPaymentInDateRangeResult[]
-          : Name extends 'get_claims_payment_info'
-          ? ClaimPaymentInfoResult[]
-          : any
-      >
-    >;
-  }
-}
+// Type casting for the supabase client to allow for the custom RPC functions
+type ExtendedSupabaseClient = typeof supabase & {
+  rpc<T = unknown>(
+    fn: string, 
+    params?: Record<string, unknown>
+  ): Promise<{ data: T; error: PostgrestError | null }>;
+};
+
+// Use the extended client
+const extendedClient = supabase as ExtendedSupabaseClient;
 
 export interface ClaimsQueryOptions {
   dateRange: DateRange;
@@ -83,7 +62,7 @@ export async function fetchClaimsData({
     
     // Start building the query with all needed fields
     // Note: We avoid the nested subclaims fetch to prevent relationship ambiguity
-    let query = supabase
+    let query = extendedClient
       .from("claims")
       .select(`
         id,
@@ -121,7 +100,7 @@ export async function fetchClaimsData({
         console.log("[SHARED_CLAIMS] Trying payment date filtering...");
         
         // Try to use a simple test query to see if the function exists
-        const testFunctionResult = await supabase.rpc(
+        const testFunctionResult = await extendedClient.rpc(
           'get_claims_with_payment_in_date_range', 
           { 
             start_date: new Date('2000-01-01').toISOString(), 
@@ -134,7 +113,7 @@ export async function fetchClaimsData({
           console.log("[SHARED_CLAIMS] Payment date filtering function available");
           
           // Get IDs of claims with payments in the date range
-          const { data: claimsWithPayments, error: paymentRangeError } = await supabase.rpc(
+          const { data: claimsWithPayments, error: paymentRangeError } = await extendedClient.rpc(
             'get_claims_with_payment_in_date_range', 
             { 
               start_date: dateRange.from.toISOString(), 
@@ -146,13 +125,12 @@ export async function fetchClaimsData({
             console.error("[SHARED_CLAIMS] Error getting claims with payments:", paymentRangeError);
           } else if (claimsWithPayments && Array.isArray(claimsWithPayments) && claimsWithPayments.length > 0) {
             // Extract claim IDs with payments in range
-            const typedClaimsWithPayments = claimsWithPayments as unknown as ClaimWithPaymentInDateRangeResult[];
-            const claimIds = typedClaimsWithPayments.map(item => item.ClaimID);
+            const claimIds = claimsWithPayments.map(item => item.ClaimID);
             console.log(`[SHARED_CLAIMS] Found ${claimIds.length} claims with payments in date range`);
             
             // Clear previous date filter and use claim IDs instead
             // Create a new query, since we can't easily remove the previous OR conditions
-            query = supabase
+            query = extendedClient
               .from("claims")
               .select(`
                 id,
@@ -206,7 +184,7 @@ export async function fetchClaimsData({
       
       // First, get the total count 
       // We need to mirror the same filtering logic as the main query
-      const countQuery = supabase
+      const countQuery = extendedClient
         .from("claims")
         .select(`
           id,
@@ -241,14 +219,14 @@ export async function fetchClaimsData({
         // Set up for batched fetching
         const batchSize = 1000; // Supabase's max range size
         const totalBatches = Math.ceil(totalCount / batchSize);
-        let allData: any[] = [];
+        let allData: Claim[] = [];
         
         // Fetch data in parallel batches to improve performance
         const batchPromises = Array.from({ length: totalBatches }, (_, i) => {
           const start = i * batchSize;
           const end = start + batchSize - 1;
           
-          let batchQuery = supabase
+          let batchQuery = extendedClient
             .from("claims")
             .select(`
               id,
@@ -309,7 +287,7 @@ export async function fetchClaimsData({
         if (claimIds.length > 0) {
           try {
             // Use the optimized SQL query to get payment information for all claims at once
-            const { data: paymentData, error: paymentError } = await supabase.rpc(
+            const { data: paymentData, error: paymentError } = await extendedClient.rpc(
               'get_claims_payment_info',
               { claim_ids: claimIds }
             );
@@ -327,7 +305,7 @@ export async function fetchClaimsData({
                 const batchClaimIds = claimIds.slice(i * batchSize, (i + 1) * batchSize);
                 
                 // Build a query to get payment information for this batch
-                const { data: batchPaymentData, error: batchError } = await supabase.from('claims')
+                const { data: batchPaymentData, error: batchError } = await extendedClient.from('claims')
                   .select(`
                     "ClaimID",
                     "AgreementID",
@@ -399,11 +377,32 @@ export async function fetchClaimsData({
               const paymentMap = new Map();
               
               // Map the payment data by ClaimID for easy lookup
-              const typedPaymentData = paymentData as unknown as ClaimPaymentInfoResult[];
-              typedPaymentData.forEach(item => {
+              paymentData.forEach(item => {
+                // Parse the totalpaid value from the SQL function, ensuring it's a number
+                let totalPaidValue = 0;
+                
+                // Handle different formats of totalpaid
+                if (item.totalpaid !== null && item.totalpaid !== undefined) {
+                  if (typeof item.totalpaid === 'string') {
+                    totalPaidValue = parseFloat(item.totalpaid) || 0;
+                  } else if (typeof item.totalpaid === 'number') {
+                    totalPaidValue = item.totalpaid;
+                  } else if (typeof item.totalpaid === 'object' && 'value' in item.totalpaid) {
+                    // Handle Postgres numeric type which may come as object with value property
+                    const numericValue = (item.totalpaid as unknown as { value: string }).value;
+                    totalPaidValue = parseFloat(numericValue) || 0;
+                  }
+                }
+                
+                // Always set lastPaymentDate if it exists, even if the payment amount is zero
+                // This is because a claim might have PAID status but with zero amount
+                const paymentDate = item.lastpaymentdate ? new Date(item.lastpaymentdate) : null;
+                
+                console.log(`[SHARED_CLAIMS] Claim ${item.ClaimID} payment data - raw: ${item.totalpaid}, processed: ${totalPaidValue}, date: ${paymentDate}`);
+                
                 paymentMap.set(item.ClaimID, {
-                  totalPaid: parseFloat(String(item.totalpaid)) || 0,
-                  lastPaymentDate: item.lastpaymentdate ? new Date(item.lastpaymentdate) : null
+                  totalPaid: totalPaidValue,
+                  lastPaymentDate: paymentDate
                 });
               });
               
@@ -485,7 +484,7 @@ export async function fetchClaimsData({
         // Test if the function exists
         let paymentFunctionExists = false;
         try {
-          const testResult = await supabase.rpc(
+          const testResult = await extendedClient.rpc(
             'get_claims_payment_info',
             { claim_ids: [claimIds[0] || 'test'] }
           );
@@ -497,12 +496,17 @@ export async function fetchClaimsData({
           console.error("[SHARED_CLAIMS] Error testing payment info function:", testError);
         }
         
-        let paymentData = null;
+        let paymentData: Array<{
+          ClaimID: string;
+          AgreementID: string;
+          totalpaid: number;
+          lastpaymentdate: string | null;
+        }> | null = null;
         let paymentError = null;
         
         if (paymentFunctionExists) {
           console.log("[SHARED_CLAIMS] Using get_claims_payment_info function");
-          const result = await supabase.rpc(
+          const result = await extendedClient.rpc(
             'get_claims_payment_info',
             { claim_ids: claimIds }
           );
@@ -518,7 +522,7 @@ export async function fetchClaimsData({
           console.log('[SHARED_CLAIMS] Payment info RPC not found, using direct query');
           
           // Build a query to get payment information for all claims in one batch
-          const { data: directPaymentData, error: directError } = await supabase.from('claims')
+          const { data: directPaymentData, error: directError } = await extendedClient.from('claims')
             .select(`
               "ClaimID",
               "AgreementID",
@@ -598,15 +602,12 @@ export async function fetchClaimsData({
               statusBreakdown
             };
           }
-        } else if (paymentData) {
+        } else if (paymentData && Array.isArray(paymentData)) {
           // Process the payment data from the RPC function
           const paymentMap = new Map();
           
-          console.log('[SHARED_CLAIMS] Payment data from RPC:', paymentData);
-          
           // Map the payment data by ClaimID for easy lookup
-          const typedPaymentData = paymentData as unknown as ClaimPaymentInfoResult[];
-          typedPaymentData.forEach(item => {
+          paymentData.forEach(item => {
             // Parse the totalpaid value from the SQL function, ensuring it's a number
             let totalPaidValue = 0;
             
@@ -616,11 +617,9 @@ export async function fetchClaimsData({
                 totalPaidValue = parseFloat(item.totalpaid) || 0;
               } else if (typeof item.totalpaid === 'number') {
                 totalPaidValue = item.totalpaid;
-              } else if (typeof item.totalpaid === 'object' && 
-                         item.totalpaid !== null && 
-                         'value' in item.totalpaid) {
+              } else if (typeof item.totalpaid === 'object' && 'value' in item.totalpaid) {
                 // Handle Postgres numeric type which may come as object with value property
-                const numericValue = (item.totalpaid as any).value;
+                const numericValue = (item.totalpaid as unknown as { value: string }).value;
                 totalPaidValue = parseFloat(numericValue) || 0;
               }
             }
@@ -667,42 +666,14 @@ export async function fetchClaimsData({
     // If we couldn't get payment data, use default values
     // Always set totalPaid to a valid number (0)
     // and set lastPaymentDate to null
-    
-    // Check if payment data was already processed by looking for totalPaid property
-    const hasExistingPaymentData = claims.some(claim => 
-      'totalPaid' in claim && 'lastPaymentDate' in claim
-    );
-    
-    // Only apply default values if payment data wasn't already processed
-    const claimsWithPaymentInfo = hasExistingPaymentData 
-      ? claims 
-      : claims.map(claim => ({
-          ...claim,
-          totalPaid: 0,  // Default value - always a number, never undefined or null
-          lastPaymentDate: null  // Default value - always null for unpaid claims
-        }));
+    const claimsWithPaymentInfo = claims.map(claim => ({
+      ...claim,
+      totalPaid: 0,  // Default value - always a number, never undefined or null
+      lastPaymentDate: null  // Default value - always null for unpaid claims
+    }));
 
     console.log(`[SHARED_CLAIMS] Fetched ${claims.length} claims. Total count: ${count || 'N/A'}`);
     console.log('[SHARED_CLAIMS] Status breakdown:', statusBreakdown);
-    console.log('[SHARED_CLAIMS] Payment data status:', hasExistingPaymentData 
-      ? 'Using existing payment data' 
-      : 'Applied default payment values');
-      
-    // Debug output for payment data - show sample of first few claims
-    if (process.env.NODE_ENV === 'development' && claims.length > 0) {
-      const sampleClaims = claims.slice(0, Math.min(3, claims.length));
-      console.log('[SHARED_CLAIMS] Payment data sample:', 
-        sampleClaims.map(claim => ({
-          ClaimID: claim.ClaimID,
-          paymentInfo: {
-            totalPaid: 'totalPaid' in claim ? claim.totalPaid : 'not set',
-            lastPaymentDate: 'lastPaymentDate' in claim && claim.lastPaymentDate 
-              ? new Date(claim.lastPaymentDate as string | number | Date).toISOString() 
-              : 'not set'
-          }
-        }))
-      );
-    }
 
     return {
       data: claimsWithPaymentInfo,
@@ -714,16 +685,16 @@ export async function fetchClaimsData({
     console.error('[SHARED_CLAIMS] Error in fetchClaimsData:', error);
     console.error('[SHARED_CLAIMS] Error details:', JSON.stringify(error, null, 2));
     
-    if (error && (error as any).message) {
-      console.error('[SHARED_CLAIMS] Error message:', (error as any).message);
+    if (error && (error as PostgrestError).message) {
+      console.error('[SHARED_CLAIMS] Error message:', (error as PostgrestError).message);
     }
     
-    if (error && (error as any).code) {
-      console.error('[SHARED_CLAIMS] Error code:', (error as any).code);
+    if (error && (error as PostgrestError).code) {
+      console.error('[SHARED_CLAIMS] Error code:', (error as PostgrestError).code);
     }
     
-    if (error && (error as any).details) {
-      console.error('[SHARED_CLAIMS] Error details:', (error as any).details);
+    if (error && (error as PostgrestError).details) {
+      console.error('[SHARED_CLAIMS] Error details:', (error as PostgrestError).details);
     }
     
     // Let's use a fallback approach without the SQL functions
@@ -731,7 +702,7 @@ export async function fetchClaimsData({
       console.log('[SHARED_CLAIMS] Attempting fallback query without date range filtering');
       
       // Basic query without advanced filtering
-      const fallbackQuery = supabase
+      const fallbackQuery = extendedClient
         .from("claims")
         .select(`
           id,

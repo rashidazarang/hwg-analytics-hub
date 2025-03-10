@@ -1,3 +1,4 @@
+import { Claim } from '@/lib/types';
 
 /**
  * Utility functions for claims management
@@ -15,7 +16,7 @@ export function isClaimDenied(correction: string | null | undefined): boolean {
  * Determines the status of a claim based on its Closed, ReportedDate and Correction fields
  * STANDARDIZED to ensure consistent status determination across all components
  */
-export function getClaimStatus(claim: any): string {
+export function getClaimStatus(claim: Claim): string {
   // First check for closed claims
   if (claim.Closed) return 'CLOSED';
   

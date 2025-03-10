@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -131,29 +131,9 @@ const DataTable = <T extends Record<string, any>>({
 
   const displayData = sortedData;
 
-  // Memoize pagination calculations to prevent unnecessary re-rendering
-  const paginationData = useMemo(() => {
-    if (!paginationProps) return null;
-    
-    const totalPages = Math.max(1, Math.ceil(paginationProps.totalItems / paginationProps.pageSize));
-    const pageStart = ((paginationProps.currentPage - 1) * paginationProps.pageSize) + 1;
-    const pageEnd = Math.min(pageStart + paginationProps.pageSize - 1, paginationProps.totalItems);
-    
-    return {
-      totalPages,
-      pageStart: paginationProps.totalItems > 0 ? pageStart : 0,
-      pageEnd: paginationProps.totalItems > 0 ? pageEnd : 0,
-      currentPage: paginationProps.currentPage,
-      totalItems: paginationProps.totalItems,
-      pageSize: paginationProps.pageSize,
-      onPageChange: paginationProps.onPageChange,
-      onPageSizeChange: paginationProps.onPageSizeChange,
-    };
-  }, [
-    paginationProps?.currentPage,
-    paginationProps?.pageSize,
-    paginationProps?.totalItems
-  ]);
+  const totalPages = paginationProps 
+    ? Math.max(1, Math.ceil(paginationProps.totalItems / paginationProps.pageSize))
+    : 1;
 
   useEffect(() => {
     // Safety check for pagination props
@@ -200,14 +180,14 @@ const DataTable = <T extends Record<string, any>>({
   };
 
   const displayedCount = displayData.length;
-  const totalItemsCount = paginationData?.totalItems || displayedCount;
+  const totalItemsCount = paginationProps?.totalItems || displayedCount;
   
-  const pageStart = paginationData 
-    ? Math.min((paginationData.currentPage - 1) * paginationData.pageSize + 1, totalItemsCount)
+  const pageStart = paginationProps 
+    ? Math.min((paginationProps.currentPage - 1) * paginationProps.pageSize + 1, totalItemsCount)
     : 1;
   
-  const pageEnd = paginationData
-    ? Math.min(pageStart + paginationData.pageSize - 1, totalItemsCount)
+  const pageEnd = paginationProps
+    ? Math.min(pageStart + paginationProps.pageSize - 1, totalItemsCount)
     : displayedCount;
   
   return (
@@ -303,26 +283,32 @@ const DataTable = <T extends Record<string, any>>({
         </div>
       </div>
       
-      {paginationData && (
+      {paginationProps && (
         <div className="flex justify-center items-center mt-4">
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="icon"
               onClick={() => {
-                if (paginationData.currentPage <= 1 || loading || paginationData.totalItems <= 0) return;
+                if (paginationProps.currentPage <= 1 || loading || paginationProps.totalItems <= 0) return;
                 try {
                   const safePageNum = 1;
-                  // Use the callback directly - no need for setTimeout
-                  if (paginationData.currentPage !== safePageNum) {
-                    console.log(`[DataTable] Navigating to first page (${safePageNum})`);
-                    paginationData.onPageChange(safePageNum);
+                  // Store current page locally to prevent race conditions
+                  const currentPageBeforeChange = paginationProps.currentPage;
+                  
+                  // Only change if actually moving to a different page
+                  if (currentPageBeforeChange !== safePageNum) {
+                    console.log(`[DataTable] Navigating to first page (${safePageNum}) from ${currentPageBeforeChange}`);
+                    // Use setTimeout to avoid React batching issues
+                    setTimeout(() => {
+                      paginationProps.onPageChange(safePageNum);
+                    }, 0);
                   }
                 } catch (e) {
                   console.error("[DataTable] Error navigating to first page:", e);
                 }
               }}
-              disabled={paginationData.currentPage <= 1 || loading || paginationData.totalItems <= 0}
+              disabled={paginationProps.currentPage <= 1 || loading || paginationProps.totalItems <= 0}
               aria-label="First page"
               title="First page"
             >
@@ -332,19 +318,25 @@ const DataTable = <T extends Record<string, any>>({
               variant="outline"
               size="icon"
               onClick={() => {
-                if (paginationData.currentPage <= 1 || loading || paginationData.totalItems <= 0) return;
+                if (paginationProps.currentPage <= 1 || loading || paginationProps.totalItems <= 0) return;
                 try {
-                  const prevPage = Math.max(1, paginationData.currentPage - 1);
-                  // Use the callback directly - no need for setTimeout
-                  if (paginationData.currentPage !== prevPage) {
-                    console.log(`[DataTable] Navigating to previous page (${prevPage})`);
-                    paginationData.onPageChange(prevPage);
+                  const prevPage = Math.max(1, paginationProps.currentPage - 1);
+                  // Store current page locally to prevent race conditions
+                  const currentPageBeforeChange = paginationProps.currentPage;
+                  
+                  // Only change if actually moving to a different page
+                  if (currentPageBeforeChange !== prevPage) {
+                    console.log(`[DataTable] Navigating to previous page (${prevPage}) from ${currentPageBeforeChange}`);
+                    // Use setTimeout to avoid React batching issues
+                    setTimeout(() => {
+                      paginationProps.onPageChange(prevPage);
+                    }, 0);
                   }
                 } catch (e) {
                   console.error(`[DataTable] Error navigating to previous page:`, e);
                 }
               }}
-              disabled={paginationData.currentPage <= 1 || loading || paginationData.totalItems <= 0}
+              disabled={paginationProps.currentPage <= 1 || loading || paginationProps.totalItems <= 0}
               aria-label="Previous page"
               title="Previous page"
             >
@@ -352,10 +344,10 @@ const DataTable = <T extends Record<string, any>>({
             </Button>
             
             <div className="text-sm">
-              {paginationData.totalItems <= 0 ? (
+              {paginationProps.totalItems <= 0 ? (
                 "Page 0 of 0"
               ) : (
-                `Page ${paginationData.currentPage} of ${Math.max(1, paginationData.totalPages)}`
+                `Page ${paginationProps.currentPage} of ${Math.max(1, totalPages)}`
               )}
             </div>
             
@@ -363,19 +355,25 @@ const DataTable = <T extends Record<string, any>>({
               variant="outline"
               size="icon"
               onClick={() => {
-                if (paginationData.currentPage >= paginationData.totalPages || loading || paginationData.totalItems <= 0) return;
+                if (paginationProps.currentPage >= totalPages || loading || paginationProps.totalItems <= 0) return;
                 try {
-                  const nextPage = Math.min(paginationData.totalPages, paginationData.currentPage + 1);
-                  // Use the callback directly - no need for setTimeout
-                  if (paginationData.currentPage !== nextPage) {
-                    console.log(`[DataTable] Navigating to next page (${nextPage})`);
-                    paginationData.onPageChange(nextPage);
+                  const nextPage = Math.min(totalPages, paginationProps.currentPage + 1);
+                  // Store current page locally to prevent race conditions
+                  const currentPageBeforeChange = paginationProps.currentPage;
+                  
+                  // Only change if actually moving to a different page
+                  if (currentPageBeforeChange !== nextPage) {
+                    console.log(`[DataTable] Navigating to next page (${nextPage}) from ${currentPageBeforeChange}`);
+                    // Use setTimeout to avoid React batching issues
+                    setTimeout(() => {
+                      paginationProps.onPageChange(nextPage);
+                    }, 0);
                   }
                 } catch (e) {
                   console.error(`[DataTable] Error navigating to next page:`, e);
                 }
               }}
-              disabled={paginationData.currentPage >= paginationData.totalPages || loading || paginationData.totalItems <= 0}
+              disabled={paginationProps.currentPage >= totalPages || loading || paginationProps.totalItems <= 0}
               aria-label="Next page"
               title="Next page"
             >
@@ -385,19 +383,25 @@ const DataTable = <T extends Record<string, any>>({
               variant="outline"
               size="icon"
               onClick={() => {
-                if (paginationData.currentPage >= paginationData.totalPages || loading || paginationData.totalItems <= 0) return;
+                if (paginationProps.currentPage >= totalPages || loading || paginationProps.totalItems <= 0) return;
                 try {
-                  const safePageNum = Math.max(1, paginationData.totalPages);
-                  // Use the callback directly - no need for setTimeout
-                  if (paginationData.currentPage !== safePageNum) {
-                    console.log(`[DataTable] Navigating to last page (${safePageNum})`);
-                    paginationData.onPageChange(safePageNum); 
+                  const safePageNum = Math.max(1, totalPages);
+                  // Store current page locally to prevent race conditions
+                  const currentPageBeforeChange = paginationProps.currentPage;
+                  
+                  // Only change if actually moving to a different page
+                  if (currentPageBeforeChange !== safePageNum) {
+                    console.log(`[DataTable] Navigating to last page (${safePageNum}) from ${currentPageBeforeChange}`);
+                    // Use setTimeout to avoid React batching issues
+                    setTimeout(() => {
+                      paginationProps.onPageChange(safePageNum); 
+                    }, 0);
                   }
                 } catch (e) {
                   console.error(`[DataTable] Error navigating to last page:`, e);
                 }
               }}
-              disabled={paginationData.currentPage >= paginationData.totalPages || loading || paginationData.totalItems <= 0}
+              disabled={paginationProps.currentPage >= totalPages || loading || paginationProps.totalItems <= 0}
               aria-label="Last page"
               title="Last page"
             >

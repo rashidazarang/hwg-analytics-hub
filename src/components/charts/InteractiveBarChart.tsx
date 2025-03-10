@@ -306,8 +306,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         <p className="text-lg text-gray-500 mt-1 font-medium">{dateRange}</p>
       </div>
       
-      {/* Only show the CustomLegend when timeframe is not 'day' */}
-      {timeframe !== 'day' && <CustomLegend />}
+      <CustomLegend />
       
       <div className="h-[300px] w-full">
         {isLoading ? (
@@ -351,7 +350,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 // For day view, display each status as a separate non-stacked bar
                 // Each contract status has its own individual bar
                 <>
-                  {/* Intentionally omitting the Legend component in day view as requested */}
+                  <Legend />
                   <Bar 
                     dataKey="pending" 
                     name="Pending" 
@@ -411,8 +410,6 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               ) : (
                 // For other views, use stacked bars with all statuses clearly represented
                 <>
-                  {/* Include Legend for non-day views */}
-                  <Legend />
                   <Bar 
                     dataKey="pending" 
                     name="Pending" 

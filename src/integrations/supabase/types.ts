@@ -879,6 +879,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_claims_with_payment_in_date_range: {
+        Args: {
+          start_date: string;
+          end_date: string;
+        };
+        Returns: {
+          ClaimID: string;
+        }[];
+      };
+      get_claims_payment_info: {
+        Args: {
+          claim_ids: string[];
+        };
+        Returns: {
+          ClaimID: string;
+          AgreementID: string;
+          totalpaid: number;
+          lastpaymentdate: string | null;
+        }[];
+      };
     }
     Enums: {
       [_ in never]: never

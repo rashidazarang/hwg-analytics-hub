@@ -185,9 +185,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
-  const [searchTerm, setSearchTerm] = useState(searchQuery);
-  const [selectedStatusFilters, setSelectedStatusFilters] = useState<string[]>([]);
-  const [isFilterChanged, setIsFilterChanged] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
 
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
@@ -211,38 +210,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     }
   }, [searchQuery]);
 
-  const filterKeys = useMemo(() => {
-    return [
-      dateRange?.from.toISOString() || '',
-      dateRange?.to.toISOString() || '',
-      dealerFilter,
-      JSON.stringify(selectedStatusFilters)
-    ];
-  }, [dateRange, dealerFilter, selectedStatusFilters]);
-  
-  useEffect(() => {
-    console.log("📊 AgreementsTable - Major filters changed:", {
-      dateRange: dateRange ? `${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}` : 'default',
-      dealerFilter
-    });
-    
-    // Instead of immediately resetting page, set a flag
-    setIsFilterChanged(true);
-  }, [dateRange, dealerFilter, selectedStatusFilters.length]);
-  
-  useEffect(() => {
-    if (isFilterChanged) {
-      console.log('📊 AgreementsTable - Resetting to page 1 due to filter change');
-      setPage(1);
-      setIsFilterChanged(false);
-    }
-  }, [isFilterChanged]);
-  
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    return ["agreements-data", from, to, dealerFilter, page, pageSize, selectedStatusFilters];
-  }, [dateRange, dealerFilter, page, pageSize, selectedStatusFilters]);
+    return ["agreements-data", from, to, dealerFilter, page, pageSize, statusFilters];
+  }, [dateRange, dealerFilter, page, pageSize, statusFilters]);
   
   const { 
     data: agreementsData = { data: [], count: 0 }, 
@@ -252,8 +224,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   } = useQuery({
     queryKey: agreementsQueryKey,
     queryFn: async () => {
-      console.log(`🔍 Executing agreements query for page ${page} with status filters:`, selectedStatusFilters);
-      return fetchAgreements(page, pageSize, dateRange, dealerFilter, selectedStatusFilters);
+      console.log(`🔍 Executing agreements query for page ${page} with status filters:`, statusFilters);
+      return fetchAgreements(page, pageSize, dateRange, dealerFilter, statusFilters);
     },
     staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 30,
@@ -322,7 +294,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   
   const filteredAgreements = useMemo(() => {
     console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
-    console.log(`🔍 Filtering agreements by status:`, selectedStatusFilters);
+    console.log(`🔍 Filtering agreements by status:`, statusFilters);
     
     let filtered = agreements;
     
@@ -340,7 +312,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     }
     
     return filtered;
-  }, [agreements, searchTerm, selectedStatusFilters]);
+  }, [agreements, searchTerm, statusFilters]);
   
   useEffect(() => {
     if (agreements.length > 0) {
@@ -356,29 +328,34 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
 
   const isFetching = isFetchingAgreements || isFetchingDealers;
 
-  const handleSearch = useCallback((term: string) => {
-    console.log(`📊 AgreementsTable search term changed: "${term}"`);
+  const handleSearch = (term: string) => {
+    console.log("🔍 Search term updated:", term);
     setSearchTerm(term);
-  }, []);
+    setPage(1);
+    
+    // When searching locally, we should reset the filter if the term is cleared
+    if (!term.trim() && searchTerm.trim()) {
+      queryClient.invalidateQueries({ queryKey: ["agreements-data"] });
+    }
+  };
 
-  const handlePageChange = useCallback((newPage: number) => {
-    console.log(`📊 AgreementsTable: Changing to page ${newPage}`);
+  const handlePageChange = (newPage: number) => {
+    console.log(`Changing to page ${newPage}`);
     setPage(newPage);
-  }, []);
+  };
 
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     if (newPageSize !== pageSize) {
-      console.log(`📊 AgreementsTable: Changing page size to ${newPageSize}`);
       setPageSize(newPageSize);
       setPage(1);
     }
-  }, [pageSize]);
+  }, [pageSize, setPage]);
 
-  const handleStatusFilterChange = useCallback((values: string[]) => {
-    console.log(`📊 AgreementsTable: Status filters changed to:`, values);
-    setSelectedStatusFilters(values);
-    // Reset to page 1 is now handled in the filter change effect
-  }, []);
+  const handleStatusFilterChange = (values: string[]) => {
+    console.log('🔍 Status filter changed to:', values);
+    setStatusFilters(values);
+    setPage(1);
+  };
 
   const formatName = (name?: string | null): string => {
     if (!name) return '';
@@ -486,7 +463,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
         customFilters={
           <FilterDropdown
             options={AGREEMENT_STATUS_OPTIONS}
-            selectedValues={selectedStatusFilters}
+            selectedValues={statusFilters}
             onChange={handleStatusFilterChange}
             label="Filters"
             className="ml-0"
