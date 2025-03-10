@@ -62,6 +62,15 @@ export interface Claim {
       Payee?: string | null;
     } | null;
   } | null;
+  subclaims?: Array<{
+    ClaimID?: string;
+    Status?: string;
+    Closed?: string | Date;
+    subclaim_parts?: Array<{
+      SubClaimID?: string;
+      PaidPrice?: number | string;
+    }>;
+  }>;
 }
 
 export interface TopAgent {

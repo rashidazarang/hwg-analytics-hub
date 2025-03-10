@@ -134,6 +134,9 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
               });
             }
           });
+        } else if (row.totalPaid) {
+          // Fallback to totalPaid if subclaims are not available
+          amount = parseFloat(row.totalPaid.toString()) || 0;
         }
         
         return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
@@ -159,6 +162,9 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
           if (paidSubclaimsWithDates.length > 0) {
             latestDate = new Date(Math.max(...paidSubclaimsWithDates.map(date => date.getTime())));
           }
+        } else if (row.lastPaymentDate) {
+          // Fallback to lastPaymentDate if subclaims are not available
+          latestDate = new Date(row.lastPaymentDate);
         }
         
         return latestDate ? 

@@ -44,6 +44,11 @@ export async function fetchClaimsData({
   });
 
   try {
+    // Debug log - print current time for reference
+    const now = new Date();
+    console.log(`[SHARED_CLAIMS] Starting claims fetch at ${now.toISOString()}`);
+    console.log(`[SHARED_CLAIMS] Using date range: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
+    
     // Start building the query with all needed fields
     let query = supabase
       .from("claims")
@@ -66,10 +71,9 @@ export async function fetchClaimsData({
         )
       `, { count: includeCount ? 'exact' : undefined });
 
-    // Always apply date range filter using LastModified for consistency
-    query = query
-      .gte('LastModified', dateRange.from.toISOString())
-      .lte('LastModified', dateRange.to.toISOString());
+    // Apply date range filter using ReportedDate (primary) or LastModified (fallback)
+    // This gives us a broader range of claims that might be relevant
+    query = query.or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()},LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`);
     
     // Apply dealer filter if provided
     if (dealerFilter && dealerFilter.trim() !== '') {
@@ -96,8 +100,7 @@ export async function fetchClaimsData({
           id,
           agreements!inner(DealerUUID)
         `, { count: 'exact', head: true })
-        .gte('LastModified', dateRange.from.toISOString())
-        .lte('LastModified', dateRange.to.toISOString());
+        .or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()},LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`);
       
       // Apply dealer filter to count query if provided
       if (dealerFilter && dealerFilter.trim() !== '') {
@@ -145,8 +148,7 @@ export async function fetchClaimsData({
                 subclaim_parts!left(SubClaimID, PaidPrice)
               )
             `)
-            .gte('LastModified', dateRange.from.toISOString())
-            .lte('LastModified', dateRange.to.toISOString())
+            .or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()},LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`)
             .order('LastModified', { ascending: false })
             .range(start, end);
           
