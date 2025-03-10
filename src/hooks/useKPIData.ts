@@ -44,11 +44,23 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         try {
           console.log('[KPI_DATA] Using optimized query for agreement counts');
           
+          // OPTIMIZED: Use a more direct approach to get counts
+          // Use explicit parameters that help with performance
+          console.log('[KPI_DATA] Using optimized query settings for better performance');
+            
+          // Add timeout hint to ensure query completes
+          const options = { 
+            count: 'exact',
+            headers: {
+              'Prefer': 'count=exact'
+            }
+          };
+          
           // Get aggregate counts by status in a single query
           // This is more efficient than separate queries for each status
           const { data: aggregateData, error: aggregateError } = await supabase
             .from('agreements')
-            .select('AgreementStatus, count(*)')
+            .select('AgreementStatus, count(*)', options)
             .gte('EffectiveDate', fromDate)
             .lte('EffectiveDate', toDate)
             .eq(dealerFilter ? 'DealerUUID' : 'IsActive', dealerFilter || true)

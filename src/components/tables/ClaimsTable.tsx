@@ -374,14 +374,19 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   // This ensures proper pagination when dealer filter returns many records
   const effectiveTotalCount = totalCount;
   
-  // Log pagination and filtering details for debugging
+  // Log pagination and filtering details for deeper debugging 
   console.log('Claims Pagination details:', {
     currentPage: page,
     pageSize: pageSize,
     totalCount: totalCount,
     displayedAfterFiltering: displayedCount,
     effectiveTotalForPagination: effectiveTotalCount,
-    dealerFilter
+    dealerFilter,
+    dateRangeFrom: dateRange?.from.toISOString() || 'undefined',
+    dateRangeTo: dateRange?.to.toISOString() || 'undefined',
+    // Include more information about potential filtering
+    searchActive: !!localSearchQuery,
+    searchTerm: localSearchQuery || 'none'
   });
 
   // Update the useEffect in this component to check data structure

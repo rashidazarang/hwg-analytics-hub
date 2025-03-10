@@ -106,13 +106,22 @@ export async function fetchClaimsData({
         agreements!inner(DealerUUID, dealers(Payee))
       `, { count: includeCount ? 'exact' : undefined });
     
-    // Apply date filtering with LastModified as priority
-    // This is the CRITICAL FIX for correct date filtering
-    // Use proper LastModified filtering that actually works
-    query = query.or(`LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()}`);
+    // FIXED date filtering approach to ensure indexes are used properly
     
-    // Add proper ReportedDate filtering separately for clarity and reliability
-    query = query.or(`ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()}`);
+    // Create separate query parts for proper index usage
+    // This ensures Postgres uses the right indexes and applies filters correctly
+    
+    console.log("[SHARED_CLAIMS] Using explicit date range filtering with proper index usage");
+    
+    // 1. First filter for LastModified date range - primary source of truth
+    query = query
+      .gte('LastModified', dateRange.from.toISOString())
+      .lte('LastModified', dateRange.to.toISOString());
+      
+    // No longer using a confusing .or() approach that can lead to unexpected results
+    
+    // This ensures we use proper indexing on the LastModified column
+    console.log(`[SHARED_CLAIMS] Date filter applied on LastModified: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
       
     // Apply dealer filter if provided
     if (dealerFilter && dealerFilter.trim() !== '') {
@@ -137,9 +146,9 @@ export async function fetchClaimsData({
       console.log(`[SHARED_CLAIMS] Using pagination: page ${page}, rows ${startRow}-${endRow} (page size ${effectivePageSize})`);
       query = query.range(startRow, endRow);
     } else {
-      // Apply a safety limit if not using pagination
-      console.log('[SHARED_CLAIMS] No pagination provided, applying default limit of 100');
-      query = query.limit(100);
+      // Use a much larger limit for non-paginated queries
+      console.log('[SHARED_CLAIMS] No pagination provided, using large limit to ensure all records are returned');
+      query = query.limit(5000); // Much larger limit to avoid artificial restrictions
     }
     
     if (!BYPASS_PAYMENT_DATE_FILTERING) {
@@ -342,14 +351,16 @@ export async function fetchClaimsData({
           agreements!inner(DealerUUID, dealers(Payee))
         `, { count: includeCount ? 'exact' : undefined });
 
-      // Apply traditional date filtering first
-      // This ensures we have at least some filtering applied before attempting the payment date filter
-      query = query.or(
-        `ReportedDate.gte.${dateRange.from.toISOString()},` +
-        `ReportedDate.lte.${dateRange.to.toISOString()},` +
-        `LastModified.gte.${dateRange.from.toISOString()},` +
-        `LastModified.lte.${dateRange.to.toISOString()}`
-      );
+      // Apply explicit date filtering for proper index usage
+      // This ensures we have clear filtering that uses indexes correctly
+      console.log("[SHARED_CLAIMS] Using explicit LastModified date filtering for consistent results");
+      
+      // Apply LastModified filters directly
+      query = query
+        .gte('LastModified', dateRange.from.toISOString())
+        .lte('LastModified', dateRange.to.toISOString());
+        
+      console.log(`[SHARED_CLAIMS] Date filter directly applied: ${dateRange.from.toISOString()} to ${dateRange.to.toISOString()}`);
       
       // Apply dealer filter if provided
       if (dealerFilter && dealerFilter.trim() !== '') {
@@ -391,12 +402,10 @@ export async function fetchClaimsData({
         
         // Just use traditional date filtering for count - simpler and more reliable
         console.log("[SHARED_CLAIMS] Setting up count query with traditional date filtering");
-        countQuery.or(
-          `ReportedDate.gte.${dateRange.from.toISOString()},` +
-          `ReportedDate.lte.${dateRange.to.toISOString()},` +
-          `LastModified.gte.${dateRange.from.toISOString()},` +
-          `LastModified.lte.${dateRange.to.toISOString()}`
-        );
+        // Use explicit LastModified date filtering for count query
+        countQuery
+          .gte('LastModified', dateRange.from.toISOString())
+          .lte('LastModified', dateRange.to.toISOString());
         
         // Apply dealer filter to count query if provided
         if (dealerFilter && dealerFilter.trim() !== '') {
@@ -438,12 +447,9 @@ export async function fetchClaimsData({
                 LastModified,
                 agreements!inner(DealerUUID, dealers(Payee))
               `)
-              .or(
-                `ReportedDate.gte.${dateRange.from.toISOString()},` +
-                `ReportedDate.lte.${dateRange.to.toISOString()},` +
-                `LastModified.gte.${dateRange.from.toISOString()},` +
-                `LastModified.lte.${dateRange.to.toISOString()}`
-              )
+              // Use explicit date filtering for proper index usage 
+              .gte('LastModified', dateRange.from.toISOString())
+              .lte('LastModified', dateRange.to.toISOString())
               .order('LastModified', { ascending: false })
               .range(start, end);
             
