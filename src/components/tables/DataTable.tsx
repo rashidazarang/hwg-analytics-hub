@@ -142,23 +142,43 @@ const DataTable = <T extends Record<string, any>>({
     // Calculate the correct total pages for current data
     const calculatedTotalPages = Math.max(1, Math.ceil(paginationProps.totalItems / paginationProps.pageSize));
     
+    // To avoid race conditions and React batching issues, use a ref to track if we've already scheduled a reset
+    const hasScheduledReset = React.useRef(false);
+    
     // If current page is out of bounds, reset to page 1
-    if (paginationProps.currentPage > calculatedTotalPages && calculatedTotalPages > 0) {
+    if (paginationProps.currentPage > calculatedTotalPages && calculatedTotalPages > 0 && !hasScheduledReset.current) {
       console.log(`[DataTable] Resetting page from ${paginationProps.currentPage} to 1 (totalPages: ${calculatedTotalPages})`);
-      // Delay the page change to avoid React state update conflicts
+      hasScheduledReset.current = true;
+      
+      // Use a longer timeout to ensure we avoid React batching issues
       setTimeout(() => {
         paginationProps.onPageChange(1);
-      }, 0);
+        // Reset the flag after a delay to allow for future resets if needed
+        setTimeout(() => {
+          hasScheduledReset.current = false;
+        }, 500);
+      }, 150);
     }
     
     // Also handle the case where totalItems is 0 but currentPage isn't 1
-    if (paginationProps.totalItems === 0 && paginationProps.currentPage !== 1) {
+    if (paginationProps.totalItems === 0 && paginationProps.currentPage !== 1 && !hasScheduledReset.current) {
       console.log(`[DataTable] Resetting page to 1 because totalItems is 0`);
-      // Delay the page change to avoid React state update conflicts
+      hasScheduledReset.current = true;
+      
+      // Use a longer timeout to ensure we avoid React batching issues
       setTimeout(() => {
         paginationProps.onPageChange(1);
-      }, 0);
+        // Reset the flag after a delay to allow for future resets if needed
+        setTimeout(() => {
+          hasScheduledReset.current = false;
+        }, 500);
+      }, 150);
     }
+    
+    // Cleanup the ref when component unmounts
+    return () => {
+      hasScheduledReset.current = false;
+    };
   }, [paginationProps?.totalItems, paginationProps?.pageSize]); // Remove currentPage to prevent loops
 
   const handleSort = (key: string) => {
@@ -284,7 +304,7 @@ const DataTable = <T extends Record<string, any>>({
       </div>
       
       {paginationProps && (
-        <div className="flex justify-center items-center mt-4">
+        <div className="flex justify-between items-center mt-4 flex-wrap gap-2">
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
@@ -299,10 +319,10 @@ const DataTable = <T extends Record<string, any>>({
                   // Only change if actually moving to a different page
                   if (currentPageBeforeChange !== safePageNum) {
                     console.log(`[DataTable] Navigating to first page (${safePageNum}) from ${currentPageBeforeChange}`);
-                    // Use setTimeout to avoid React batching issues
+                    // Use setTimeout with a longer delay to avoid React batching issues
                     setTimeout(() => {
                       paginationProps.onPageChange(safePageNum);
-                    }, 0);
+                    }, 100);
                   }
                 } catch (e) {
                   console.error("[DataTable] Error navigating to first page:", e);
@@ -327,10 +347,10 @@ const DataTable = <T extends Record<string, any>>({
                   // Only change if actually moving to a different page
                   if (currentPageBeforeChange !== prevPage) {
                     console.log(`[DataTable] Navigating to previous page (${prevPage}) from ${currentPageBeforeChange}`);
-                    // Use setTimeout to avoid React batching issues
+                    // Use setTimeout with a longer delay to avoid React batching issues
                     setTimeout(() => {
                       paginationProps.onPageChange(prevPage);
-                    }, 0);
+                    }, 100);
                   }
                 } catch (e) {
                   console.error(`[DataTable] Error navigating to previous page:`, e);
@@ -364,10 +384,10 @@ const DataTable = <T extends Record<string, any>>({
                   // Only change if actually moving to a different page
                   if (currentPageBeforeChange !== nextPage) {
                     console.log(`[DataTable] Navigating to next page (${nextPage}) from ${currentPageBeforeChange}`);
-                    // Use setTimeout to avoid React batching issues
+                    // Use setTimeout with a longer delay to avoid React batching issues
                     setTimeout(() => {
                       paginationProps.onPageChange(nextPage);
-                    }, 0);
+                    }, 100);
                   }
                 } catch (e) {
                   console.error(`[DataTable] Error navigating to next page:`, e);
@@ -392,10 +412,10 @@ const DataTable = <T extends Record<string, any>>({
                   // Only change if actually moving to a different page
                   if (currentPageBeforeChange !== safePageNum) {
                     console.log(`[DataTable] Navigating to last page (${safePageNum}) from ${currentPageBeforeChange}`);
-                    // Use setTimeout to avoid React batching issues
+                    // Use setTimeout with a longer delay to avoid React batching issues
                     setTimeout(() => {
                       paginationProps.onPageChange(safePageNum); 
-                    }, 0);
+                    }, 100);
                   }
                 } catch (e) {
                   console.error(`[DataTable] Error navigating to last page:`, e);
@@ -407,6 +427,52 @@ const DataTable = <T extends Record<string, any>>({
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>
+          </div>
+          
+          {/* Manual page selector */}
+          <div className="flex items-center space-x-2">
+            <div className="text-sm">Go to page:</div>
+            <form 
+              className="flex items-center" 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const input = e.currentTarget.elements.namedItem('pageNumber') as HTMLInputElement;
+                const pageNum = parseInt(input.value, 10);
+                
+                if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                  // Store current page locally to prevent race conditions
+                  const currentPageBeforeChange = paginationProps.currentPage;
+                  
+                  // Only change if actually moving to a different page
+                  if (currentPageBeforeChange !== pageNum) {
+                    console.log(`[DataTable] Navigating to specific page: ${pageNum}`);
+                    // Use setTimeout with a longer delay to avoid React batching issues
+                    setTimeout(() => {
+                      paginationProps.onPageChange(pageNum);
+                    }, 100);
+                  }
+                }
+              }}
+            >
+              <input
+                type="number"
+                name="pageNumber"
+                min={1}
+                max={totalPages}
+                defaultValue={paginationProps.currentPage}
+                className="w-14 h-8 px-2 text-sm border rounded"
+                disabled={loading || paginationProps.totalItems <= 0}
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                type="submit"
+                className="ml-1 h-8"
+                disabled={loading || paginationProps.totalItems <= 0}
+              >
+                Go
+              </Button>
+            </form>
           </div>
         </div>
       )}

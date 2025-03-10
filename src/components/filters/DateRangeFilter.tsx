@@ -77,37 +77,54 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange, 
   }, [isMobile]);
   
   const handleCalendarSelect = useCallback((range: DateRange | undefined) => {
-    if (range?.from && range?.to) {
+    if (range) {
       console.log("Calendar selection changed:", range);
       
-      // Check for invalid dates or ranges
       const today = new Date();
       today.setHours(23, 59, 59, 999); // End of current day
       
-      // Validate the date range
-      let validRange = { ...range };
+      // Start with current tempDateRange to preserve existing values
+      let validRange = { ...tempDateRange };
       
-      // Don't allow dates in the future
-      if (validRange.from > today) {
-        validRange.from = today;
-        console.log("Adjusted start date to today (was in the future)");
+      // If we have a 'from' date, update the start date
+      if (range.from) {
+        validRange.from = range.from;
+        // Don't allow dates in the future
+        if (validRange.from > today) {
+          validRange.from = today;
+          console.log("Adjusted start date to today (was in the future)");
+        }
       }
       
-      if (validRange.to > today) {
-        validRange.to = today;
-        console.log("Adjusted end date to today (was in the future)");
+      // If we have a 'to' date, update the end date
+      if (range.to) {
+        validRange.to = range.to;
+        // Don't allow dates in the future
+        if (validRange.to > today) {
+          validRange.to = today;
+          console.log("Adjusted end date to today (was in the future)");
+        }
       }
       
       // Make sure end date is not before start date
       if (validRange.to < validRange.from) {
-        validRange.to = validRange.from;
-        console.log("Adjusted end date to match start date (was before start date)");
+        // If user clicked on a date before the end date, it's likely they want to set the start date
+        // rather than having the end date adjust automatically to match the start date
+        if (range.from && !range.to) {
+          // User is selecting a start date - ensure end date is not before it
+          validRange.to = validRange.from;
+          console.log("Adjusted end date to match new start date");
+        } else {
+          // Otherwise, preserve existing behavior
+          validRange.to = validRange.from;
+          console.log("Adjusted end date to match start date (was before start date)");
+        }
       }
       
       setTempDateRange(validRange);
       setPreset('custom');
     }
-  }, []);
+  }, [tempDateRange]);
 
   const handleApply = useCallback((rangeToApply = tempDateRange) => {
     console.log("Applying date range:", rangeToApply);
