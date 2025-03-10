@@ -23,6 +23,251 @@ import {
 import { toCSTISOString, setCSTHours, CST_TIMEZONE, toCSTDate } from '@/lib/dateUtils';
 import { TimeframeOption } from '@/components/filters/TimeframeFilter';
 
+// New optimized data processing functions
+// These take the raw agreements data and process it into the appropriate format for each timeframe
+
+/**
+ * Process data for monthly view (6months and year timeframes)
+ * Groups agreements by month and counts by status
+ */
+function processMonthlyData(agreements: any[], startDate: Date, endDate: Date): PerformanceDataPoint[] {
+  console.log(`[PERFORMANCE] Processing ${agreements.length} agreements into monthly data`);
+  
+  // Get array of months in the interval to ensure we have all months represented
+  const months = eachMonthOfInterval({ start: startDate, end: endDate });
+  
+  // Initialize monthly stats with zeros for all months
+  const monthlyStats: Record<string, { 
+    total: number, 
+    pending: number, 
+    active: number, 
+    claimable: number,
+    cancelled: number,
+    void: number
+  }> = {};
+  
+  months.forEach(month => {
+    const monthKey = format(month, 'yyyy-MM');
+    monthlyStats[monthKey] = { 
+      total: 0, 
+      pending: 0, 
+      active: 0, 
+      claimable: 0,
+      cancelled: 0,
+      void: 0
+    };
+  });
+  
+  // Process status distribution for debugging
+  if (agreements.length > 0) {
+    const statusCounts: Record<string, number> = {};
+    agreements.forEach(agreement => {
+      const status = (agreement.AgreementStatus || '').toUpperCase();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    console.log('[PERFORMANCE] Status distribution in monthly data:', statusCounts);
+  }
+  
+  // Group by month
+  agreements.forEach(agreement => {
+    const effectiveDate = new Date(agreement.EffectiveDate);
+    const monthKey = format(effectiveDate, 'yyyy-MM');
+    
+    if (monthlyStats[monthKey]) {
+      // Increment total count
+      monthlyStats[monthKey].total++;
+      
+      // Track status counts - use uppercase for consistency
+      const status = (agreement.AgreementStatus || '').toUpperCase();
+      
+      // Count in the specific status categories
+      if (status === 'PENDING') {
+        monthlyStats[monthKey].pending++;
+      } else if (status === 'ACTIVE') {
+        monthlyStats[monthKey].active++;
+      } else if (status === 'CLAIMABLE') {
+        monthlyStats[monthKey].claimable++;
+      } else if (status === 'CANCELLED') {
+        monthlyStats[monthKey].cancelled++;
+      } else if (status === 'VOID') {
+        monthlyStats[monthKey].void++;
+      }
+    }
+  });
+  
+  // Return formatted data for all months, including those with zero values
+  // This ensures we always have all months represented in the chart
+  return months.map(month => {
+    const monthKey = format(month, 'yyyy-MM');
+    const stats = monthlyStats[monthKey];
+    return {
+      label: format(month, 'MMM').toLowerCase(),
+      value: stats.total || 0,
+      pending: stats.pending || 0,
+      active: stats.active || 0,
+      claimable: stats.claimable || 0,
+      cancelled: stats.cancelled || 0,
+      void: stats.void || 0,
+      rawDate: month
+    };
+  });
+}
+
+/**
+ * Process data for daily view (week and month timeframes)
+ * Groups agreements by day and counts by status
+ */
+function processDailyData(agreements: any[], startDate: Date, endDate: Date): PerformanceDataPoint[] {
+  console.log(`[PERFORMANCE] Processing ${agreements.length} agreements into daily data`);
+  
+  // Get array of days in the interval to ensure we have all days represented
+  const days = eachDayOfInterval({ start: startDate, end: endDate });
+  
+  // Initialize daily stats with zeros for all days
+  const dailyStats: Record<string, {
+    total: number,
+    pending: number,
+    active: number,
+    claimable: number,
+    cancelled: number,
+    void: number
+  }> = {};
+  
+  days.forEach(day => {
+    const dayKey = format(day, 'yyyy-MM-dd');
+    dailyStats[dayKey] = { 
+      total: 0, 
+      pending: 0, 
+      active: 0, 
+      claimable: 0,
+      cancelled: 0, 
+      void: 0
+    };
+  });
+  
+  // Process status distribution for debugging
+  if (agreements.length > 0) {
+    const statusCounts: Record<string, number> = {};
+    agreements.forEach(agreement => {
+      const status = (agreement.AgreementStatus || '').toUpperCase();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    console.log('[PERFORMANCE] Status distribution in daily data:', statusCounts);
+  }
+  
+  // Process each agreement and group by day
+  agreements.forEach(agreement => {
+    const effectiveDate = new Date(agreement.EffectiveDate);
+    const dayKey = format(effectiveDate, 'yyyy-MM-dd');
+    
+    if (dailyStats[dayKey]) {
+      // Increment total count
+      dailyStats[dayKey].total++;
+      
+      // Track status counts
+      const status = (agreement.AgreementStatus || '').toUpperCase();
+      
+      // Count in specific status categories
+      if (status === 'PENDING') {
+        dailyStats[dayKey].pending++;
+      } else if (status === 'ACTIVE') {
+        dailyStats[dayKey].active++;
+      } else if (status === 'CLAIMABLE') {
+        dailyStats[dayKey].claimable++;
+      } else if (status === 'CANCELLED') {
+        dailyStats[dayKey].cancelled++;
+      } else if (status === 'VOID') {
+        dailyStats[dayKey].void++;
+      }
+    }
+  });
+  
+  // Format the data for chart display, ensure all days have entries
+  return days.map(day => {
+    const dayKey = format(day, 'yyyy-MM-dd');
+    const stats = dailyStats[dayKey];
+    
+    return {
+      label: format(day, 'd'), // Use day of month as label
+      value: stats.total || 0,
+      pending: stats.pending || 0,
+      active: stats.active || 0,
+      claimable: stats.claimable || 0,
+      cancelled: stats.cancelled || 0,
+      void: stats.void || 0,
+      rawDate: day
+    };
+  });
+}
+
+/**
+ * Process data for a single day (day timeframe)
+ * This is used for the "Day" view where each status type has its own individual bar
+ */
+function processSingleDayData(agreements: any[], startDate: Date): PerformanceDataPoint[] {
+  console.log(`[PERFORMANCE] Processing ${agreements.length} agreements for day view`);
+  
+  // Process status distribution for debugging
+  if (agreements.length > 0) {
+    const statusCounts: Record<string, number> = {};
+    agreements.forEach(agreement => {
+      const status = (agreement.AgreementStatus || '').toUpperCase();
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    console.log('[PERFORMANCE] Status distribution in day view:', statusCounts);
+  }
+  
+  // Group data by status with proper uppercase normalization
+  // This ensures consistent counting regardless of case variations in the database
+  const pendingCount = agreements.filter(a => (a.AgreementStatus || '').toUpperCase() === 'PENDING').length || 0;
+  const activeCount = agreements.filter(a => (a.AgreementStatus || '').toUpperCase() === 'ACTIVE').length || 0;
+  const claimableCount = agreements.filter(a => (a.AgreementStatus || '').toUpperCase() === 'CLAIMABLE').length || 0;
+  const cancelledCount = agreements.filter(a => (a.AgreementStatus || '').toUpperCase() === 'CANCELLED').length || 0;
+  const voidCount = agreements.filter(a => (a.AgreementStatus || '').toUpperCase() === 'VOID').length || 0;
+  
+  // Get the total count which should be the sum of all status counts
+  const totalCount = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
+  
+  // Verify that our total count matches the actual data length
+  if (totalCount !== agreements.length) {
+    console.warn(`[PERFORMANCE] Mismatch detected: Total status sum (${totalCount}) does not match raw agreement count (${agreements.length})`);
+    
+    // Log more details to help diagnose the issue
+    const unknownStatuses = agreements.filter(a => {
+      const status = (a.AgreementStatus || '').toUpperCase();
+      return !['PENDING', 'ACTIVE', 'CLAIMABLE', 'CANCELLED', 'VOID'].includes(status);
+    });
+    
+    if (unknownStatuses.length > 0) {
+      console.warn(`[PERFORMANCE] Found ${unknownStatuses.length} agreements with unknown statuses`);
+      unknownStatuses.slice(0, 5).forEach(a => {
+        console.warn(`[PERFORMANCE] Unknown status: "${a.AgreementStatus}" for agreement`);
+      });
+    }
+  }
+  
+  // Log detailed output for debugging as specified
+  console.log(`[PERFORMANCE] Day View Data: Pending=${pendingCount}, Active=${activeCount}, Claimable=${claimableCount}, Cancelled=${cancelledCount}, Void=${voidCount}, Total=${totalCount}`);
+  
+  // Format the date for display
+  const formattedDate = format(startDate, 'MMM d, yyyy');
+  
+  // For Day view, we return a single data point but ensure each status is represented clearly
+  return [
+    {
+      label: formattedDate,
+      value: totalCount, // Total for reference
+      rawDate: startDate,
+      // Ensure all status values are properly set for separate bars
+      pending: pendingCount,
+      active: activeCount,
+      claimable: claimableCount,
+      cancelled: cancelledCount,
+      void: voidCount
+    }
+  ];
+}
+
 export interface PerformanceDataPoint {
   label: string;
   value: number;
@@ -1054,43 +1299,112 @@ function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): Perf
     endDate: endDate.toISOString()
   }), [startDate, endDate]);
   
-  // Create a unique query key that includes the current time to ensure fresh data
-  // This helps prevent caching issues that could cause inconsistencies
+  // Create a stable query key that doesn't change unnecessarily
+  // Removing Date.now() prevents constant refetching
   const queryKey = useMemo(() => 
-    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate?.toISOString(), Date.now()], 
+    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate?.toISOString()], 
     [timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate]
   );
   
-  // Directly fetch data from the database using a consistent query approach
+  // Reusable function for batched fetching with proper pagination
+  const fetchBatchedData = useCallback(
+    async (startDate: Date, endDate: Date, dealerFilter: string = '') => {
+      const startIso = startDate.toISOString();
+      const endIso = endDate.toISOString();
+      
+      console.log(`[PERFORMANCE] Starting batched fetch from ${startIso} to ${endIso}`);
+      
+      let offset = 0;
+      const batchSize = 1000; // Supabase's max per query
+      let allResults: any[] = [];
+      let hasMore = true;
+      let batchCounter = 0;
+      
+      // Fetch data in batches until we've retrieved everything
+      while (hasMore) {
+        batchCounter++;
+        console.log(`[PERFORMANCE] Fetching batch #${batchCounter}: offset=${offset}, limit=${batchSize}`);
+        
+        // Build the query with pagination
+        let query = supabase
+          .from('agreements')
+          .select('EffectiveDate, AgreementStatus')
+          .gte('EffectiveDate', startIso)
+          .lte('EffectiveDate', endIso)
+          .range(offset, offset + batchSize - 1); // Proper pagination with range
+        
+        // Apply dealer filter if provided
+        if (dealerFilter) {
+          query = query.eq('DealerUUID', dealerFilter);
+        }
+        
+        // Execute the query
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error(`[PERFORMANCE] Error fetching batch #${batchCounter}:`, error);
+          break;
+        }
+        
+        // Check if we got any results
+        if (!data || data.length === 0) {
+          console.log(`[PERFORMANCE] No more data to fetch at offset ${offset}`);
+          hasMore = false;
+        } else {
+          // Add this batch to our results
+          allResults = [...allResults, ...data];
+          
+          // Check if we got a full batch (there might be more data)
+          if (data.length < batchSize) {
+            console.log(`[PERFORMANCE] Last batch incomplete with ${data.length} records`);
+            hasMore = false;
+          } else {
+            // Move to next batch
+            offset += batchSize;
+          }
+        }
+      }
+      
+      console.log(`[PERFORMANCE] Completed batched fetch: ${allResults.length} total records in ${batchCounter} batches`);
+      return allResults;
+    },
+    []
+  );
+
+  // Directly fetch data from the database using a consistent batched approach
   const queryFn = useCallback(async () => {
     console.log(`[PERFORMANCE] Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
     
-    // Use the same data fetching strategy for all timeframes to ensure consistency
+    // First fetch all the data using our efficient batched approach
+    const allAgreements = await fetchBatchedData(startDate, endDate, dealerFilter);
+    
+    // Process the data based on the selected timeframe
     switch(timeframe) {
       case 'day':
-        // For day view, fetch hourly data or a single data point with all statuses
-        return await fetchSingleDayData(startDate, endDate, dealerFilter);
+        // For day view, process the data for a single day
+        return processSingleDayData(allAgreements, startDate);
       case 'week':
       case 'month':
-        // Fetch daily data with appropriate SQL query
-        return await fetchDailyAgreementsByStatus(startDate, endDate, dealerFilter);
+        // Process data into daily buckets
+        return processDailyData(allAgreements, startDate, endDate);
       case '6months':
       case 'year':
-        // Fetch monthly data with appropriate SQL query
-        return await fetchMonthlyData(startDate, endDate, dealerFilter);
+        // Process data into monthly buckets
+        return processMonthlyData(allAgreements, startDate, endDate);
       default:
         throw new Error(`Unknown timeframe: ${timeframe}`);
     }
-  }, [timeframe, formattedDates, startDate, endDate, dealerFilter]);
+  }, [timeframe, formattedDates, startDate, endDate, dealerFilter, fetchBatchedData]);
   
-  // Use React Query with appropriate settings to avoid stale data
+  // Use React Query with optimized settings to prevent unnecessary refetching
   const { data, isLoading, error } = useQuery({
     queryKey: queryKey,
     queryFn: queryFn,
-    staleTime: 0, // Set to 0 to ensure fresh data on each view
-    cacheTime: 1000 * 60 * 5, // Cache for 5 minutes
-    refetchOnWindowFocus: true, // Refetch when window is focused
+    staleTime: 1000 * 60 * 5, // Data stays fresh for 5 minutes to prevent unnecessary fetches
+    cacheTime: 1000 * 60 * 30, // Cache for 30 minutes
+    refetchOnWindowFocus: false, // Don't refetch automatically on window focus
     refetchOnMount: true, // Refetch when component mounts
+    retry: 1, // Only retry once to avoid excessive fetching on errors
   });
   
   const processedData = useMemo(() => {
