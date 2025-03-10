@@ -29,6 +29,15 @@ export type Database = {
           ReserveAmount: number | null
           StatusChangeDate: string | null
           Total: number | null
+          Product: string | null
+          Option1: string | null
+          Option2: string | null
+          Option3: string | null
+          Option4: string | null
+          Option5: string | null
+          Option6: string | null
+          Option7: string | null
+          Option8: string | null
         }
         Insert: {
           AgreementID: string
@@ -49,6 +58,15 @@ export type Database = {
           ReserveAmount?: number | null
           StatusChangeDate?: string | null
           Total?: number | null
+          Product?: string | null
+          Option1?: string | null
+          Option2?: string | null
+          Option3?: string | null
+          Option4?: string | null
+          Option5?: string | null
+          Option6?: string | null
+          Option7?: string | null
+          Option8?: string | null
         }
         Update: {
           AgreementID?: string
@@ -69,6 +87,15 @@ export type Database = {
           ReserveAmount?: number | null
           StatusChangeDate?: string | null
           Total?: number | null
+          Product?: string | null
+          Option1?: string | null
+          Option2?: string | null
+          Option3?: string | null
+          Option4?: string | null
+          Option5?: string | null
+          Option6?: string | null
+          Option7?: string | null
+          Option8?: string | null
         }
         Relationships: [
           {
@@ -608,6 +635,33 @@ export type Database = {
         }
         Relationships: []
       }
+      option_surcharge_price: {
+        Row: {
+          id: string
+          product: string
+          option_name: string
+          cost: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product: string
+          option_name: string
+          cost: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product?: string
+          option_name?: string
+          cost?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -754,6 +808,19 @@ export type Database = {
           total: number
         }[]
       }
+      get_agreements_with_revenue: {
+        Args: {
+          start_date: string
+          end_date: string
+        }
+        Returns: {
+          AgreementID: string
+          AgreementStatus: string
+          DealerUUID: string
+          dealers: Json
+          revenue: number
+        }[]
+      }
       get_leaderboard_summary: {
         Args: {
           start_date: string
@@ -805,7 +872,13 @@ export type Database = {
               total_revenue: number
               cancelled_contracts: number
             }[]
-          }
+          },
+      set_timezone: {
+        Args: {
+          timezone_name: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

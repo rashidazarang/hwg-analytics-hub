@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Server Connection Test</h1>
+    
+    <div>
+        <button id="testVite">Test Vite Server</button>
+        <button id="testCors">Test CORS Server</button>
+    </div>
+    
+    <div class="result" id="viteResult">Vite server test results will appear here...</div>
+    <div class="result" id="corsResult">CORS server test results will appear here...</div>
+
+    <script>
+        document.getElementById('testVite').addEventListener('click', async () => {
+            try {
+                const response = await fetch('http://localhost:3000/');
+                const text = await response.text();
+                document.getElementById('viteResult').textContent = 'Vite server is accessible!';
+            } catch (error) {
+                document.getElementById('viteResult').textContent = `Error: ${error.message}`;
+            }
+        });
+
+        document.getElementById('testCors').addEventListener('click', async () => {
+            try {
+                const response = await fetch('http://localhost:4000/api/check');
+                const data = await response.json();
+                document.getElementById('corsResult').textContent = `Response: ${data.message}`;
+            } catch (error) {
+                document.getElementById('corsResult').textContent = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

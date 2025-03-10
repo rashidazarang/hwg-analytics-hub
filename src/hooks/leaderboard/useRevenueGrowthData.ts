@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { executeWithCSTTimezone } from '@/integrations/supabase/timezone-utils';
 import { DateRange } from '@/lib/dateUtils';
 import { RevenueGrowth } from '@/lib/types';
 import { getFormattedDateRange } from './dateRangeUtils';
@@ -12,10 +13,10 @@ export function useRevenueGrowthData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['revenueGrowth', dateRange.from, dateRange.to],
     queryFn: async (): Promise<RevenueGrowth> => {
-      // Format date range with proper time boundaries
+      // Format date range with proper time boundaries in CST
       const { startDate, endDate } = getFormattedDateRange(dateRange);
 
-      console.log('[LEADERBOARD] Calculating revenue growth with date range:', {
+      console.log('[LEADERBOARD] Calculating revenue growth with date range (CST):', {
         from: startDate.toISOString(),
         to: endDate.toISOString()
       });
@@ -30,14 +31,17 @@ export function useRevenueGrowthData({ dateRange }: { dateRange: DateRange }) {
         to: previousTo.toISOString()
       });
 
-      const { data, error } = await supabase.rpc(
-        'calculate_revenue_growth',
-        {
-          current_start_date: startDate.toISOString(),
-          current_end_date: endDate.toISOString(),
-          previous_start_date: previousFrom.toISOString(),
-          previous_end_date: previousTo.toISOString()
-        }
+      const { data, error } = await executeWithCSTTimezone(
+        supabase,
+        (client) => client.rpc(
+          'calculate_revenue_growth',
+          {
+            current_start_date: startDate.toISOString(),
+            current_end_date: endDate.toISOString(),
+            previous_start_date: previousFrom.toISOString(),
+            previous_end_date: previousTo.toISOString()
+          }
+        )
       );
 
       if (error) {

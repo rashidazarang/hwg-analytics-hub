@@ -1,5 +1,6 @@
 
 import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format, subMonths } from 'date-fns';
+import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 
 export type DateRange = {
   from: Date;
@@ -7,6 +8,32 @@ export type DateRange = {
 };
 
 export type DateRangePreset = 'wtd' | 'mtd' | 'ytd' | 'custom';
+
+// The CST timezone string to use consistently throughout the app
+export const CST_TIMEZONE = 'America/Chicago';
+
+// Convert a UTC date to CST
+export function toCSTDate(date: Date): Date {
+  return utcToZonedTime(date, CST_TIMEZONE);
+}
+
+// Convert a CST date to UTC for storage/transmission
+export function toUTCDate(date: Date): Date {
+  return zonedTimeToUtc(date, CST_TIMEZONE);
+}
+
+// Format a date as an ISO string in the CST timezone
+export function toCSTISOString(date: Date): string {
+  const cstDate = toCSTDate(date);
+  return cstDate.toISOString();
+}
+
+// Set hours, minutes, seconds, and milliseconds in CST timezone
+export function setCSTHours(date: Date, hours: number, minutes = 0, seconds = 0, ms = 0): Date {
+  const cstDate = toCSTDate(date);
+  cstDate.setHours(hours, minutes, seconds, ms);
+  return toUTCDate(cstDate);
+}
 
 // Function to get today's date
 export function today(): Date {

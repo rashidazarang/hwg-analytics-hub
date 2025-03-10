@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { executeWithCSTTimezone } from '@/integrations/supabase/timezone-utils';
 import { DateRange } from '@/lib/dateUtils';
 import { TopDealer } from '@/lib/types';
 
@@ -9,32 +10,24 @@ export function useTopDealersContractData({ dateRange }: { dateRange: DateRange 
   return useQuery({
     queryKey: ['topDealersContracts', dateRange.from, dateRange.to],
     queryFn: async (): Promise<TopDealer[]> => {
-      // Set time to start of day for from date and end of day for to date
-      const startDate = new Date(dateRange.from);
-      startDate.setUTCHours(0, 0, 0, 0);  // Start at 00:00:00 UTC
+      // Import the getFormattedDateRange function to ensure consistent date handling
+      const { getFormattedDateRange } = await import('@/hooks/leaderboard/dateRangeUtils');
+      const { startDate, endDate } = getFormattedDateRange(dateRange);
 
-      const endDate = new Date(dateRange.to);
-      endDate.setUTCHours(23, 59, 59, 999);  // End at 23:59:59 UTC
-
-      console.log('[TOPDEALERS_CONTRACTS] Fetching top dealers with contract data:', {
+      console.log('[TOPDEALERS_CONTRACTS] Fetching top dealers with contract data (CST):', {
         from: startDate.toISOString(),
         to: endDate.toISOString()
       });
 
-      // Fetch all agreements with dealer info
-      const { data: agreements, error } = await supabase
-        .from('agreements')
-        .select(`
-          AgreementID,
-          AgreementStatus,
-          Total, 
-          DealerUUID,
-          dealers(
-            Payee
-          )
-        `)
-        .gte('EffectiveDate', startDate.toISOString())
-        .lte('EffectiveDate', endDate.toISOString());
+      // Fetch all agreements with dealer info and calculated revenue
+      // Use the executeWithCSTTimezone wrapper to ensure consistent timezone handling
+      const { data: agreements, error } = await executeWithCSTTimezone(
+        supabase,
+        (client) => client.rpc('get_agreements_with_revenue', {
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString()
+        })
+      );
 
       if (error) {
         console.error('[TOPDEALERS_CONTRACTS] Error fetching agreements:', error);
@@ -76,10 +69,12 @@ export function useTopDealersContractData({ dateRange }: { dateRange: DateRange 
           funded_revenue: 0
         };
         
-        // Fix: Ensure Total is treated as a number with COALESCE-like behavior
-        const agreementTotal = typeof agreement.Total === 'string' 
-          ? parseFloat(agreement.Total) || 0 
-          : (agreement.Total || 0);
+        // Use the new revenue field calculated from DealerCost + option surcharges
+        const revenue = typeof agreement.revenue === 'number'
+          ? agreement.revenue
+          : typeof agreement.revenue === 'string'
+            ? parseFloat(agreement.revenue) || 0
+            : 0;
         
         // Make status check case-insensitive and more robust
         const status = (agreement.AgreementStatus || '').toUpperCase();
@@ -87,10 +82,10 @@ export function useTopDealersContractData({ dateRange }: { dateRange: DateRange 
         // Update counts based on status
         if (status === 'PENDING') {
           dealerData.pending_contracts++;
-          dealerData.expected_revenue += agreementTotal;
+          dealerData.expected_revenue += revenue;
         } else if (status === 'ACTIVE') {
           dealerData.active_contracts++;
-          dealerData.funded_revenue += agreementTotal;
+          dealerData.funded_revenue += revenue;
         } else if (status === 'CANCELLED') {
           dealerData.cancelled_contracts++;
         } else {
@@ -99,7 +94,7 @@ export function useTopDealersContractData({ dateRange }: { dateRange: DateRange 
         }
         
         dealerData.total_contracts++;
-        dealerData.total_revenue += agreementTotal;
+        dealerData.total_revenue += revenue;
         dealerContractsMap.set(dealerUUID, dealerData);
       });
 

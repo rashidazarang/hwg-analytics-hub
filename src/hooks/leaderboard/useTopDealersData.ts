@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { executeWithCSTTimezone } from '@/integrations/supabase/timezone-utils';
 import { DateRange } from '@/lib/dateUtils';
 import { TopDealer } from '@/lib/types';
 import { getFormattedDateRange } from './dateRangeUtils';
@@ -12,29 +13,24 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['topDealers', dateRange.from, dateRange.to],
     queryFn: async (): Promise<TopDealer[]> => {
-      // Format date range with proper time boundaries
+      // Format date range with proper time boundaries in CST
       const { startDate, endDate } = getFormattedDateRange(dateRange);
 
-      console.log('[LEADERBOARD] Fetching top dealers with date range:', {
+      console.log('[LEADERBOARD] Fetching top dealers with date range (CST):', {
         from: startDate.toISOString(),
         to: endDate.toISOString()
       });
 
-      // Fetch all agreements with dealer information for the date range
-      // Remove any pagination limitations to get all agreements
-      const { data: agreements, error } = await supabase
-        .from('agreements')
-        .select(`
-          AgreementID,
-          AgreementStatus,
-          Total,
-          DealerUUID,
-          dealers(
-            Payee
-          )
-        `)
-        .gte('EffectiveDate', startDate.toISOString())
-        .lte('EffectiveDate', endDate.toISOString());
+      // Fetch all agreements with dealer information and option surcharges for the date range
+      // This query now joins with option_surcharge_price table to calculate revenue
+      // Using executeWithCSTTimezone to ensure consistent timezone handling
+      const { data: agreements, error } = await executeWithCSTTimezone(
+        supabase,
+        (client) => client.rpc('get_agreements_with_revenue', {
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString()
+        })
+      );
 
       if (error) {
         console.error('[LEADERBOARD] Error fetching agreements:', error);
@@ -89,24 +85,26 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
         
         const dealer = dealerMap.get(dealerUUID)!;
         
-        // Fix: Ensure Total is treated as a number with COALESCE-like behavior
-        const agreementTotal = typeof agreement.Total === 'string' 
-          ? parseFloat(agreement.Total) || 0 
-          : (agreement.Total || 0);
+        // Use the new revenue field calculated from DealerCost + option surcharges
+        const revenue = typeof agreement.revenue === 'number'
+          ? agreement.revenue
+          : typeof agreement.revenue === 'string'
+            ? parseFloat(agreement.revenue) || 0
+            : 0;
         
         // Count ALL agreements for total_contracts regardless of status
         dealer.total_contracts++;
-        dealer.total_revenue += agreementTotal;
+        dealer.total_revenue += revenue;
         
         // Make status check case-insensitive and more robust
         const status = (agreement.AgreementStatus || '').toUpperCase();
         
         if (status === 'PENDING') {
           dealer.pending_contracts++;
-          dealer.expected_revenue += agreementTotal;
+          dealer.expected_revenue += revenue;
         } else if (status === 'ACTIVE') {
           dealer.active_contracts++;
-          dealer.funded_revenue += agreementTotal;
+          dealer.funded_revenue += revenue;
         } else if (status === 'CANCELLED') {
           dealer.cancelled_contracts++;
         } else {

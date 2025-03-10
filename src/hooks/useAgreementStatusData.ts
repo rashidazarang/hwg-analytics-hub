@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { DateRange } from '@/lib/dateUtils';
+import { DateRange, setCSTHours, toCSTISOString } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 
 // Define the type for our RPC function return
@@ -62,9 +62,17 @@ export function useAgreementStatusData(dateRange: DateRange, dealerFilter: strin
       console.log('📊 Dealer filter:', dealerFilter);
       
       try {
-        // Get date range for filtering - ensure consistent format with other components
-        const fromDate = dateRange.from?.toISOString() || "2020-01-01T00:00:00.000Z";
-        const toDate = dateRange.to?.toISOString() || "2025-12-31T23:59:59.999Z";
+        // Get date range for filtering with CST timezone
+        const startDate = dateRange.from 
+          ? setCSTHours(new Date(dateRange.from), 0, 0, 0, 0)
+          : new Date("2020-01-01T00:00:00.000-06:00"); // CST
+        
+        const endDate = dateRange.to
+          ? setCSTHours(new Date(dateRange.to), 23, 59, 59, 999)
+          : new Date("2025-12-31T23:59:59.999-06:00"); // CST
+        
+        const fromDate = startDate.toISOString();
+        const toDate = endDate.toISOString();
 
         // If we have a dealer filter, directly query by dealer UUID
         if (dealerFilter) {

@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { DateRange } from '@/lib/dateUtils';
+import { DateRange, setCSTHours } from '@/lib/dateUtils';
 import { KPIData } from '@/lib/types';
 import { fetchClaimsData } from './useSharedClaimsData';
 
@@ -22,9 +22,12 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
       });
 
       try {
-        // Get date range for filtering - ensure consistent format with other components
-        const fromDate = dateRange.from?.toISOString();
-        const toDate = dateRange.to?.toISOString();
+        // Get date range for filtering with CST timezone
+        const startDate = setCSTHours(new Date(dateRange.from), 0, 0, 0, 0);
+        const endDate = setCSTHours(new Date(dateRange.to), 23, 59, 59, 999);
+        
+        const fromDate = startDate.toISOString();
+        const toDate = endDate.toISOString();
 
         // Run these queries in parallel for better performance
         const [

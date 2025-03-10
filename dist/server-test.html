@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Status Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2563eb;
+        }
+        .test-section {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f9fafb;
+            border-radius: 4px;
+        }
+        .success {
+            color: #16a34a;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc2626;
+            font-weight: bold;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        .log {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            font-family: monospace;
+            background-color: #f9fafb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Server Connection Test</h1>
+    <p>This page tests connectivity to the development server. If you can see this page, the server is at least partially working.</p>
+    
+    <div class="test-section">
+        <h2>Static Assets Test</h2>
+        <p>This tests if the server can serve static files:</p>
+        <button id="staticTest">Test Static Assets</button>
+        <div class="status" id="staticStatus">Click the button to test...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>API Test</h2>
+        <p>This tests if the server can handle API requests:</p>
+        <button id="apiTest">Test API</button>
+        <div class="status" id="apiStatus">Click the button to test...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Network Information</h2>
+        <div class="log" id="networkLog">
+            Page URL: <span id="pageUrl"></span><br>
+            Server Port: <span id="serverPort"></span><br>
+        </div>
+    </div>
+
+    <script>
+        // Fill in network info
+        document.getElementById('pageUrl').textContent = window.location.href;
+        document.getElementById('serverPort').textContent = window.location.port || '(default)';
+
+        // Static assets test
+        document.getElementById('staticTest').addEventListener('click', async () => {
+            const statusEl = document.getElementById('staticStatus');
+            statusEl.textContent = 'Testing...';
+            statusEl.className = 'status';
+            
+            try {
+                // Try to fetch the favicon
+                const startTime = performance.now();
+                const response = await fetch('/favicon.ico');
+                const endTime = performance.now();
+                
+                if (response.ok) {
+                    statusEl.textContent = `Success! Static file loaded in ${(endTime - startTime).toFixed(2)}ms`;
+                    statusEl.className = 'status success';
+                } else {
+                    statusEl.textContent = `Error: Server responded with ${response.status} ${response.statusText}`;
+                    statusEl.className = 'status error';
+                }
+            } catch (error) {
+                statusEl.textContent = `Connection error: ${error.message}`;
+                statusEl.className = 'status error';
+            }
+        });
+
+        // API test
+        document.getElementById('apiTest').addEventListener('click', async () => {
+            const statusEl = document.getElementById('apiStatus');
+            statusEl.textContent = 'Testing...';
+            statusEl.className = 'status';
+            
+            try {
+                // Just checking if the base URL is reachable
+                const startTime = performance.now();
+                const response = await fetch('/');
+                const endTime = performance.now();
+                
+                if (response.ok) {
+                    statusEl.textContent = `Success! API responded in ${(endTime - startTime).toFixed(2)}ms`;
+                    statusEl.className = 'status success';
+                } else {
+                    statusEl.textContent = `Error: API responded with ${response.status} ${response.statusText}`;
+                    statusEl.className = 'status error';
+                }
+            } catch (error) {
+                statusEl.textContent = `Connection error: ${error.message}`;
+                statusEl.className = 'status error';
+            }
+        });
+    </script>
+</body>
+</html>

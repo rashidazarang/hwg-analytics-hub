@@ -1,0 +1,11 @@
+{
+  "status": "ok",
+  "timestamp": "2025-03-10T00:10:26Z",
+  "version": "1.0.0",
+  "environment": "development",
+  "services": {
+    "database": "connected",
+    "api": "running"
+  },
+  "message": "Server is healthy and responding to requests"
+}

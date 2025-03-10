@@ -1,0 +1,18 @@
+name: claim-analytics-hub
+region: nyc
+services:
+  - name: web
+    github:
+      branch: main
+      deploy_on_push: true
+      repo: your-github-username/claim-analytics-hub # You'll need to replace this with your actual GitHub repo
+    build_command: npm ci && npm run build
+    run_command: npm start
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    routes:
+      - path: /
+    envs:
+      - key: NODE_ENV
+        value: production
