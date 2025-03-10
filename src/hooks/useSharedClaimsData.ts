@@ -408,9 +408,12 @@ export async function fetchClaimsData({
                 }
               }
               
+              // Only set lastPaymentDate if there was an actual payment
+              const hasValidPayment = totalPaid > 0;
+              
               paymentMap.set(claim.ClaimID, {
                 totalPaid,
-                lastPaymentDate
+                lastPaymentDate: hasValidPayment ? lastPaymentDate : null
               });
             });
             
@@ -420,8 +423,10 @@ export async function fetchClaimsData({
               const paymentInfo = paymentMap.get(claim.ClaimID);
               return {
                 ...claim,
-                totalPaid: paymentInfo ? paymentInfo.totalPaid : 0,
-                lastPaymentDate: paymentInfo ? paymentInfo.lastPaymentDate : null
+                // Ensure totalPaid is always a valid number
+                totalPaid: paymentInfo && typeof paymentInfo.totalPaid === 'number' ? paymentInfo.totalPaid : 0,
+                // Only set lastPaymentDate if there was actual payment
+                lastPaymentDate: paymentInfo && paymentInfo.totalPaid > 0 ? paymentInfo.lastPaymentDate : null
               };
             });
             
@@ -440,9 +445,19 @@ export async function fetchClaimsData({
           
           // Map the payment data by ClaimID for easy lookup
           paymentData.forEach(item => {
+            // Parse the totalpaid value from the SQL function, ensuring it's a number
+            const totalPaidValue = typeof item.totalpaid === 'string' ? 
+              parseFloat(item.totalpaid) || 0 : 
+              (typeof item.totalpaid === 'number' ? item.totalpaid : 0);
+            
+            // Only set lastPaymentDate if there's an actual payment
+            const hasPayment = totalPaidValue > 0;
+            const paymentDate = hasPayment && item.lastpaymentdate ? 
+              new Date(item.lastpaymentdate) : null;
+            
             paymentMap.set(item.ClaimID, {
-              totalPaid: parseFloat(item.totalpaid) || 0,
-              lastPaymentDate: item.lastpaymentdate ? new Date(item.lastpaymentdate) : null
+              totalPaid: totalPaidValue,
+              lastPaymentDate: paymentDate
             });
           });
           
@@ -452,8 +467,10 @@ export async function fetchClaimsData({
             const paymentInfo = paymentMap.get(claim.ClaimID);
             return {
               ...claim,
-              totalPaid: paymentInfo ? paymentInfo.totalPaid : 0,
-              lastPaymentDate: paymentInfo ? paymentInfo.lastPaymentDate : null
+              // Ensure totalPaid is always a valid number
+              totalPaid: paymentInfo && typeof paymentInfo.totalPaid === 'number' ? paymentInfo.totalPaid : 0,
+              // Only set lastPaymentDate if there was actual payment
+              lastPaymentDate: paymentInfo && paymentInfo.totalPaid > 0 ? paymentInfo.lastPaymentDate : null
             };
           });
           
@@ -472,10 +489,12 @@ export async function fetchClaimsData({
     }
     
     // If we couldn't get payment data, use default values
+    // Always set totalPaid to a valid number (0)
+    // and set lastPaymentDate to null
     const claimsWithPaymentInfo = claims.map(claim => ({
       ...claim,
-      totalPaid: 0,  // Default value
-      lastPaymentDate: null  // Default value
+      totalPaid: 0,  // Default value - always a number, never undefined or null
+      lastPaymentDate: null  // Default value - always null for unpaid claims
     }));
 
     console.log(`[SHARED_CLAIMS] Fetched ${claims.length} claims. Total count: ${count || 'N/A'}`);

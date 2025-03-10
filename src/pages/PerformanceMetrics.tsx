@@ -121,48 +121,40 @@ const PerformanceMetrics: React.FC = () => {
       return;
     }
 
-    // Calculate the status averages for KPI cards
-    const calculateStatusAverages = () => {
+    // Calculate totals from data points to display in KPI cards
+    // We want exact values, not averages, to match the chart
+    const calculateTotals = () => {
       // Sum all status counts across all data points
-      const totalPending = data.reduce((sum, point) => sum + point.pending, 0);
-      const totalActive = data.reduce((sum, point) => sum + point.active, 0);
-      const totalClaimable = data.reduce((sum, point) => sum + point.claimable, 0);
-      const totalCancelled = data.reduce((sum, point) => sum + point.cancelled, 0);
-      const totalVoid = data.reduce((sum, point) => sum + point.void, 0);
+      // This will match exactly what is shown in the chart
+      const totalPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
+      const totalActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
+      const totalClaimable = data.reduce((sum, point) => sum + (point.claimable || 0), 0);
+      const totalCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
+      const totalVoid = data.reduce((sum, point) => sum + (point.void || 0), 0);
       
-      // Find non-zero data points for averaging
-      const nonZeroDataPoints = data.filter(point => point.value > 0).length;
-      const divisionFactor = Math.max(nonZeroDataPoints, 1);
-      
-      // Only log this once instead of thousands of times
+      // Log the totals for debugging
       console.log("[PERFORMANCE] Status totals for KPI calculations:", { 
         totalPending, 
         totalActive,
         totalClaimable,
         totalCancelled,
         totalVoid,
-        nonZeroDataPoints,
-        divisionFactor
+        totalDataPoints: data.length,
+        totalSum: totalPending + totalActive + totalClaimable + totalCancelled + totalVoid
       });
       
-      // Calculate averages
-      const pendingAvg = Math.round(totalPending / divisionFactor);
-      const activeAvg = Math.round(totalActive / divisionFactor);
-      const claimableAvg = Math.round(totalClaimable / divisionFactor);
-      const cancelledAvg = Math.round(totalCancelled / divisionFactor);
-      const voidAvg = Math.round(totalVoid / divisionFactor);
-      
+      // Return the exact totals, not averages, so KPIs match chart data exactly
       return {
-        pending: pendingAvg,
-        active: activeAvg,
-        claimable: claimableAvg,
-        cancelled: cancelledAvg,
-        void: voidAvg
+        pending: totalPending,
+        active: totalActive,
+        claimable: totalClaimable,
+        cancelled: totalCancelled,
+        void: totalVoid
       };
     };
     
-    // Update shared performance data
-    const statusAverages = calculateStatusAverages();
+    // Update shared performance data with exact totals
+    const statusTotals = calculateTotals();
     const dateRangeForKPI = {
       from: startDate,
       to: endDate
@@ -173,7 +165,7 @@ const PerformanceMetrics: React.FC = () => {
       timeframe, 
       dateRangeForKPI, 
       dealerFilter,
-      statusAverages
+      statusTotals
     );
     
   }, [statusFetchKey, startDate, endDate, data, updatePerformanceData, loading, dealerFilter]);

@@ -118,10 +118,13 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       sortable: false,
       render: (row) => {
         // Use the totalPaid field from our data fetching
-        const amount = row.totalPaid !== undefined ? row.totalPaid : 0;
+        // Handle undefined, null, or non-numeric values
+        const amount = typeof row.totalPaid === 'number' ? row.totalPaid : 0;
         
+        // Always display the amount, even if it's zero
+        // Only apply green styling to positive amounts
         return <span className={amount > 0 ? "text-success font-medium" : "text-muted-foreground"}>
-          {amount > 0 ? `$${amount.toFixed(2)}` : 'N/A'}
+          {`$${amount.toFixed(2)}`}
         </span>;
       },
     },
@@ -131,9 +134,19 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
       sortable: false,
       render: (row) => {
         // Use the lastPaymentDate field from our data fetching
-        return row.lastPaymentDate ? 
-          format(new Date(row.lastPaymentDate), 'MMM d, yyyy') : 
-          <span className="text-muted-foreground">N/A</span>;
+        // Check if there's a valid lastPaymentDate before rendering
+        if (row.lastPaymentDate) {
+          try {
+            // Format the date, handle possible date parsing errors
+            return format(new Date(row.lastPaymentDate), 'MMM d, yyyy');
+          } catch (e) {
+            console.error(`Error formatting payment date for claim ${row.ClaimID}:`, e);
+            // If date parsing fails, show a dash instead of N/A
+            return <span className="text-muted-foreground">-</span>;
+          }
+        } 
+        // For null/undefined lastPaymentDate when there are no paid subclaims, show a dash
+        return <span className="text-muted-foreground">-</span>;
       },
     },
     {

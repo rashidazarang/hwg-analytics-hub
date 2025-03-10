@@ -38,21 +38,33 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
       formattedDate = format(dataPoint.rawDate, 'MMM d, yyyy');
     }
     
+    // Calculate totals to ensure tooltip displays exactly the same data as bars
+    const pendingCount = dataPoint.pending || 0;
+    const activeCount = dataPoint.active || 0;
+    const claimableCount = dataPoint.claimable || 0;
+    const cancelledCount = dataPoint.cancelled || 0;
+    const voidCount = dataPoint.void || 0;
+    
+    // Ensure total value is sum of all statuses for consistency
+    const totalValue = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
+    
     tooltipContent = (
       <>
-        <p className="text-primary font-medium">Total Agreements: {dataPoint.value.toLocaleString()}</p>
+        <p className="text-primary font-medium">Total Agreements: {totalValue.toLocaleString()}</p>
         <div className="mt-2 text-sm space-y-1">
           <p className="flex items-center">
             <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.pending}}></span>
-            Pending: {dataPoint.pending.toLocaleString()}
+            Pending: {pendingCount.toLocaleString()}
           </p>
           <p className="flex items-center">
             <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.active}}></span>
-            Active: {(dataPoint.active + (dataPoint.claimable || 0)).toLocaleString()}
+            Active: {(activeCount + claimableCount).toLocaleString()}
+            {claimableCount > 0 && <span className="text-xs text-gray-400 ml-1">({activeCount} active, {claimableCount} claimable)</span>}
           </p>
           <p className="flex items-center">
             <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
-            Cancelled: {(dataPoint.cancelled + (dataPoint.void || 0)).toLocaleString()}
+            Cancelled: {(cancelledCount + voidCount).toLocaleString()}
+            {voidCount > 0 && <span className="text-xs text-gray-400 ml-1">({cancelledCount} cancelled, {voidCount} void)</span>}
           </p>
         </div>
       </>
@@ -246,9 +258,12 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationDuration={600}
                 animationBegin={0}
                 animationEasing="ease-in-out"
+                // Ensure null or undefined values are treated as 0
+                isAnimationActive={true}
               />
               <Bar 
-                dataKey="active" 
+                // Combine active and claimable for display
+                dataKey={(data) => (data.active || 0) + (data.claimable || 0)}
                 name="Active" 
                 stackId="a" 
                 fill={CHART_COLORS.active}
@@ -257,9 +272,11 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationDuration={600}
                 animationBegin={100}
                 animationEasing="ease-in-out"
+                isAnimationActive={true}
               />
               <Bar 
-                dataKey="cancelled" 
+                // Combine cancelled and void for display
+                dataKey={(data) => (data.cancelled || 0) + (data.void || 0)}
                 name="Cancelled" 
                 stackId="a" 
                 fill={CHART_COLORS.cancelled}
@@ -268,6 +285,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 animationDuration={600}
                 animationBegin={200}
                 animationEasing="ease-in-out"
+                isAnimationActive={true}
               />
             </BarChart>
           </ResponsiveContainer>

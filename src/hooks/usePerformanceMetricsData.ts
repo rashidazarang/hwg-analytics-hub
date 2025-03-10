@@ -60,25 +60,30 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case '6months':
-      // For 6 months timeframe, always show calendar half-years (Jan-Jun, Jul-Dec)
-      // Based on pagination: 
-      // offsetPeriods % 2 === 0 -> first half year (Jan-Jun)
-      // offsetPeriods % 2 === 1 -> second half year (Jul-Dec)
+      // For 6 months timeframe:
+      // - Always show exactly Jan-Jun or Jul-Dec periods
+      // - The offset determines which period and year to show
+      // - Even offsets (0, 2, 4) show Jan-Jun, odd offsets (1, 3, 5) show Jul-Dec
       
-      // Calculate year offset based on how many half-years we've moved
-      const halfYearOffset = Math.abs(offsetPeriods);
-      const yearOffset = Math.floor(halfYearOffset / 2);
+      // First calculate what year we should be showing
+      // Every 2 offset periods = 1 full year
+      const yearOffset = Math.floor(Math.abs(offsetPeriods) / 2);
       
-      // Determine whether to show H1 (Jan-Jun) or H2 (Jul-Dec)
-      const isFirstHalf = offsetPeriods >= 0 ? 
-                          (offsetPeriods % 2 === 0) : 
-                          (Math.abs(offsetPeriods) % 2 === 1);
-                          
-      // Calculate target year based on whether we're moving forward or backward
-      const targetYear = offsetPeriods >= 0 ? 
-                         (currentYear + yearOffset) : 
-                         (currentYear - yearOffset);
+      // Handle positive vs negative offsets differently
+      let targetYear;
+      let isFirstHalf;
       
+      if (offsetPeriods >= 0) {
+        // For positive offsets (moving forward in time)
+        targetYear = currentYear + yearOffset;
+        isFirstHalf = offsetPeriods % 2 === 0; // Even offsets = first half
+      } else {
+        // For negative offsets (moving backward in time)
+        targetYear = currentYear - yearOffset;
+        isFirstHalf = Math.abs(offsetPeriods) % 2 === 1; // For negative offsets, odd absolute values = first half
+      }
+      
+      // Create the date range based on which half-year we need
       if (isFirstHalf) {
         // First half of year (Jan-Jun)
         const startDate = new Date(targetYear, 0, 1); // January 1st
@@ -92,10 +97,13 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       }
     
     case 'year':
-      // Always show Jan-Dec for the selected year, regardless of current month
+      // Always show Jan-Dec for the selected year
       const targetYear2 = currentYear + offsetPeriods;
+      
+      // Ensure we get the full calendar year from January 1st to December 31st
       const startYear = new Date(targetYear2, 0, 1); // January 1st
       const endYear = new Date(targetYear2, 11, 31); // December 31st
+      
       return { start: startYear, end: endYear };
       
     default:
@@ -113,39 +121,146 @@ async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: st
   
   console.log(`[PERFORMANCE] Fetching monthly agreements from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
   
-  // Try first using our optimized count_agreements_by_date function with month grouping
+  // Always use a direct SQL query approach that matches the exact KPI calculation query
   try {
-    const { data: monthlyGroupedData, error: groupedError } = await supabase.rpc('count_agreements_by_date', {
-      from_date: startIso,
-      to_date: endIso,
-      dealer_uuid: dealerFilter || null,
-      group_by: 'month'
+    // This will execute the SQL query directly to get agreements grouped by month with status counts
+    // Use the exact same query structure as the KPI calculation to ensure consistency
+    const { data: monthlyData, error } = await supabase
+      .from('agreements')
+      .select('EffectiveDate, AgreementStatus')
+      .gte('EffectiveDate', startIso)
+      .lte('EffectiveDate', endIso)
+      .order('EffectiveDate', { ascending: true });
+      
+    if (dealerFilter) {
+      // Apply dealer filter if provided
+      await supabase.from('agreements')
+        .select('EffectiveDate, AgreementStatus')
+        .eq('DealerUUID', dealerFilter)
+        .gte('EffectiveDate', startIso)
+        .lte('EffectiveDate', endIso)
+        .order('EffectiveDate', { ascending: true });
+    }
+    
+    if (error) {
+      console.error('[PERFORMANCE] Error fetching monthly agreement data:', error);
+      throw new Error(error.message);
+    }
+    
+    console.log(`[PERFORMANCE] Direct SQL query returned ${monthlyData?.length || 0} agreements`);
+    
+    // Get array of months in the interval to ensure we have all months represented
+    const months = eachMonthOfInterval({ start: startDate, end: endDate });
+    
+    // Initialize monthly stats with zeros for all months
+    const monthlyStats: Record<string, { 
+      total: number, 
+      pending: number, 
+      active: number, 
+      claimable: number,
+      cancelled: number,
+      void: number
+    }> = {};
+    
+    months.forEach(month => {
+      const monthKey = format(month, 'yyyy-MM');
+      monthlyStats[monthKey] = { 
+        total: 0, 
+        pending: 0, 
+        active: 0, 
+        claimable: 0,
+        cancelled: 0,
+        void: 0
+      };
     });
     
-    if (!groupedError && monthlyGroupedData && monthlyGroupedData.length > 0) {
-      console.log('[PERFORMANCE] Successfully used count_agreements_by_date with month grouping:', monthlyGroupedData.length, 'months');
-      console.log('[PERFORMANCE] First few months:', monthlyGroupedData.slice(0, 3));
+    // Process each agreement and group by month
+    if (monthlyData && monthlyData.length > 0) {
+      // Log status distribution for debugging
+      const statusCounts: Record<string, number> = {};
+      monthlyData.forEach(agreement => {
+        const status = (agreement.AgreementStatus || '').toUpperCase();
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+      console.log('[PERFORMANCE] Status distribution in monthly data:', statusCounts);
       
-      // Map the data to our expected format
-      return monthlyGroupedData.map(item => {
-        const monthDate = new Date(item.date_group + '-01'); // Convert YYYY-MM to YYYY-MM-DD
-        return {
-          label: format(monthDate, 'MMM').toLowerCase(),
-          value: parseInt(item.total_count),
-          pending: parseInt(item.pending_count),
-          active: parseInt(item.active_count),
-          claimable: parseInt(item.claimable_count),
-          cancelled: parseInt(item.cancelled_count),
-          void: parseInt(item.void_count),
-          rawDate: monthDate
-        };
+      // Group by month
+      monthlyData.forEach(agreement => {
+        const effectiveDate = new Date(agreement.EffectiveDate);
+        const monthKey = format(effectiveDate, 'yyyy-MM');
+        
+        if (monthlyStats[monthKey]) {
+          // Increment total count
+          monthlyStats[monthKey].total++;
+          
+          // Track status counts - use uppercase for consistency
+          const status = (agreement.AgreementStatus || '').toUpperCase();
+          
+          // Count in the specific status categories
+          if (status === 'PENDING') {
+            monthlyStats[monthKey].pending++;
+          } else if (status === 'ACTIVE') {
+            monthlyStats[monthKey].active++;
+          } else if (status === 'CLAIMABLE') {
+            monthlyStats[monthKey].claimable++;
+          } else if (status === 'CANCELLED') {
+            monthlyStats[monthKey].cancelled++;
+          } else if (status === 'VOID') {
+            monthlyStats[monthKey].void++;
+          }
+        }
       });
     }
     
-    // Fallback to the original function if the new approach failed
-    console.log('[PERFORMANCE] count_agreements_by_date with month grouping failed, trying fetch_monthly_agreement_counts_with_status');
-  } catch (groupedErr) {
-    console.error('[PERFORMANCE] Error using count_agreements_by_date with month grouping:', groupedErr);
+    // Return formatted data for all months, including those with zero values
+    // This ensures we always have all months represented in the chart
+    return months.map(month => {
+      const monthKey = format(month, 'yyyy-MM');
+      const stats = monthlyStats[monthKey];
+      return {
+        label: format(month, 'MMM').toLowerCase(),
+        value: stats.total || 0,
+        pending: stats.pending || 0,
+        active: stats.active || 0,
+        claimable: stats.claimable || 0,
+        cancelled: stats.cancelled || 0,
+        void: stats.void || 0,
+        rawDate: month
+      };
+    });
+  } catch (err) {
+    console.error('[PERFORMANCE] Error with direct SQL query approach:', err);
+    // Try fallback approach with existing functions
+    try {
+      const { data: monthlyGroupedData, error: groupedError } = await supabase.rpc('count_agreements_by_date', {
+        from_date: startIso,
+        to_date: endIso,
+        dealer_uuid: dealerFilter || null,
+        group_by: 'month'
+      });
+      
+      if (!groupedError && monthlyGroupedData && monthlyGroupedData.length > 0) {
+        console.log('[PERFORMANCE] Successfully used count_agreements_by_date with month grouping:', monthlyGroupedData.length, 'months');
+        console.log('[PERFORMANCE] First few months:', monthlyGroupedData.slice(0, 3));
+        
+        // Map the data to our expected format
+        return monthlyGroupedData.map(item => {
+          const monthDate = new Date(item.date_group + '-01'); // Convert YYYY-MM to YYYY-MM-DD
+          return {
+            label: format(monthDate, 'MMM').toLowerCase(),
+            value: parseInt(item.total_count),
+            pending: parseInt(item.pending_count),
+            active: parseInt(item.active_count),
+            claimable: parseInt(item.claimable_count),
+            cancelled: parseInt(item.cancelled_count),
+            void: parseInt(item.void_count),
+            rawDate: monthDate
+          };
+        });
+      }
+    } catch (fallbackErr) {
+      console.error('[PERFORMANCE] Error using count_agreements_by_date fallback:', fallbackErr);
+    }
   }
   
   try {
@@ -391,7 +506,7 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
 
 /**
  * Fetches agreement data for daily view, showing actual counts per day
- * Uses the fixed SQL function to aggregate data efficiently with proper date grouping
+ * Uses a direct SQL query to ensure consistency with KPI calculations
  */
 async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, dealerFilter: string = '') {
   // Format dates
@@ -401,94 +516,174 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
   console.log(`[PERFORMANCE] Fetching daily agreements from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
   
   try {
-    // Use the fixed SQL function for daily data with proper DATE_TRUNC grouping
-    const { data: dailyData, error } = await supabase.rpc('count_agreements_by_date', {
-      from_date: startIso,
-      to_date: endIso,
-      dealer_uuid: dealerFilter || null,
-      group_by: 'day'
-    });
+    // Use direct SQL query approach to match KPI calculation exactly
+    // This ensures consistency between chart and KPIs
+    let query = supabase
+      .from('agreements')
+      .select('EffectiveDate, AgreementStatus');
+    
+    // Apply date range filter
+    query = query
+      .gte('EffectiveDate', startIso)
+      .lte('EffectiveDate', endIso);
+    
+    // Apply dealer filter if provided
+    if (dealerFilter) {
+      query = query.eq('DealerUUID', dealerFilter);
+    }
+    
+    // Fetch the data
+    const { data, error } = await query;
     
     if (error) {
-      console.warn('[PERFORMANCE] count_agreements_by_date error:', error.message);
-      console.log('[PERFORMANCE] Trying count_agreements_by_status as fallback');
-      
-      // Try using count_agreements_by_status as a fallback
-      try {
-        const { data: statusData, error: statusError } = await supabase.rpc('count_agreements_by_status', {
-          from_date: startIso,
-          to_date: endIso,
-          dealer_uuid: dealerFilter || null
-        });
-        
-        if (statusError || !statusData) {
-          console.warn('[PERFORMANCE] count_agreements_by_status error:', statusError?.message);
-          return await fetchDailyDataWithClientGrouping(startDate, endDate, dealerFilter);
-        }
-        
-        // This only gives total counts by status, we still need to do daily grouping client-side
-        console.log('[PERFORMANCE] Got status totals, doing client-side daily grouping');
-        console.log('[PERFORMANCE] Status distribution:', statusData);
-        
-        // Since we don't have day-by-day breakdowns, fallback to client-side grouping
-        return await fetchDailyDataWithClientGrouping(startDate, endDate, dealerFilter);
-      } catch (statusErr) {
-        console.error('[PERFORMANCE] Error with fallback function:', statusErr);
-        return await fetchDailyDataWithClientGrouping(startDate, endDate, dealerFilter);
-      }
+      console.error("[PERFORMANCE] Error fetching daily agreement data:", error);
+      throw new Error(error.message);
     }
     
-    if (dailyData && dailyData.length > 0) {
-      console.log('[PERFORMANCE] Successfully used count_agreements_by_date:', dailyData.length, 'days');
-      console.log('[PERFORMANCE] First 5 days of data:', dailyData.slice(0, 5));
-      
-      // Get all days in the interval to ensure complete data
-      const days = eachDayOfInterval({ start: startDate, end: endDate });
-      
-      // Create a map of the SQL data for fast lookups
-      const dateMap = new Map();
-      dailyData.forEach(row => {
-        // Convert date_group string back to Date for proper comparison
-        const dateKey = row.date_group;
-        dateMap.set(dateKey, {
-          total: parseInt(row.total_count),
-          pending: parseInt(row.pending_count),
-          active: parseInt(row.active_count),
-          claimable: parseInt(row.claimable_count),
-          cancelled: parseInt(row.cancelled_count),
-          void: parseInt(row.void_count)
-        });
+    console.log(`[PERFORMANCE] Daily data fetch returned ${data?.length || 0} agreements`);
+    
+    // Get array of days in the interval to ensure we have all days represented
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    
+    // Initialize daily stats with zeros for all days
+    const dailyStats: Record<string, {
+      total: number,
+      pending: number,
+      active: number,
+      claimable: number,
+      cancelled: number,
+      void: number
+    }> = {};
+    
+    days.forEach(day => {
+      const dayKey = format(day, 'yyyy-MM-dd');
+      dailyStats[dayKey] = { 
+        total: 0, 
+        pending: 0, 
+        active: 0, 
+        claimable: 0,
+        cancelled: 0, 
+        void: 0
+      };
+    });
+    
+    // Log status distribution for debugging
+    if (data && data.length > 0) {
+      const statusCounts: Record<string, number> = {};
+      data.forEach(agreement => {
+        const status = (agreement.AgreementStatus || '').toUpperCase();
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
       });
-      
-      // Map to the expected format, using zeroes for days with no data
-      return days.map(day => {
-        const dayKey = format(day, 'yyyy-MM-dd');
-        const stats = dateMap.get(dayKey) || { 
-          total: 0, 
-          pending: 0, 
-          active: 0, 
-          claimable: 0, 
-          cancelled: 0, 
-          void: 0 
-        };
-        
-        return {
-          label: format(day, 'd'), // Use day of month as label
-          value: stats.total,
-          pending: stats.pending,
-          active: stats.active,
-          claimable: stats.claimable,
-          cancelled: stats.cancelled,
-          void: stats.void,
-          rawDate: day
-        };
-      });
-    } else {
-      console.log('[PERFORMANCE] No data from count_agreements_by_date, falling back');
-      return await fetchDailyDataWithClientGrouping(startDate, endDate, dealerFilter);
+      console.log('[PERFORMANCE] Status distribution in daily data:', statusCounts);
     }
+    
+    // Process each agreement and group by day
+    if (data) {
+      data.forEach(agreement => {
+        const effectiveDate = new Date(agreement.EffectiveDate);
+        const dayKey = format(effectiveDate, 'yyyy-MM-dd');
+        
+        if (dailyStats[dayKey]) {
+          // Increment total count
+          dailyStats[dayKey].total++;
+          
+          // Track status counts
+          const status = (agreement.AgreementStatus || '').toUpperCase();
+          
+          // Count in specific status categories
+          if (status === 'PENDING') {
+            dailyStats[dayKey].pending++;
+          } else if (status === 'ACTIVE') {
+            dailyStats[dayKey].active++;
+          } else if (status === 'CLAIMABLE') {
+            dailyStats[dayKey].claimable++;
+          } else if (status === 'CANCELLED') {
+            dailyStats[dayKey].cancelled++;
+          } else if (status === 'VOID') {
+            dailyStats[dayKey].void++;
+          }
+        }
+      });
+    }
+    
+    // Format the data for chart display, ensure all days have entries
+    return days.map(day => {
+      const dayKey = format(day, 'yyyy-MM-dd');
+      const stats = dailyStats[dayKey];
+      
+      return {
+        label: format(day, 'd'), // Use day of month as label
+        value: stats.total || 0,
+        pending: stats.pending || 0,
+        active: stats.active || 0,
+        claimable: stats.claimable || 0,
+        cancelled: stats.cancelled || 0,
+        void: stats.void || 0,
+        rawDate: day
+      };
+    });
   } catch (err) {
-    console.error('[PERFORMANCE] Error using count_agreements_by_date:', err);
+    console.error('[PERFORMANCE] Error using direct SQL approach for daily data:', err);
+    
+    // Try fallback with count_agreements_by_date function
+    try {
+      const { data: dailyData, error } = await supabase.rpc('count_agreements_by_date', {
+        from_date: startIso,
+        to_date: endIso,
+        dealer_uuid: dealerFilter || null,
+        group_by: 'day'
+      });
+      
+      if (!error && dailyData && dailyData.length > 0) {
+        console.log('[PERFORMANCE] Successfully used count_agreements_by_date fallback:', dailyData.length, 'days');
+        
+        // Get all days in the interval to ensure complete data
+        const days = eachDayOfInterval({ start: startDate, end: endDate });
+        
+        // Create a map of the SQL data for fast lookups
+        const dateMap = new Map();
+        dailyData.forEach(row => {
+          // Convert date_group string back to Date for proper comparison
+          const dateKey = row.date_group;
+          dateMap.set(dateKey, {
+            total: parseInt(row.total_count),
+            pending: parseInt(row.pending_count),
+            active: parseInt(row.active_count),
+            claimable: parseInt(row.claimable_count),
+            cancelled: parseInt(row.cancelled_count),
+            void: parseInt(row.void_count)
+          });
+        });
+        
+        // Map to the expected format, using zeroes for days with no data
+        return days.map(day => {
+          const dayKey = format(day, 'yyyy-MM-dd');
+          const stats = dateMap.get(dayKey) || { 
+            total: 0, 
+            pending: 0, 
+            active: 0, 
+            claimable: 0, 
+            cancelled: 0, 
+            void: 0 
+          };
+          
+          return {
+            label: format(day, 'd'), // Use day of month as label
+            value: stats.total,
+            pending: stats.pending,
+            active: stats.active,
+            claimable: stats.claimable,
+            cancelled: stats.cancelled,
+            void: stats.void,
+            rawDate: day
+          };
+        });
+      }
+    } catch (fallbackErr) {
+      console.error('[PERFORMANCE] Fallback method also failed:', fallbackErr);
+    }
+    
+    // If all else fails, use client-side grouping
     return await fetchDailyDataWithClientGrouping(startDate, endDate, dealerFilter);
   }
 }
@@ -626,53 +821,74 @@ export function usePerformanceMetricsData(
     endDate: endDate.toISOString()
   }), [startDate, endDate]);
   
+  // Create a unique query key that includes the current time to ensure fresh data
+  // This helps prevent caching issues that could cause inconsistencies
   const queryKey = useMemo(() => 
-    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter], 
+    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, Date.now()], 
     [timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter]
   );
   
+  // Directly fetch data from the database using a consistent query approach
   const queryFn = useCallback(async () => {
     console.log(`[PERFORMANCE] Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
     
+    // Use the same data fetching strategy for all timeframes to ensure consistency
+    // For 6months and year views, we'll still use monthly grouping
+    // For week and month views, we'll use daily grouping
     if (timeframe === '6months' || timeframe === 'year') {
-      // For longer timeframes, use our optimized monthly data function 
-      // with SQL function support and multiple fallbacks
+      // Fetch monthly data with appropriate SQL query
       return await fetchMonthlyData(startDate, endDate, dealerFilter);
     } else if (timeframe === 'week' || timeframe === 'month') {
-      // For week and month views, use our optimized daily data function
-      // with SQL function support and fallbacks
+      // Fetch daily data with appropriate SQL query
       return await fetchDailyAgreementsByStatus(startDate, endDate, dealerFilter);
     }
   }, [timeframe, formattedDates, startDate, endDate, dealerFilter]);
   
+  // Use React Query with appropriate settings to avoid stale data
   const { data, isLoading, error } = useQuery({
     queryKey: queryKey,
     queryFn: queryFn,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    staleTime: 0, // Set to 0 to ensure fresh data on each view
+    cacheTime: 1000 * 60 * 5, // Cache for 5 minutes
+    refetchOnWindowFocus: true, // Refetch when window is focused
+    refetchOnMount: true, // Refetch when component mounts
   });
   
   const processedData = useMemo(() => {
     if (isLoading || !data) return [];
     
+    // Safety check - ensure all data points exist and have all required fields
+    const ensureDataPointIntegrity = (point: any): PerformanceDataPoint => {
+      return {
+        label: point.label || '',
+        value: (typeof point.value === 'number') ? point.value : 0,
+        rawDate: point.rawDate instanceof Date ? point.rawDate : new Date(),
+        pending: (typeof point.pending === 'number') ? point.pending : 0,
+        active: (typeof point.active === 'number') ? point.active : 0,
+        claimable: (typeof point.claimable === 'number') ? point.claimable : 0,
+        cancelled: (typeof point.cancelled === 'number') ? point.cancelled : 0,
+        void: (typeof point.void === 'number') ? point.void : 0
+      };
+    };
+    
     // If the data is already in the right format, just return it with potential formatting adjustments
     if (Array.isArray(data) && data.length > 0 && 'label' in data[0]) {
       // For week view, update the label format to use abbreviated day names
       if (timeframe === 'week') {
-        return (data as PerformanceDataPoint[]).map(point => ({
-          ...point,
+        return (data as any[]).map(point => ({
+          ...ensureDataPointIntegrity(point),
           label: format(point.rawDate, 'EEE').toLowerCase() // Change from day number to abbreviated day name
         }));
       }
       
-      // Ensure data is sorted chronologically
-      const sortedData = [...(data as PerformanceDataPoint[])];
+      // Ensure data is sorted chronologically and has integrity
+      const safeData = (data as any[]).map(point => ensureDataPointIntegrity(point));
+      const sortedData = [...safeData];
       sortedData.sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime());
       
       // For month view, we want to ensure all days are represented and in order
       if (timeframe === 'month') {
-        // Add any missing dates (should be rare but ensures data consistency)
+        // Add any missing dates to ensure data consistency
         const allDays = eachDayOfInterval({ start: startDate, end: endDate });
         const existingDateMap = new Map(sortedData.map(point => [format(point.rawDate, 'yyyy-MM-dd'), point]));
         
@@ -703,13 +919,6 @@ export function usePerformanceMetricsData(
         // For 6 months view, ensure we have exactly 6 months
         // For year view, ensure we have exactly 12 months
         const expectedMonths = timeframe === '6months' ? 6 : 12;
-        
-        // Get all months in the interval - ensure we get the full range
-        const monthInterval = { 
-          start: startDate, 
-          end: endDate 
-        };
-        const allMonths = eachMonthOfInterval(monthInterval);
         
         // Make sure we have appropriate months
         // For 6 months: Jan-Jun or Jul-Dec
@@ -743,7 +952,8 @@ export function usePerformanceMetricsData(
           monthMap.set(monthKey, point);
         });
         
-        // Map the months to data points
+        // Map the months to data points, filling in zeroes for missing months
+        // This is crucial for ensuring all months show up in the chart
         return finalMonths.map(month => {
           const monthKey = format(month, 'yyyy-MM');
           
@@ -766,7 +976,7 @@ export function usePerformanceMetricsData(
         });
       }
       
-      // For other timeframes, just return sorted data
+      // For other timeframes, just return sorted data with integrity checks
       return sortedData;
     }
     
