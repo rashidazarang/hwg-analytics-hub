@@ -54,7 +54,9 @@ async function fetchAgreements(
         .lte("EffectiveDate", to);
       
       if (dealerFilter && dealerFilter.trim()) {
-        query = query.eq("DealerUUID", dealerFilter);
+        // Ensure dealerFilter is properly trimmed and applied consistently
+        query = query.eq("DealerUUID", dealerFilter.trim());
+        console.log(`🔍 Applied dealer filter: "${dealerFilter.trim()}" to query`);
       }
       
       if (statusFilters && statusFilters.length > 0) {
@@ -191,8 +193,15 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     console.log('🔍 AgreementsTable - Current dealer name:', dealerName);
     console.log('🔍 AgreementsTable - Current date range:', dateRange);
     
+    // Reset to page 1 when filters change
     setPage(1);
-  }, [dealerFilter, dealerName, dateRange]);
+    
+    // When filter parameters change, explicitly refetch data
+    // This ensures we get a fresh dataset with the new filters
+    if (dealerFilter || dateRange) {
+      queryClient.invalidateQueries({ queryKey: ["agreements-data"] });
+    }
+  }, [dealerFilter, dealerName, dateRange, queryClient]);
 
   useEffect(() => {
     if (searchQuery !== undefined) {
@@ -323,6 +332,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     console.log("🔍 Search term updated:", term);
     setSearchTerm(term);
     setPage(1);
+    
+    // When searching locally, we should reset the filter if the term is cleared
+    if (!term.trim() && searchTerm.trim()) {
+      queryClient.invalidateQueries({ queryKey: ["agreements-data"] });
+    }
   };
 
   const handlePageChange = (newPage: number) => {
@@ -404,8 +418,22 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     },
   ];
 
+  // Fixed: When using search term with DB query, we need to keep pagination working
+  // Local filtering is only applied to the current page of results
   const displayedCount = filteredAgreements.length;
-  const effectiveTotalCount = searchTerm.trim() ? displayedCount : totalCount;
+  
+  // If we're doing a text search, we need to understand that filteredAgreements
+  // only represents the current page's filtered results
+  const effectiveTotalCount = totalCount;
+  
+  // Log pagination and filtering details for debugging
+  console.log('Pagination details:', {
+    currentPage: page,
+    pageSize: pageSize,
+    totalCount: totalCount,
+    displayedAfterFiltering: displayedCount,
+    effectiveTotalForPagination: effectiveTotalCount
+  });
 
   const currentStatus = isFetching
     ? "Loading..."
