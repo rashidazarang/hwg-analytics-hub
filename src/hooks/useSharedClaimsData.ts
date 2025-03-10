@@ -66,58 +66,91 @@ export async function fetchClaimsData({
         agreements!inner(DealerUUID, dealers(Payee))
       `, { count: includeCount ? 'exact' : undefined });
 
-    console.log("[SHARED_CLAIMS] Setting up date filtering by payment dates");
+    console.log("[SHARED_CLAIMS] Setting up date filtering for claims");
     console.log("[SHARED_CLAIMS] Date range:", {
       from: dateRange.from.toISOString(),
       to: dateRange.to.toISOString()
     });
     
-    // We'll always attempt to use the payment date filtering function first
-    // If it fails, we'll fall back to traditional date filtering
-    try {
-      // Get IDs of claims with payments in the date range
-      const { data: claimsWithPayments, error: paymentRangeError } = await supabase.rpc(
-        'get_claims_with_payment_in_date_range', 
-        { 
-          start_date: dateRange.from.toISOString(), 
-          end_date: dateRange.to.toISOString() 
-        }
-      );
-      
-      if (paymentRangeError) {
-        throw paymentRangeError;
-      }
-      
-      if (claimsWithPayments && Array.isArray(claimsWithPayments) && claimsWithPayments.length > 0) {
-        // Extract claim IDs with payments in range
-        const claimIds = claimsWithPayments.map(item => item.ClaimID);
-        console.log(`[SHARED_CLAIMS] Found ${claimIds.length} claims with payments in date range`);
+    // Apply traditional date filtering first
+    // This ensures we have at least some filtering applied before attempting the payment date filter
+    query = query.or(
+      `ReportedDate.gte.${dateRange.from.toISOString()},` +
+      `ReportedDate.lte.${dateRange.to.toISOString()},` +
+      `LastModified.gte.${dateRange.from.toISOString()},` +
+      `LastModified.lte.${dateRange.to.toISOString()}`
+    );
+    
+    // Check if we should try to use payment date filtering
+    const shouldTryPaymentDateFiltering = true; // Set to false to disable it entirely
+    
+    if (shouldTryPaymentDateFiltering) {
+      try {
+        console.log("[SHARED_CLAIMS] Trying payment date filtering...");
         
-        // Create an IN filter with these claim IDs
-        // The query will only return claims that have payments in the specified date range
-        query = query.in('ClaimID', claimIds);
-      } else {
-        console.log("[SHARED_CLAIMS] No claims with payments in date range, using traditional filters");
-        
-        // Fall back to traditional date filtering if no claims with payments were found
-        query = query.or(
-          `ReportedDate.gte.${dateRange.from.toISOString()},` +
-          `ReportedDate.lte.${dateRange.to.toISOString()},` +
-          `LastModified.gte.${dateRange.from.toISOString()},` +
-          `LastModified.lte.${dateRange.to.toISOString()}`
+        // Try to use a simple test query to see if the function exists
+        const testFunctionResult = await supabase.rpc(
+          'get_claims_with_payment_in_date_range', 
+          { 
+            start_date: new Date('2000-01-01').toISOString(), 
+            end_date: new Date('2000-01-02').toISOString() 
+          }
         );
+        
+        // If test worked, the function exists - use it with real dates
+        if (!testFunctionResult.error) {
+          console.log("[SHARED_CLAIMS] Payment date filtering function available");
+          
+          // Get IDs of claims with payments in the date range
+          const { data: claimsWithPayments, error: paymentRangeError } = await supabase.rpc(
+            'get_claims_with_payment_in_date_range', 
+            { 
+              start_date: dateRange.from.toISOString(), 
+              end_date: dateRange.to.toISOString() 
+            }
+          );
+          
+          if (paymentRangeError) {
+            console.error("[SHARED_CLAIMS] Error getting claims with payments:", paymentRangeError);
+          } else if (claimsWithPayments && Array.isArray(claimsWithPayments) && claimsWithPayments.length > 0) {
+            // Extract claim IDs with payments in range
+            const claimIds = claimsWithPayments.map(item => item.ClaimID);
+            console.log(`[SHARED_CLAIMS] Found ${claimIds.length} claims with payments in date range`);
+            
+            // Clear previous date filter and use claim IDs instead
+            // Create a new query, since we can't easily remove the previous OR conditions
+            query = supabase
+              .from("claims")
+              .select(`
+                id,
+                ClaimID, 
+                AgreementID,
+                ReportedDate, 
+                Closed,
+                Cause,
+                Correction,
+                Deductible,
+                LastModified,
+                agreements!inner(DealerUUID, dealers(Payee))
+              `, { count: includeCount ? 'exact' : undefined })
+              .in('ClaimID', claimIds);
+              
+            // Re-apply dealer filter if needed
+            if (dealerFilter && dealerFilter.trim() !== '') {
+              query = query.eq('agreements.DealerUUID', dealerFilter.trim());
+            }
+          } else {
+            console.log("[SHARED_CLAIMS] No claims with payments in date range, using traditional filters");
+            // Traditional filtering already applied at the beginning
+          }
+        } else {
+          console.error("[SHARED_CLAIMS] Payment date function test failed:", testFunctionResult.error);
+          // Traditional filtering already applied at the beginning
+        }
+      } catch (e) {
+        console.error("[SHARED_CLAIMS] Error testing payment date filtering:", e);
+        // Traditional filtering already applied at the beginning
       }
-    } catch (e) {
-      console.error("[SHARED_CLAIMS] Error using payment date filtering:", e);
-      
-      // Fall back to traditional date filtering
-      console.log("[SHARED_CLAIMS] Falling back to traditional date filtering");
-      query = query.or(
-        `ReportedDate.gte.${dateRange.from.toISOString()},` +
-        `ReportedDate.lte.${dateRange.to.toISOString()},` +
-        `LastModified.gte.${dateRange.from.toISOString()},` +
-        `LastModified.lte.${dateRange.to.toISOString()}`
-      );
     }
     
     // Apply dealer filter if provided
@@ -147,52 +180,14 @@ export async function fetchClaimsData({
           agreements!inner(DealerUUID)
         `, { count: 'exact', head: true });
       
-      // Try to use payment date filtering for consistent counts
-      console.log("[SHARED_CLAIMS] Setting up count query with same date filtering");
-      try {
-        // Get IDs of claims with payments in the date range
-        const { data: countClaimsWithPayments, error: countPaymentRangeError } = await supabase.rpc(
-          'get_claims_with_payment_in_date_range', 
-          { 
-            start_date: dateRange.from.toISOString(), 
-            end_date: dateRange.to.toISOString() 
-          }
-        );
-        
-        if (countPaymentRangeError) {
-          throw countPaymentRangeError;
-        }
-        
-        if (countClaimsWithPayments && Array.isArray(countClaimsWithPayments) && countClaimsWithPayments.length > 0) {
-          // Extract claim IDs with payments in range
-          const countClaimIds = countClaimsWithPayments.map(item => item.ClaimID);
-          console.log(`[SHARED_CLAIMS] Count query: Found ${countClaimIds.length} claims with payments in date range`);
-          
-          // Apply the same IN filter to ensure consistent results
-          countQuery.in('ClaimID', countClaimIds);
-        } else {
-          console.log("[SHARED_CLAIMS] Count query: No claims with payments in date range, using traditional filters");
-          
-          // Fall back to traditional date filtering if no claims with payments were found
-          countQuery.or(
-            `ReportedDate.gte.${dateRange.from.toISOString()},` +
-            `ReportedDate.lte.${dateRange.to.toISOString()},` +
-            `LastModified.gte.${dateRange.from.toISOString()},` +
-            `LastModified.lte.${dateRange.to.toISOString()}`
-          );
-        }
-      } catch (e) {
-        console.error("[SHARED_CLAIMS] Error using payment date filtering for count query:", e);
-        
-        // Fall back to traditional date filtering
-        console.log("[SHARED_CLAIMS] Count query: Falling back to traditional date filtering");
-        countQuery.or(
-          `ReportedDate.gte.${dateRange.from.toISOString()},` +
-          `ReportedDate.lte.${dateRange.to.toISOString()},` +
-          `LastModified.gte.${dateRange.from.toISOString()},` +
-          `LastModified.lte.${dateRange.to.toISOString()}`
-        );
-      }
+      // Just use traditional date filtering for count - simpler and more reliable
+      console.log("[SHARED_CLAIMS] Setting up count query with traditional date filtering");
+      countQuery.or(
+        `ReportedDate.gte.${dateRange.from.toISOString()},` +
+        `ReportedDate.lte.${dateRange.to.toISOString()},` +
+        `LastModified.gte.${dateRange.from.toISOString()},` +
+        `LastModified.lte.${dateRange.to.toISOString()}`
+      );
       
       // Apply dealer filter to count query if provided
       if (dealerFilter && dealerFilter.trim() !== '') {
@@ -450,14 +445,42 @@ export async function fetchClaimsData({
     
     if (claimIds.length > 0) {
       try {
-        // Use the optimized SQL query to get payment information for all claims at once
-        const { data: paymentData, error: paymentError } = await supabase.rpc(
-          'get_claims_payment_info',
-          { claim_ids: claimIds }
-        );
+        // Try to get payment information using SQL function
+        console.log("[SHARED_CLAIMS] Fetching payment info for", claimIds.length, "claims");
         
-        // If the RPC function doesn't exist yet, fall back to a direct query
-        if (paymentError && paymentError.message.includes('function does not exist')) {
+        // Test if the function exists
+        let paymentFunctionExists = false;
+        try {
+          const testResult = await supabase.rpc(
+            'get_claims_payment_info',
+            { claim_ids: [claimIds[0] || 'test'] }
+          );
+          
+          if (!testResult.error || !testResult.error.message.includes('function does not exist')) {
+            paymentFunctionExists = true;
+          }
+        } catch (testError) {
+          console.error("[SHARED_CLAIMS] Error testing payment info function:", testError);
+        }
+        
+        let paymentData = null;
+        let paymentError = null;
+        
+        if (paymentFunctionExists) {
+          console.log("[SHARED_CLAIMS] Using get_claims_payment_info function");
+          const result = await supabase.rpc(
+            'get_claims_payment_info',
+            { claim_ids: claimIds }
+          );
+          paymentData = result.data;
+          paymentError = result.error;
+        } else {
+          console.log("[SHARED_CLAIMS] get_claims_payment_info function doesn't exist");
+          paymentError = { message: 'function does not exist' };
+        }
+        
+        // If the RPC function doesn't exist or had an error, fall back to direct query
+        if (paymentError) {
           console.log('[SHARED_CLAIMS] Payment info RPC not found, using direct query');
           
           // Build a query to get payment information for all claims in one batch
@@ -621,7 +644,73 @@ export async function fetchClaimsData({
       statusBreakdown
     };
   } catch (error) {
+    // Improved error logging with more details
     console.error('[SHARED_CLAIMS] Error in fetchClaimsData:', error);
+    console.error('[SHARED_CLAIMS] Error details:', JSON.stringify(error, null, 2));
+    
+    if (error && (error as any).message) {
+      console.error('[SHARED_CLAIMS] Error message:', (error as any).message);
+    }
+    
+    if (error && (error as any).code) {
+      console.error('[SHARED_CLAIMS] Error code:', (error as any).code);
+    }
+    
+    if (error && (error as any).details) {
+      console.error('[SHARED_CLAIMS] Error details:', (error as any).details);
+    }
+    
+    // Let's use a fallback approach without the SQL functions
+    try {
+      console.log('[SHARED_CLAIMS] Attempting fallback query without date range filtering');
+      
+      // Basic query without advanced filtering
+      const fallbackQuery = supabase
+        .from("claims")
+        .select(`
+          id,
+          ClaimID, 
+          AgreementID,
+          ReportedDate, 
+          Closed,
+          Cause,
+          Correction,
+          Deductible,
+          LastModified,
+          agreements!inner(DealerUUID, dealers(Payee))
+        `)
+        .order('LastModified', { ascending: false })
+        .limit(100); // Just get some data to prevent complete failure
+      
+      if (dealerFilter && dealerFilter.trim() !== '') {
+        fallbackQuery.eq('agreements.DealerUUID', dealerFilter.trim());
+      }
+      
+      const { data: fallbackData } = await fallbackQuery;
+      
+      if (fallbackData && fallbackData.length > 0) {
+        console.log('[SHARED_CLAIMS] Fallback query succeeded with', fallbackData.length, 'records');
+        
+        // Return simple data without payment info
+        return {
+          data: fallbackData.map(claim => ({
+            ...claim,
+            totalPaid: 0,
+            lastPaymentDate: null
+          })),
+          count: fallbackData.length,
+          statusBreakdown: { 
+            OPEN: fallbackData.filter(c => !c.Closed && c.ReportedDate).length,
+            PENDING: fallbackData.filter(c => !c.ReportedDate && !c.Closed).length,
+            CLOSED: fallbackData.filter(c => !!c.Closed).length
+          }
+        };
+      }
+    } catch (fallbackError) {
+      console.error('[SHARED_CLAIMS] Fallback query also failed:', fallbackError);
+    }
+    
+    // If everything fails, return empty data
     return {
       data: [],
       count: 0,
