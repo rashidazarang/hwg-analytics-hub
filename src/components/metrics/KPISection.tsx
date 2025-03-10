@@ -1,7 +1,7 @@
 
 import React from 'react';
 import KPICard from '@/components/metrics/KPICard';
-import { FileSignature, AlertTriangle, Clock, BarChart } from 'lucide-react';
+import { FileSignature, AlertTriangle, Clock, BarChart, CircleDollarSign } from 'lucide-react';
 import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
 import { useKPIData } from '@/hooks/useKPIData';
 
@@ -34,7 +34,16 @@ const KPISection: React.FC = () => {
   }
   
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 w-full mb-6 animate-fade-in">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 w-full mb-6 animate-fade-in">
+      <KPICard
+        title="Total Contracts"
+        value={isLoading 
+          ? "..." 
+          : kpiData?.totalAgreements.toLocaleString("en-US", { maximumFractionDigits: 0 }) || "0"}
+        description={`Total contracts in selected date range`}
+        icon={CircleDollarSign}
+        color="primary"
+      />
       <KPICard
         title="Pending Contracts"
         value={isLoading 

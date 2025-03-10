@@ -35,7 +35,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const mobileFilterRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
-  const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('ytd'));
+  const [dateRange, setDateRange] = useState<DateRange>(getPresetDateRange('mtd'));
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -148,7 +148,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {!isMobile && !hideDefaultDateFilter && (
                   <DateRangeFilter 
                     dateRange={dateRange}
-                    onChange={handleDateChange} 
+                    onChange={handleDateChange}
+                    isPerformancePage={pageTitle === "Performance Metrics"} 
                   />
                 )}
                 <AuthNav />
@@ -166,7 +167,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="text-sm font-medium mb-2">Select Date Range</h3>
               <DateRangeFilter 
                 dateRange={dateRange}
-                onChange={handleDateChange} 
+                onChange={handleDateChange}
+                isPerformancePage={pageTitle === "Performance Metrics"}
               />
             </div>
           )}

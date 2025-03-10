@@ -11,13 +11,12 @@ import { useTopDealerClaimsData } from '@/hooks/useDealerClaimsData';
 import DashboardSummaryKPIs from '@/components/metrics/DashboardSummaryKPIs';
 import DashboardLeaderboard from '@/components/dashboard/DashboardLeaderboard';
 import DashboardAlerts from '@/components/dashboard/DashboardAlerts';
+import { useAtom } from 'jotai';
+import { globalDateRangeAtom } from '@/contexts/DateFilterContext';
 
 const Index = () => {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(new Date().getFullYear(), 0, 1),
-    to: new Date()
-  });
+  const [dateRange, setDateRange] = useAtom(globalDateRangeAtom);
   const [dealerFilter, setDealerFilter] = useState<string>('');
 
   // Check authentication

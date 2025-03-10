@@ -1,17 +1,16 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { DateRange } from '@/lib/dateUtils';
 import DateRangeFilter from '@/components/filters/DateRangeFilter';
 import TopDealersTable from '@/components/leaderboard/TopDealersTable';
 import { useTopDealersData } from '@/hooks/leaderboard/useTopDealersData';
 import Sidebar from '@/components/navigation/Sidebar';
+import { useAtom } from 'jotai';
+import { globalDateRangeAtom } from '@/contexts/DateFilterContext';
 
 const Leaderboard: React.FC = () => {
-  // State for date range filter
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-    to: new Date()
-  });
+  // Use global date range
+  const [dateRange, setDateRange] = useAtom(globalDateRangeAtom);
 
   // Fetch data using our hooks
   const {
@@ -31,7 +30,7 @@ const Leaderboard: React.FC = () => {
       <div className="ml-64 flex-1 p-6 py-[12px]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
           <h1 className="md:block text-2xl font-bold tracking-tight">Performance Leaderboard</h1>
-          <DateRangeFilter dateRange={dateRange} onChange={handleDateRangeChange} />
+          <DateRangeFilter dateRange={dateRange} onChange={handleDateRangeChange} isPerformancePage={false} />
         </div>
 
         <div className="space-y-4">

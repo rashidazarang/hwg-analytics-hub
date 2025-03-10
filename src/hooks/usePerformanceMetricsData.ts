@@ -73,21 +73,29 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
   }
 }
 
-async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
-  // Format dates in CST timezone for proper comparison
-  const cstStartDateIso = toCSTISOString(setCSTHours(startDate, 0, 0, 0, 0));
-  const cstEndDateIso = toCSTISOString(setCSTHours(endDate, 23, 59, 59, 999));
+async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, dealerFilter: string = '') {
+  // Format dates simply without timezone conversion
+  const startIso = startDate.toISOString();
+  const endIso = endDate.toISOString();
   
-  console.log(`[PERFORMANCE] Fetching aggregated monthly data from ${cstStartDateIso} to ${cstEndDateIso}`);
+  console.log(`[PERFORMANCE] Fetching aggregated monthly data from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
 
-  // First, set timezone to CST for the query
-  await supabase.rpc('set_timezone', { timezone_name: CST_TIMEZONE });
-
-  const { data, error } = await supabase
+  // Skip timezone setting - it's not needed for basic querying
+  // and can cause performance issues when called repeatedly
+  
+  // Build the query
+  let query = supabase
     .from('agreements')
     .select('EffectiveDate, AgreementStatus')
-    .gte('EffectiveDate', cstStartDateIso)
-    .lte('EffectiveDate', cstEndDateIso);
+    .gte('EffectiveDate', startIso)
+    .lte('EffectiveDate', endIso);
+  
+  // Apply dealer filter if provided
+  if (dealerFilter) {
+    query = query.eq('DealerUUID', dealerFilter);
+  }
+  
+  const { data, error } = await query;
 
   if (error) {
     console.error("[PERFORMANCE] Error fetching aggregated agreement data:", error);
@@ -121,9 +129,8 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
     
     data.forEach(agreement => {
       const effectiveDate = new Date(agreement.EffectiveDate);
-      // Use CST dates to avoid timezone issues
-      const effectiveDateCST = toCSTDate(effectiveDate);
-      const monthKey = format(effectiveDateCST, 'yyyy-MM');
+      // Simplify - just use the date as is
+      const monthKey = format(effectiveDate, 'yyyy-MM');
       
       if (monthlyStats[monthKey]) {
         monthlyStats[monthKey].total++; // Always increment total
@@ -163,21 +170,30 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
   });
 }
 
-async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date) {
-  // Format dates in CST timezone for proper comparison
-  const cstStartDateIso = toCSTISOString(setCSTHours(startDate, 0, 0, 0, 0));
-  const cstEndDateIso = toCSTISOString(setCSTHours(endDate, 23, 59, 59, 999));
+async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date, dealerFilter: string = '') {
+  // Format dates - no need for complex timezone conversion here
+  // Just use the dates as is, since timezone handling will be done on the server
+  const startIso = startDate.toISOString();
+  const endIso = endDate.toISOString();
   
-  console.log(`[PERFORMANCE] Fetching all agreements by status from ${cstStartDateIso} to ${cstEndDateIso}`);
+  console.log(`[PERFORMANCE] Fetching all agreements by status from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
   
-  // First, set timezone to CST for the query
-  await supabase.rpc('set_timezone', { timezone_name: CST_TIMEZONE });
+  // No need to set timezone - it would cause extra overhead for every query
+  // The server timezone settings handle this
   
-  const { data, error } = await supabase
+  // Build the query
+  let query = supabase
     .from('agreements')
     .select('EffectiveDate, AgreementStatus')
-    .gte('EffectiveDate', cstStartDateIso)
-    .lte('EffectiveDate', cstEndDateIso);
+    .gte('EffectiveDate', startIso)
+    .lte('EffectiveDate', endIso);
+  
+  // Apply dealer filter if provided
+  if (dealerFilter) {
+    query = query.eq('DealerUUID', dealerFilter);
+  }
+  
+  const { data, error } = await query;
   
   if (error) {
     console.error("[PERFORMANCE] Error fetching agreement data:", error);
@@ -201,7 +217,8 @@ async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date) {
 
 export function usePerformanceMetricsData(
   timeframe: TimeframeOption,
-  offsetPeriods: number = 0
+  offsetPeriods: number = 0,
+  dealerFilter: string = ''
 ): PerformanceData {
   const { start: startDate, end: endDate } = useMemo(() => 
     getTimeframeDateRange(timeframe, offsetPeriods), 
@@ -214,19 +231,19 @@ export function usePerformanceMetricsData(
   }), [startDate, endDate]);
   
   const queryKey = useMemo(() => 
-    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate], 
-    [timeframe, formattedDates.startDate, formattedDates.endDate]
+    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter], 
+    [timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter]
   );
   
   const queryFn = useCallback(async () => {
-    console.log(`[PERFORMANCE] Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}`);
+    console.log(`[PERFORMANCE] Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
     
     if (timeframe === '6months' || timeframe === 'year') {
-      return await fetchMonthlyAgreementCounts(startDate, endDate);
+      return await fetchMonthlyAgreementCounts(startDate, endDate, dealerFilter);
     }
     
-    return await fetchAllAgreementsByStatus(startDate, endDate);
-  }, [timeframe, formattedDates, startDate, endDate]);
+    return await fetchAllAgreementsByStatus(startDate, endDate, dealerFilter);
+  }, [timeframe, formattedDates, startDate, endDate, dealerFilter]);
   
   const { data, isLoading, error } = useQuery({
     queryKey: queryKey,

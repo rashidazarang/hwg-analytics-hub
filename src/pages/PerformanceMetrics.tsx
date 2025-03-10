@@ -7,10 +7,14 @@ import { DateRange } from '@/lib/dateUtils';
 import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
 import { supabase } from '@/integrations/supabase/client';
 import Dashboard from '@/components/layout/Dashboard';
+import DealershipSearch from '@/components/search/DealershipSearch';
 
 const PerformanceMetrics: React.FC = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>('month');
   const [periodOffset, setPeriodOffset] = useState<number>(0);
+  const [dealerFilter, setDealerFilter] = useState<string>('');
+  const [dealerName, setDealerName] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   
   const { updatePerformanceData } = useSharedPerformanceData();
 
@@ -25,18 +29,24 @@ const PerformanceMetrics: React.FC = () => {
     setPeriodOffset(newOffset);
   }, []);
 
+  const handleDealershipSelect = useCallback((dealershipId: string, dealershipName: string) => {
+    console.log(`[PERFORMANCE] Selected dealership: ID='${dealershipId}', Name='${dealershipName}'`);
+    setDealerFilter(dealershipId);
+    setDealerName(dealershipName);
+  }, []);
+
   // This is a dummy function that won't be used since we're removing the DateRangeFilter
   const handleDateRangeChange = useCallback((range: DateRange) => {
     console.log("[PERFORMANCE] Date range change called but ignored", range);
     // Intentionally not setting the date range as we're using timeframe selection instead
   }, []);
 
-  const { data, loading, error, startDate, endDate } = usePerformanceMetricsData(timeframe, periodOffset);
+  const { data, loading, error, startDate, endDate } = usePerformanceMetricsData(timeframe, periodOffset, dealerFilter);
 
   // Use this key to track when data changes and needs to be processed for KPIs
   const statusFetchKey = useMemo(() => 
-    `${timeframe}-${periodOffset}-${data.length}`,
-    [timeframe, periodOffset, data.length]
+    `${timeframe}-${periodOffset}-${dealerFilter}-${data.length}`,
+    [timeframe, periodOffset, dealerFilter, data.length]
   );
 
   useEffect(() => {
@@ -87,18 +97,29 @@ const PerformanceMetrics: React.FC = () => {
       data, 
       timeframe, 
       dateRangeForKPI, 
-      '',
+      dealerFilter,
       statusAverages
     );
     
-  }, [statusFetchKey, startDate, endDate, data, updatePerformanceData, loading]);
+  }, [statusFetchKey, startDate, endDate, data, updatePerformanceData, loading, dealerFilter]);
 
   const timeframeSubnavbar = (
-    <div className="flex justify-center items-center w-full">
-      <TimeframeFilter 
-        selected={timeframe} 
-        onChange={handleTimeframeChange}
-      />
+    <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 w-full">
+      <div className="sm:flex-1 flex justify-start">
+        <div className="w-full sm:w-auto max-w-xs">
+          <DealershipSearch 
+            onDealershipSelect={handleDealershipSelect}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+          />
+        </div>
+      </div>
+      <div className="flex justify-center items-center">
+        <TimeframeFilter 
+          selected={timeframe} 
+          onChange={handleTimeframeChange}
+        />
+      </div>
     </div>
   );
 

@@ -49,19 +49,22 @@ export function getPresetDateRange(preset: DateRangePreset): DateRange {
   const today = new Date();
   
   switch (preset) {
-    case 'wtd': // Week to date
+    case 'wtd': // Week to date - Rolling week (7 days back)
       return {
-        from: startOfWeek(today, { weekStartsOn: 1 }), // Start from Monday
+        from: addDays(today, -7),
         to: today
       };
-    case 'mtd': // Month to date
+    case 'mtd': // Month to date - Rolling month (30 days back)
       return {
-        from: startOfMonth(today),
+        from: addDays(today, -30),
         to: today
       };
-    case 'ytd': // Year to date
+    case 'ytd': // Year to date - Rolling year (365 days back)
+      // Get same date from previous year
+      const fromDate = new Date(today);
+      fromDate.setFullYear(today.getFullYear() - 1);
       return {
-        from: startOfYear(today),
+        from: fromDate,
         to: today
       };
     case 'custom':
@@ -72,7 +75,7 @@ export function getPresetDateRange(preset: DateRangePreset): DateRange {
       };
     default:
       return {
-        from: startOfYear(today), // Default to year to date
+        from: addDays(today, -30), // Default to month-to-date
         to: today
       };
   }

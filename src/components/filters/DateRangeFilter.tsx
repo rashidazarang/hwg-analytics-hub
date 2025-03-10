@@ -15,105 +15,159 @@ import {
   SheetContent, 
   SheetTrigger, 
   SheetTitle,
-  SheetDescription 
+  SheetDescription,
+  SheetFooter
 } from '@/components/ui/sheet';
+import { useAtom } from 'jotai';
+import { globalDateRangeAtom } from '@/contexts/DateFilterContext';
 
 type DateRangeFilterProps = {
   dateRange?: DateRange;
   onChange: (range: DateRange) => void;
+  isPerformancePage?: boolean;
 };
 
-const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange }) => {
-  // Set default preset to 'ytd' instead of 'mtd'
+const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange, isPerformancePage = false }) => {
+  // Use global date range atom if not performance page
+  const [globalDateRange, setGlobalDateRange] = useAtom(globalDateRangeAtom);
+  
+  // Set default preset to 'ytd'
   const [preset, setPreset] = useState<DateRangePreset>('ytd');
-  const [localDateRange, setLocalDateRange] = useState<DateRange>(dateRange || getPresetDateRange('ytd'));
+  
+  // Use local state for the calendar selection before applying
+  const [tempDateRange, setTempDateRange] = useState<DateRange>(
+    isPerformancePage 
+      ? (dateRange || getPresetDateRange('ytd')) 
+      : globalDateRange
+  );
+  
+  // This is what's displayed in the UI
+  const [localDateRange, setLocalDateRange] = useState<DateRange>(
+    isPerformancePage 
+      ? (dateRange || getPresetDateRange('ytd')) 
+      : globalDateRange
+  );
+  
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   
-  // Update local state when props change
+  // Update local state when props change (only for performance page)
   useEffect(() => {
-    if (dateRange) {
+    if (isPerformancePage && dateRange) {
       setLocalDateRange(dateRange);
+      setTempDateRange(dateRange);
+    } else if (!isPerformancePage) {
+      setLocalDateRange(globalDateRange);
+      setTempDateRange(globalDateRange);
     }
-  }, [dateRange]);
+  }, [dateRange, isPerformancePage, globalDateRange]);
 
   const handlePresetChange = useCallback((newPreset: DateRangePreset) => {
     setPreset(newPreset);
     const newRange = getPresetDateRange(newPreset);
     console.log(`Preset changed to ${newPreset}:`, newRange);
-    setLocalDateRange(newRange);
-    onChange(newRange);
-    if (newPreset !== 'custom' && isMobile) {
-      setIsOpen(false);
+    
+    // Only update temp date range, don't apply yet
+    setTempDateRange(newRange);
+    
+    // Apply immediately for preset buttons only if not on mobile
+    if (!isMobile) {
+      handleApply(newRange);
     }
-  }, [onChange, isMobile]);
-
-  const handleDateRangeChange = useCallback((range: DateRange | undefined) => {
+  }, [isMobile]);
+  
+  const handleCalendarSelect = useCallback((range: DateRange | undefined) => {
     if (range?.from && range?.to) {
-      console.log("Custom date range selected:", range);
-      setLocalDateRange(range);
+      console.log("Calendar selection changed:", range);
+      setTempDateRange(range);
       setPreset('custom');
-      onChange(range);
     }
-  }, [onChange]);
+  }, []);
 
-  const handleApply = useCallback(() => {
-    // Force reapply the current dateRange to trigger a refetch
-    onChange({...localDateRange});
+  const handleApply = useCallback((rangeToApply = tempDateRange) => {
+    console.log("Applying date range:", rangeToApply);
+    
+    // Update the displayed date range
+    setLocalDateRange(rangeToApply);
+    
+    // Update global state if not performance page
+    if (!isPerformancePage) {
+      setGlobalDateRange(rangeToApply);
+    }
+    
+    // Notify parent component
+    onChange(rangeToApply);
     setIsOpen(false);
-  }, [localDateRange, onChange]);
+  }, [tempDateRange, onChange, setGlobalDateRange, isPerformancePage]);
+  
+  const handleCancel = useCallback(() => {
+    // Reset temp range to current local range
+    setTempDateRange(localDateRange);
+    setIsOpen(false);
+  }, [localDateRange]);
 
   // Calendar content shared between mobile and desktop
   const CalendarContent = (
     <>
       <div className="p-3 border-b">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="text-sm font-medium">Select Range</div>
-          <div className="flex space-x-1">
+          <div className="flex space-x-2">
             <Button 
               variant={preset === 'wtd' ? 'default' : 'outline'} 
               size="sm" 
-              className="h-7 text-xs py-0 px-2"
+              className="h-8 text-xs px-2"
               onClick={() => handlePresetChange('wtd')}
             >
-              WTD
+              7 Days
             </Button>
             <Button 
               variant={preset === 'mtd' ? 'default' : 'outline'} 
               size="sm" 
-              className="h-7 text-xs py-0 px-2"
+              className="h-8 text-xs px-2"
               onClick={() => handlePresetChange('mtd')}
             >
-              MTD
+              30 Days
             </Button>
             <Button 
               variant={preset === 'ytd' ? 'default' : 'outline'} 
               size="sm" 
-              className="h-7 text-xs py-0 px-2"
+              className="h-8 text-xs px-2"
               onClick={() => handlePresetChange('ytd')}
             >
-              YTD
+              1 Year
             </Button>
           </div>
         </div>
       </div>
-      <CalendarComponent
-        mode="range"
-        selected={{
-          from: localDateRange.from,
-          to: localDateRange.to,
-        }}
-        onSelect={handleDateRangeChange as any}
-        numberOfMonths={1}
-        defaultMonth={localDateRange.from}
-        initialFocus
-        className="rounded-md shadow-sm"
-      />
-      <div className="p-3 border-t flex justify-end">
+
+      <div className="p-2 sm:p-4 flex justify-center">
+        <CalendarComponent
+          mode="range"
+          selected={{
+            from: tempDateRange.from,
+            to: tempDateRange.to,
+          }}
+          onSelect={handleCalendarSelect as any}
+          numberOfMonths={isMobile ? 1 : 2}
+          defaultMonth={tempDateRange.from}
+          initialFocus
+          className="rounded-md shadow-sm"
+        />
+      </div>
+
+      <div className="p-3 border-t flex justify-between">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleCancel}
+        >
+          Cancel
+        </Button>
         <Button 
           variant="default" 
           size="sm"
-          onClick={handleApply}
+          onClick={() => handleApply()}
         >
           Apply
         </Button>
@@ -139,7 +193,7 @@ const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ dateRange, onChange }
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="mobile-date-sheet pt-2 overflow-auto max-h-[90vh]">
-            <SheetTitle className="sr-only">Date Range Selection</SheetTitle>
+            <SheetTitle className="text-center pb-2">Select Date Range</SheetTitle>
             <SheetDescription className="sr-only">Select a date range for filtering data</SheetDescription>
             <div className="rounded-t-xl bg-white date-range-mobile-wrapper">
               {CalendarContent}

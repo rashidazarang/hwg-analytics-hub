@@ -7,13 +7,12 @@ import AgreementKPISection from '@/components/metrics/AgreementKPISection';
 import AgreementsTable from '@/components/tables/AgreementsTable';
 import DealershipSearch from '@/components/search/DealershipSearch';
 import { supabase } from '@/integrations/supabase/client';
+import { useAtom } from 'jotai';
+import { globalDateRangeAtom } from '@/contexts/DateFilterContext';
 
 const Agreements = () => {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(new Date().getFullYear(), 0, 1),
-    to: new Date()
-  });
+  const [dateRange, setDateRange] = useAtom(globalDateRangeAtom);
   const [dealershipUUID, setDealershipUUID] = useState<string>('');
   const [dealershipName, setDealershipName] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
