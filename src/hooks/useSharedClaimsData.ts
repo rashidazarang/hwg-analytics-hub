@@ -80,6 +80,8 @@ export async function fetchClaimsData({
     };
     
     // Check if we should use payment date filtering
+    let query; // Declare query variable at the top level to fix "query is not defined" error
+    
     if (!BYPASS_PAYMENT_DATE_FILTERING) {
       console.log("[SHARED_CLAIMS] Setting up date filtering for claims");
       console.log("[SHARED_CLAIMS] Date range:", {
@@ -90,7 +92,7 @@ export async function fetchClaimsData({
       try {
         // Start building the query with all needed fields
         // Note: We avoid the nested subclaims fetch to prevent relationship ambiguity
-        let query = extendedClient
+        query = extendedClient
           .from("claims")
           .select(`
             id,
@@ -265,7 +267,7 @@ export async function fetchClaimsData({
       
       // Start building the query with all needed fields
       // Note: We avoid the nested subclaims fetch to prevent relationship ambiguity
-      let query = extendedClient
+      query = extendedClient
         .from("claims")
         .select(`
           id,
@@ -297,11 +299,14 @@ export async function fetchClaimsData({
       // Apply sorting - consistent across all components
       query = query.order('LastModified', { ascending: false });
 
-      // Only apply pagination if explicitly requested
+      // Always apply pagination when it's provided
+      // This ensures we only fetch the current page of data, not all records
       if (pagination !== undefined && pagination.pageSize !== undefined) {
         const { page, pageSize } = pagination;
         const startRow = (page - 1) * pageSize;
         const endRow = startRow + pageSize - 1;
+        
+        console.log(`[SHARED_CLAIMS] Applying pagination: page ${page}, rows ${startRow}-${endRow}`);
         query = query.range(startRow, endRow);
       } else {
         // CRITICAL FIX: We must override Supabase's default limit when no pagination is provided
@@ -337,8 +342,8 @@ export async function fetchClaimsData({
           throw countError;
         }
         
-        // If we have a large dataset, we need to fetch in batches
-        if (totalCount && totalCount > 1000) {
+        // Always fetch in batches regardless of size to be consistent with paginated approach
+        if (totalCount) {
           console.log(`[SHARED_CLAIMS] Total claims count is ${totalCount}, fetching in batches`);
           
           // Set up for batched fetching

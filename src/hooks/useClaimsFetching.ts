@@ -1,10 +1,10 @@
 import { useSharedClaimsData } from './useSharedClaimsData';
 import { DateRange } from '@/lib/dateUtils';
 
-const PAGE_SIZE = 1000;
+// No default page size here - we'll use the value passed from the component
 
 // Add this constant to control the date range limiting for performance
-const USE_LIMITED_DATE_RANGE = true; // Set to true to limit the date range for better performance
+const USE_LIMITED_DATE_RANGE = false; // Set to false to avoid limiting date range and show all claims
 
 export function useClaimsFetching(
   page: number, 

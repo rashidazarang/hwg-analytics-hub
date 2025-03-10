@@ -11,7 +11,7 @@ import {
   getTotalPaidValue 
 } from '@/hooks/useClaimPaymentData';
 
-const PAGE_SIZE = 1000;
+const PAGE_SIZE = 100; // Changed to 100 to match AgreementsTable
 
 interface ClaimsTableProps {
   className?: string; 

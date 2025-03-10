@@ -135,15 +135,15 @@ const DataTable = <T extends Record<string, any>>({
     ? Math.max(1, Math.ceil(paginationProps.totalItems / paginationProps.pageSize))
     : 1;
 
+  // Create a ref outside of the useEffect to track pagination reset state
+  const hasScheduledReset = React.useRef(false);
+
   useEffect(() => {
     // Safety check for pagination props
     if (!paginationProps) return;
     
     // Calculate the correct total pages for current data
     const calculatedTotalPages = Math.max(1, Math.ceil(paginationProps.totalItems / paginationProps.pageSize));
-    
-    // To avoid race conditions and React batching issues, use a ref to track if we've already scheduled a reset
-    const hasScheduledReset = React.useRef(false);
     
     // If current page is out of bounds, reset to page 1
     if (paginationProps.currentPage > calculatedTotalPages && calculatedTotalPages > 0 && !hasScheduledReset.current) {
@@ -174,12 +174,14 @@ const DataTable = <T extends Record<string, any>>({
         }, 500);
       }, 150);
     }
-    
-    // Cleanup the ref when component unmounts
+  }, [paginationProps?.totalItems, paginationProps?.pageSize, paginationProps?.currentPage, paginationProps?.onPageChange]);
+  
+  // Cleanup the ref when component unmounts
+  useEffect(() => {
     return () => {
       hasScheduledReset.current = false;
     };
-  }, [paginationProps?.totalItems, paginationProps?.pageSize]); // Remove currentPage to prevent loops
+  }, []);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
