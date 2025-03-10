@@ -36,13 +36,16 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         let statusDistribution: Record<string, number> = {};
 
         try {
+          // Try the RPC call with the correct parameters
+          // The master-document suggests count_agreements_by_status can take dealer_uuid,
+          // but TypeScript is complaining, so let's use type assertion
           const { data: countsByStatus, error: countError } = await supabase.rpc(
             'count_agreements_by_status',
             {
               from_date: fromDate,
               to_date: toDate,
-              dealer_uuid: dealerFilter || null
-            }
+              ...(dealerFilter ? { dealer_uuid: dealerFilter } : {})
+            } as any // Type assertion to avoid TypeScript error
           );
           
           if (!countError && countsByStatus) {
@@ -138,12 +141,31 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
         const claimsResult = await fetchClaimsData({
           dateRange,
           dealerFilter,
-          includeCount: true
+          includeCount: true,
         });
         
         console.log('[KPI_DATA] Claims total count:', claimsResult.count);
         console.log('[KPI_DATA] Claims fetched count:', claimsResult.data.length);
         console.log('[KPI_DATA] Claims breakdown:', claimsResult.statusBreakdown);
+
+        // Log detailed info about claims data for debugging
+        console.log('[KPI_DATA] Claims data:', {
+          totalCount: claimsResult.count,
+          fetchedCount: claimsResult.data.length,
+          statusBreakdown: claimsResult.statusBreakdown,
+          sample: claimsResult.data.length > 0 ? {
+            first: claimsResult.data[0],
+            hasStatus: claimsResult.data[0].hasOwnProperty('status'),
+            keys: Object.keys(claimsResult.data[0])
+          } : 'No claims data'
+        });
+        
+        // Ensure we have valid status breakdown values
+        const validatedStatusBreakdown = {
+          OPEN: claimsResult.statusBreakdown.OPEN || 0,
+          PENDING: claimsResult.statusBreakdown.PENDING || 0,
+          CLOSED: claimsResult.statusBreakdown.CLOSED || 0
+        };
 
         // Calculate claim amounts from Deductible (if available)
         const totalClaimsAmount = claimsResult.data.reduce((sum, claim) => 
@@ -157,15 +179,15 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
           pendingContracts: pendingContractsCount,
           newlyActiveContracts: activeContractsCount,
           cancelledContracts: cancelledContractsCount,
-          openClaims: claimsResult.statusBreakdown.OPEN,
+          openClaims: validatedStatusBreakdown.OPEN,
           activeAgreements: activeContractsCount,
           totalAgreements: totalContractsCount,
-          totalClaims: claimsResult.count || 0,
+          totalClaims: claimsResult.count || claimsResult.data.length || 0,
           activeDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           totalDealers: (await supabase.from('dealers').select('*', { count: 'exact' })).count || 0,
           averageClaimAmount,
           totalClaimsAmount,
-          statusBreakdown: claimsResult.statusBreakdown,
+          statusBreakdown: validatedStatusBreakdown,
         };
       } catch (error) {
         console.error('[KPI_DATA] Error fetching KPIs:', error);

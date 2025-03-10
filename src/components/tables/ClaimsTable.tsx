@@ -5,7 +5,7 @@ import { DateRange } from '@/lib/dateUtils';
 import ClaimStatusBadge from '@/components/claims/ClaimStatusBadge';
 import { useClaimsFetching } from '@/hooks/useClaimsFetching';
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 1000;
 
 interface ClaimsTableProps {
   className?: string; 

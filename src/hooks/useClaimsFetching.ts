@@ -1,7 +1,7 @@
 import { useSharedClaimsData } from './useSharedClaimsData';
 import { DateRange } from '@/lib/dateUtils';
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 1000;
 
 // Add this constant to control the date range limiting for performance
 const USE_LIMITED_DATE_RANGE = true; // Set to true to limit the date range for better performance

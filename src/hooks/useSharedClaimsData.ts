@@ -47,6 +47,15 @@ export interface ClaimsQueryResult {
 const PAYMENT_BATCH_SIZE = 200; // Use smaller batches for payment info to prevent timeouts
 
 /**
+ * Determine the status of a claim based on its properties
+ */
+function getClaimStatus(claim: Claim): 'OPEN' | 'PENDING' | 'CLOSED' {
+  if (claim.Closed) return 'CLOSED';
+  if (!claim.ReportedDate && !claim.Closed) return 'PENDING';
+  return 'OPEN';
+}
+
+/**
  * Fetches claims data with consistent filtering across all components
  */
 export async function fetchClaimsData({
@@ -148,7 +157,30 @@ export async function fetchClaimsData({
                   const claimIds = claimsWithPayments.map(item => item.ClaimID);
                   console.log(`[SHARED_CLAIMS] Found ${claimIds.length} claims with payments in date range`);
                   
+                  // Create a query variable for fallback
+                  let claimQuery = extendedClient
+                    .from("claims")
+                    .select(`
+                      id,
+                      ClaimID, 
+                      AgreementID,
+                      ReportedDate, 
+                      Closed,
+                      Cause,
+                      Correction,
+                      Deductible,
+                      LastModified,
+                      agreements!inner(DealerUUID, dealers(Payee))
+                    `, { count: includeCount ? 'exact' : undefined })
+                    .in('ClaimID', claimIds);
+                    
+                  // Re-apply dealer filter if needed
+                  if (dealerFilter && dealerFilter.trim() !== '') {
+                    claimQuery = claimQuery.eq('agreements.DealerUUID', dealerFilter.trim());
+                  }
+
                   // Try to use the new dealer info function first
+                  let skipQuery = false;
                   try {
                     console.log("[SHARED_CLAIMS] Using improved dealer info function");
                     const { data: claimsData, error: dealerInfoError } = await extendedClient.rpc(
@@ -157,92 +189,57 @@ export async function fetchClaimsData({
                         start_date: dateRange.from.toISOString(),
                         end_date: dateRange.to.toISOString(),
                         dealer_uuid: dealerFilter && dealerFilter.trim() !== '' ? dealerFilter.trim() : null,
-                        max_results: pagination ? pagination.pageSize : 1000
+                        max_results: 5000 // Increased limit
                       }
                     );
                     
                     if (dealerInfoError) {
                       console.error("[SHARED_CLAIMS] Error getting claims with dealer info:", dealerInfoError);
-                      // Fall back to the original approach if the new function fails
-                      query = extendedClient
-                        .from("claims")
-                        .select(`
-                          id,
-                          ClaimID, 
-                          AgreementID,
-                          ReportedDate, 
-                          Closed,
-                          Cause,
-                          Correction,
-                          Deductible,
-                          LastModified,
-                          agreements!inner(DealerUUID, dealers(Payee))
-                        `, { count: includeCount ? 'exact' : undefined })
-                        .in('ClaimID', claimIds);
-                        
-                        // Re-apply dealer filter if needed
-                        if (dealerFilter && dealerFilter.trim() !== '') {
-                          query = query.eq('agreements.DealerUUID', dealerFilter.trim());
-                        }
-                      } else if (claimsData && Array.isArray(claimsData)) {
-                        // Transform the data to match the expected format
-                        const transformedClaims = claimsData.map(claim => ({
-                          id: claim.id,
-                          ClaimID: claim.ClaimID,
-                          AgreementID: claim.AgreementID,
-                          ReportedDate: claim.ReportedDate,
-                          IncurredDate: claim.IncurredDate,
-                          Closed: claim.Closed,
-                          Complaint: claim.Complaint,
-                          Cause: claim.Cause,
-                          Correction: claim.Correction,
-                          Deductible: claim.Deductible,
-                          LastModified: claim.LastModified,
-                          agreements: {
-                            DealerUUID: claim.DealerUUID,
-                            dealers: {
-                              Payee: claim.DealerName
-                            }
+                      // Fall back to the query we defined above
+                      query = claimQuery;
+                    } else if (claimsData && Array.isArray(claimsData)) {
+                      // Transform the data to match the expected format
+                      const transformedClaims = claimsData.map(claim => ({
+                        id: claim.id,
+                        ClaimID: claim.ClaimID,
+                        AgreementID: claim.AgreementID,
+                        ReportedDate: claim.ReportedDate,
+                        IncurredDate: claim.IncurredDate,
+                        Closed: claim.Closed,
+                        Complaint: claim.Complaint,
+                        Cause: claim.Cause,
+                        Correction: claim.Correction,
+                        Deductible: claim.Deductible,
+                        LastModified: claim.LastModified,
+                        agreements: {
+                          DealerUUID: claim.DealerUUID,
+                          dealers: {
+                            Payee: claim.DealerName
                           }
-                        }));
-                        
-                        // Filter to only include claims with payments in date range
-                        const filteredClaims = transformedClaims.filter(claim => 
-                          claimIds.includes(claim.ClaimID)
-                        );
-                        
-                        console.log(`[SHARED_CLAIMS] Retrieved ${filteredClaims.length} claims with dealer info`);
-                        
-                        // Use the filtered and transformed data directly
-                        claims = filteredClaims;
-                        
-                        // Skip further query execution since we already have the data
-                        skipQuery = true;
-                        totalCount = filteredClaims.length;
-                      }
+                        }
+                      }));
+                      
+                      // Filter to only include claims with payments in date range
+                      const filteredClaims = transformedClaims.filter(claim => 
+                        claimIds.includes(claim.ClaimID)
+                      );
+                      
+                      console.log(`[SHARED_CLAIMS] Retrieved ${filteredClaims.length} claims with dealer info`);
+                      
+                      // Use the filtered and transformed data directly
+                      claims = filteredClaims;
+                      
+                      // Skip further query execution since we already have the data
+                      skipQuery = true;
+                      totalCount = filteredClaims.length;
+                    } else {
+                      // If no data returned, fall back to the traditional query
+                      query = claimQuery;
+                    }
                   } catch (dealerInfoError) {
                     console.error("[SHARED_CLAIMS] Error using dealer info function:", dealerInfoError);
-                    // Fall back to original query approach
-                    query = extendedClient
-                      .from("claims")
-                      .select(`
-                        id,
-                        ClaimID, 
-                        AgreementID,
-                        ReportedDate, 
-                        Closed,
-                        Cause,
-                        Correction,
-                        Deductible,
-                        LastModified,
-                        agreements!inner(DealerUUID, dealers(Payee))
-                      `, { count: includeCount ? 'exact' : undefined })
-                      .in('ClaimID', claimIds);
-                      
-                      // Re-apply dealer filter if needed
-                      if (dealerFilter && dealerFilter.trim() !== '') {
-                        query = query.eq('agreements.DealerUUID', dealerFilter.trim());
-                      }
+                    // Fall back to the query we defined above
+                    query = claimQuery;
                   }
                 } else {
                   console.log("[SHARED_CLAIMS] No claims with payments in date range, using traditional filters");
@@ -695,20 +692,23 @@ export async function fetchClaimsData({
     if (data) {
       claims = data;
       
-      // Initialize status counters
+      // Calculate status breakdown for KPIs and charts
+      // Reset the status breakdown
       const statusBreakdown = {
         OPEN: 0,
         PENDING: 0,
         CLOSED: 0
       };
-
-      // Count claims by status using the consistent getClaimStatus function
+      
+      // Count claims by status
       claims.forEach(claim => {
         const status = getClaimStatus(claim);
         if (status in statusBreakdown) {
           statusBreakdown[status as keyof typeof statusBreakdown]++;
         }
       });
+      
+      console.log('[SHARED_CLAIMS] Updated status breakdown:', statusBreakdown);
 
       // Get payment information for each claim
       // We'll use a separate query to fetch payment data efficiently
