@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-export type TimeframeOption = 'week' | 'month' | '6months' | 'year';
+export type TimeframeOption = 'day' | 'week' | 'month' | '6months' | 'year';
 
 interface TimeframeFilterProps {
   selected: TimeframeOption;
@@ -17,6 +17,7 @@ const TimeframeFilter: React.FC<TimeframeFilterProps> = ({
   className = '',
 }) => {
   const options: Array<{ value: TimeframeOption; label: string }> = [
+    { value: 'day', label: 'Day' },
     { value: 'week', label: 'Week' },
     { value: 'month', label: 'Month' },
     { value: '6months', label: '6 Months' },

@@ -42,11 +42,20 @@ export interface PerformanceData {
   error: Error | null;
 }
 
-export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods: number = 0): { start: Date; end: Date } {
+export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods: number = 0, specificDate?: Date): { start: Date; end: Date } {
   const now = new Date();
   const currentYear = now.getFullYear();
   
   switch (timeframe) {
+    case 'day':
+      // For day view, either use the specific date or offset from current day
+      const baseDate = specificDate || now;
+      const targetDate = addDays(baseDate, offsetPeriods);
+      return {
+        start: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0),
+        end: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59)
+      };
+    
     case 'week':
       return {
         start: addWeeks(startOfWeek(now, { weekStartsOn: 1 }), offsetPeriods),
@@ -54,6 +63,14 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
       };
     
     case 'month':
+      // If a specific date is provided for month view, use that month
+      if (specificDate) {
+        const targetMonth = addMonths(new Date(specificDate.getFullYear(), specificDate.getMonth(), 1), offsetPeriods);
+        return {
+          start: startOfMonth(targetMonth),
+          end: endOfMonth(targetMonth)
+        };
+      }
       return {
         start: addMonths(startOfMonth(now), offsetPeriods),
         end: addMonths(endOfMonth(now), offsetPeriods)
@@ -505,6 +522,86 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date, deale
 }
 
 /**
+ * Fetches data for a single day, either as hourly data points or as a single data point
+ * This is used for the "Day" view to display contract statuses by hour
+ */
+async function fetchSingleDayData(startDate: Date, endDate: Date, dealerFilter: string = ''): Promise<PerformanceDataPoint[]> {
+  // Format dates
+  const startIso = startDate.toISOString();
+  const endIso = endDate.toISOString();
+  
+  console.log(`[PERFORMANCE] Fetching single day data from ${startIso} to ${endIso}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
+  
+  try {
+    // Query for all agreements for this day with status breakdown
+    let query = supabase
+      .from('agreements')
+      .select('EffectiveDate, AgreementStatus');
+    
+    // Apply date range filter
+    query = query
+      .gte('EffectiveDate', startIso)
+      .lte('EffectiveDate', endIso);
+    
+    // Apply dealer filter if provided
+    if (dealerFilter) {
+      query = query.eq('DealerUUID', dealerFilter);
+    }
+    
+    // Fetch the data
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error("[PERFORMANCE] Error fetching single day data:", error);
+      throw new Error(error.message);
+    }
+    
+    // Group data by status
+    const pendingCount = data?.filter(a => a.AgreementStatus === 'PENDING')?.length || 0;
+    const activeCount = data?.filter(a => a.AgreementStatus === 'ACTIVE')?.length || 0;
+    const claimableCount = data?.filter(a => a.AgreementStatus === 'CLAIMABLE')?.length || 0;
+    const cancelledCount = data?.filter(a => a.AgreementStatus === 'CANCELLED')?.length || 0;
+    const voidCount = data?.filter(a => a.AgreementStatus === 'VOID')?.length || 0;
+    
+    // Get the total count
+    const totalCount = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
+    
+    // Format the date for display
+    const formattedDate = format(startDate, 'MMM d, yyyy');
+    
+    // Return as a single data point for the day view
+    // This will be displayed as separate bars in the chart
+    return [
+      {
+        label: formattedDate,
+        value: totalCount,
+        rawDate: startDate,
+        pending: pendingCount,
+        active: activeCount,
+        claimable: claimableCount,
+        cancelled: cancelledCount,
+        void: voidCount
+      }
+    ];
+  } catch (err) {
+    console.error('[PERFORMANCE] Error with single day data query:', err);
+    // Return empty data on error
+    return [
+      {
+        label: format(startDate, 'MMM d, yyyy'),
+        value: 0,
+        rawDate: startDate,
+        pending: 0,
+        active: 0,
+        claimable: 0,
+        cancelled: 0,
+        void: 0
+      }
+    ];
+  }
+}
+
+/**
  * Fetches agreement data for daily view, showing actual counts per day
  * Uses a direct SQL query to ensure consistency with KPI calculations
  */
@@ -806,14 +903,26 @@ async function fetchDailyDataWithClientGrouping(startDate: Date, endDate: Date, 
   });
 }
 
+export interface PerformanceMetricsOptions {
+  timeframe: TimeframeOption;
+  offsetPeriods?: number;
+  dealerFilter?: string;
+  specificDate?: Date; // For drilldown from month to day or from year/6months to month
+}
+
 export function usePerformanceMetricsData(
-  timeframe: TimeframeOption,
-  offsetPeriods: number = 0,
-  dealerFilter: string = ''
+  options: PerformanceMetricsOptions
 ): PerformanceData {
+  const { 
+    timeframe, 
+    offsetPeriods = 0, 
+    dealerFilter = '',
+    specificDate
+  } = options;
+  
   const { start: startDate, end: endDate } = useMemo(() => 
-    getTimeframeDateRange(timeframe, offsetPeriods), 
-    [timeframe, offsetPeriods]
+    getTimeframeDateRange(timeframe, offsetPeriods, specificDate), 
+    [timeframe, offsetPeriods, specificDate]
   );
   
   const formattedDates = useMemo(() => ({
@@ -824,8 +933,8 @@ export function usePerformanceMetricsData(
   // Create a unique query key that includes the current time to ensure fresh data
   // This helps prevent caching issues that could cause inconsistencies
   const queryKey = useMemo(() => 
-    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, Date.now()], 
-    [timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter]
+    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate?.toISOString(), Date.now()], 
+    [timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate]
   );
   
   // Directly fetch data from the database using a consistent query approach
@@ -833,16 +942,35 @@ export function usePerformanceMetricsData(
     console.log(`[PERFORMANCE] Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
     
     // Use the same data fetching strategy for all timeframes to ensure consistency
-    // For 6months and year views, we'll still use monthly grouping
-    // For week and month views, we'll use daily grouping
-    if (timeframe === '6months' || timeframe === 'year') {
-      // Fetch monthly data with appropriate SQL query
-      return await fetchMonthlyData(startDate, endDate, dealerFilter);
-    } else if (timeframe === 'week' || timeframe === 'month') {
-      // Fetch daily data with appropriate SQL query
-      return await fetchDailyAgreementsByStatus(startDate, endDate, dealerFilter);
+    switch(timeframe) {
+      case 'day':
+        // For day view, fetch hourly data or a single data point with all statuses
+        return await fetchSingleDayData(startDate, endDate, dealerFilter);
+      case 'week':
+      case 'month':
+        // Fetch daily data with appropriate SQL query
+        return await fetchDailyAgreementsByStatus(startDate, endDate, dealerFilter);
+      case '6months':
+      case 'year':
+        // Fetch monthly data with appropriate SQL query
+        return await fetchMonthlyData(startDate, endDate, dealerFilter);
+      default:
+        throw new Error(`Unknown timeframe: ${timeframe}`);
     }
   }, [timeframe, formattedDates, startDate, endDate, dealerFilter]);
+  
+  // Backward compatibility function (used by existing code)
+  usePerformanceMetricsData.legacy = function(
+    timeframe: TimeframeOption,
+    offsetPeriods: number = 0,
+    dealerFilter: string = ''
+  ): PerformanceData {
+    return usePerformanceMetricsData({
+      timeframe,
+      offsetPeriods,
+      dealerFilter
+    });
+  };
   
   // Use React Query with appropriate settings to avoid stale data
   const { data, isLoading, error } = useQuery({

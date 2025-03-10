@@ -14,6 +14,9 @@ interface InteractiveBarChartProps {
   onPeriodChange: (offset: number) => void;
   currentOffset: number;
   className?: string;
+  // Add new props for drilldown functionality
+  onDrilldown?: (date: Date, newTimeframe: TimeframeOption) => void;
+  selectedDate?: Date; // For highlighting a selected bar
 }
 
 const CHART_COLORS = {
@@ -58,15 +61,26 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>)
           </p>
           <p className="flex items-center">
             <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.active}}></span>
-            Active: {(activeCount + claimableCount).toLocaleString()}
-            {claimableCount > 0 && <span className="text-xs text-gray-400 ml-1">({activeCount} active, {claimableCount} claimable)</span>}
+            Active: {activeCount.toLocaleString()}
+          </p>
+          <p className="flex items-center">
+            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.claimable}}></span>
+            Claimable: {claimableCount.toLocaleString()}
           </p>
           <p className="flex items-center">
             <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
-            Cancelled: {(cancelledCount + voidCount).toLocaleString()}
-            {voidCount > 0 && <span className="text-xs text-gray-400 ml-1">({cancelledCount} cancelled, {voidCount} void)</span>}
+            Cancelled: {cancelledCount.toLocaleString()}
+          </p>
+          <p className="flex items-center">
+            <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.void}}></span>
+            Void: {voidCount.toLocaleString()}
           </p>
         </div>
+        {timeframe !== 'day' && (
+          <div className="mt-2 text-xs text-gray-500">
+            Click to view detailed breakdown
+          </div>
+        )}
       </>
     );
     
@@ -88,6 +102,8 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   onPeriodChange,
   currentOffset,
   className = '',
+  onDrilldown,
+  selectedDate,
 }) => {
   const [chartWidth, setChartWidth] = React.useState<number>(0);
   const [animationKey, setAnimationKey] = useState<string>(`${timeframe}-${currentOffset}`);
@@ -108,6 +124,31 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
   const handleNext = useCallback(() => {
     onPeriodChange(currentOffset + 1);
   }, [currentOffset, onPeriodChange]);
+  
+  // Handle drilldown when clicking on a bar
+  const handleBarClick = useCallback((data: any, index: number) => {
+    if (!onDrilldown || !data || !data.activePayload || data.activePayload.length === 0) return;
+    
+    const dataPoint = data.activePayload[0].payload as PerformanceDataPoint;
+    const date = dataPoint.rawDate;
+    
+    // Determine which view to transition to based on current timeframe
+    switch(timeframe) {
+      case 'year':
+      case '6months':
+        // Drill down to month view when clicking on a month in year/6months view
+        onDrilldown(date, 'month');
+        break;
+      case 'month':
+      case 'week':
+        // Drill down to day view when clicking on a day in month/week view
+        onDrilldown(date, 'day');
+        break;
+      // No drilldown from day view
+      default:
+        break;
+    }
+  }, [timeframe, onDrilldown]);
 
   useEffect(() => {
     if (data && data.length > 0) {
@@ -199,8 +240,16 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
         <span className="text-sm text-gray-600">Active</span>
       </div>
       <div className="flex items-center">
+        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.claimable}}></span>
+        <span className="text-sm text-gray-600">Claimable</span>
+      </div>
+      <div className="flex items-center">
         <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.cancelled}}></span>
         <span className="text-sm text-gray-600">Cancelled</span>
+      </div>
+      <div className="flex items-center">
+        <span className="inline-block w-3 h-3 mr-2 rounded-sm" style={{backgroundColor: CHART_COLORS.void}}></span>
+        <span className="text-sm text-gray-600">Void</span>
       </div>
     </div>
   );
@@ -229,6 +278,7 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
                 bottom: 20,
               }}
               className={cn("animate-fade-in", isTransitioning ? "opacity-100" : "")}
+              onClick={handleBarClick}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis 
@@ -248,45 +298,108 @@ const InteractiveBarChart: React.FC<InteractiveBarChartProps> = ({
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249, 115, 22, 0.1)' }} />
               
-              <Bar 
-                dataKey="pending" 
-                name="Pending" 
-                stackId="a"
-                fill={CHART_COLORS.pending}  
-                radius={[0, 0, 0, 0]}
-                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
-                animationDuration={600}
-                animationBegin={0}
-                animationEasing="ease-in-out"
-                // Ensure null or undefined values are treated as 0
-                isAnimationActive={true}
-              />
-              <Bar 
-                // Combine active and claimable for display
-                dataKey={(data) => (data.active || 0) + (data.claimable || 0)}
-                name="Active" 
-                stackId="a" 
-                fill={CHART_COLORS.active}
-                radius={[0, 0, 0, 0]}
-                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
-                animationDuration={600}
-                animationBegin={100}
-                animationEasing="ease-in-out"
-                isAnimationActive={true}
-              />
-              <Bar 
-                // Combine cancelled and void for display
-                dataKey={(data) => (data.cancelled || 0) + (data.void || 0)}
-                name="Cancelled" 
-                stackId="a" 
-                fill={CHART_COLORS.cancelled}
-                radius={[6, 6, 0, 0]}
-                maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
-                animationDuration={600}
-                animationBegin={200}
-                animationEasing="ease-in-out"
-                isAnimationActive={true}
-              />
+              {timeframe === 'day' ? (
+                // For day view, display each status as a separate bar
+                <>
+                  <Bar 
+                    dataKey="pending" 
+                    name="Pending" 
+                    fill={CHART_COLORS.pending}  
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={55}
+                    animationDuration={600}
+                    animationBegin={0}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                  <Bar 
+                    dataKey="active" 
+                    name="Active" 
+                    fill={CHART_COLORS.active}
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={55}
+                    animationDuration={600}
+                    animationBegin={100}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                  <Bar 
+                    dataKey="claimable" 
+                    name="Claimable" 
+                    fill={CHART_COLORS.claimable}
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={55}
+                    animationDuration={600}
+                    animationBegin={200}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                  <Bar 
+                    dataKey="cancelled" 
+                    name="Cancelled" 
+                    fill={CHART_COLORS.cancelled}
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={55}
+                    animationDuration={600}
+                    animationBegin={300}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                  <Bar 
+                    dataKey="void" 
+                    name="Void" 
+                    fill={CHART_COLORS.void}
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={55}
+                    animationDuration={600}
+                    animationBegin={400}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                </>
+              ) : (
+                // For other views, use stacked bars like before
+                <>
+                  <Bar 
+                    dataKey="pending" 
+                    name="Pending" 
+                    stackId="a"
+                    fill={CHART_COLORS.pending}  
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                    animationDuration={600}
+                    animationBegin={0}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                  <Bar 
+                    // Combine active and claimable for display
+                    dataKey={(data) => (data.active || 0) + (data.claimable || 0)}
+                    name="Active" 
+                    stackId="a" 
+                    fill={CHART_COLORS.active}
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                    animationDuration={600}
+                    animationBegin={100}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                  <Bar 
+                    // Combine cancelled and void for display
+                    dataKey={(data) => (data.cancelled || 0) + (data.void || 0)}
+                    name="Cancelled" 
+                    stackId="a" 
+                    fill={CHART_COLORS.cancelled}
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={timeframe === 'week' ? 45 : timeframe === 'month' ? 18 : 30}
+                    animationDuration={600}
+                    animationBegin={200}
+                    animationEasing="ease-in-out"
+                    isAnimationActive={true}
+                  />
+                </>
+              )}
             </BarChart>
           </ResponsiveContainer>
         ) : (

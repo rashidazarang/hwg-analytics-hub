@@ -82,6 +82,7 @@ const PerformanceMetrics: React.FC = () => {
   const [dealerFilter, setDealerFilter] = useState<string>('');
   const [dealerName, setDealerName] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   
   const { updatePerformanceData } = useSharedPerformanceData();
 
@@ -89,7 +90,12 @@ const PerformanceMetrics: React.FC = () => {
     console.log(`[PERFORMANCE] Changing timeframe to ${newTimeframe}`);
     setTimeframe(newTimeframe);
     setPeriodOffset(0);
-  }, []);
+    
+    // Clear selected date when manually changing timeframe
+    if (selectedDate) {
+      setSelectedDate(undefined);
+    }
+  }, [selectedDate]);
 
   const handlePeriodChange = useCallback((newOffset: number) => {
     console.log(`[PERFORMANCE] Changing period offset to ${newOffset}`);
@@ -108,7 +114,13 @@ const PerformanceMetrics: React.FC = () => {
     // Intentionally not setting the date range as we're using timeframe selection instead
   }, []);
 
-  const { data, loading, error, startDate, endDate } = usePerformanceMetricsData(timeframe, periodOffset, dealerFilter);
+  // Use the new interface for fetching performance metrics data
+  const { data, loading, error, startDate, endDate } = usePerformanceMetricsData({
+    timeframe,
+    offsetPeriods: periodOffset,
+    dealerFilter,
+    specificDate: selectedDate
+  });
 
   // Use this key to track when data changes and needs to be processed for KPIs
   const statusFetchKey = useMemo(() => 
@@ -207,6 +219,13 @@ const PerformanceMetrics: React.FC = () => {
           onPeriodChange={handlePeriodChange}
           currentOffset={periodOffset}
           className="w-full"
+          selectedDate={selectedDate}
+          onDrilldown={(date, newTimeframe) => {
+            console.log(`[PERFORMANCE] Drill down to ${newTimeframe} view for date: ${date.toISOString()}`);
+            setTimeframe(newTimeframe);
+            setSelectedDate(date);
+            setPeriodOffset(0); // Reset period offset when drilling down
+          }}
         />
         
         {error && (
