@@ -73,7 +73,7 @@ export function getTimeframeDateRange(timeframe: TimeframeOption, offsetPeriods:
 }
 
 async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
-  console.log(`Fetching aggregated monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  console.log(`[PERFORMANCE] Fetching aggregated monthly data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
   const { data, error } = await supabase
     .from('agreements')
@@ -130,7 +130,7 @@ async function fetchMonthlyAgreementCounts(startDate: Date, endDate: Date) {
 }
 
 async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date) {
-  console.log(`Fetching all agreements by status from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  console.log(`[PERFORMANCE] Fetching all agreements by status from ${startDate.toISOString()} to ${endDate.toISOString()}`);
   
   const { data, error } = await supabase
     .from('agreements')
@@ -143,7 +143,7 @@ async function fetchAllAgreementsByStatus(startDate: Date, endDate: Date) {
     throw new Error(error.message);
   }
   
-  console.log(`Total agreements fetched: ${data?.length || 0}`);
+  console.log(`[PERFORMANCE] Total agreements fetched: ${data?.length || 0}`);
   return data || [];
 }
 
@@ -167,7 +167,7 @@ export function usePerformanceMetricsData(
   );
   
   const queryFn = useCallback(async () => {
-    console.log(`Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}`);
+    console.log(`[PERFORMANCE] Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}`);
     
     if (timeframe === '6months' || timeframe === 'year') {
       return await fetchMonthlyAgreementCounts(startDate, endDate);

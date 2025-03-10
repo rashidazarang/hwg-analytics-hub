@@ -6,35 +6,34 @@ import KPISection from '@/components/metrics/KPISection';
 import { DateRange } from '@/lib/dateUtils';
 import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
 import { supabase } from '@/integrations/supabase/client';
-import Sidebar from '@/components/navigation/Sidebar';
-import DateRangeFilter from '@/components/filters/DateRangeFilter';
 import Dashboard from '@/components/layout/Dashboard';
 
 const PerformanceMetrics: React.FC = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>('month');
   const [periodOffset, setPeriodOffset] = useState<number>(0);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(),
-    to: new Date(),
-  });
   
   const { updatePerformanceData } = useSharedPerformanceData();
 
   const handleTimeframeChange = useCallback((newTimeframe: TimeframeOption) => {
+    console.log(`[PERFORMANCE] Changing timeframe to ${newTimeframe}`);
     setTimeframe(newTimeframe);
     setPeriodOffset(0);
   }, []);
 
   const handlePeriodChange = useCallback((newOffset: number) => {
+    console.log(`[PERFORMANCE] Changing period offset to ${newOffset}`);
     setPeriodOffset(newOffset);
   }, []);
 
+  // This is a dummy function that won't be used since we're removing the DateRangeFilter
   const handleDateRangeChange = useCallback((range: DateRange) => {
-    setDateRange(range);
+    console.log("[PERFORMANCE] Date range change called but ignored", range);
+    // Intentionally not setting the date range as we're using timeframe selection instead
   }, []);
 
   const { data, loading, error, startDate, endDate } = usePerformanceMetricsData(timeframe, periodOffset);
 
+  // Use this key to track when data changes and needs to be processed for KPIs
   const statusFetchKey = useMemo(() => 
     `${timeframe}-${periodOffset}-${data.length}`,
     [timeframe, periodOffset, data.length]
@@ -56,11 +55,13 @@ const PerformanceMetrics: React.FC = () => {
       const nonZeroDataPoints = data.filter(point => point.value > 0).length;
       const divisionFactor = Math.max(nonZeroDataPoints, 1);
       
-      console.log("[PERFORMANCE_METRICS] Status totals:", { 
+      // Only log this once instead of thousands of times
+      console.log("[PERFORMANCE] Status totals for KPI calculations:", { 
         totalPending, 
         totalActive, 
         totalCancelled,
-        nonZeroDataPoints
+        nonZeroDataPoints,
+        divisionFactor
       });
       
       // Calculate averages
@@ -90,7 +91,7 @@ const PerformanceMetrics: React.FC = () => {
       statusAverages
     );
     
-  }, [statusFetchKey, startDate, endDate, data, updatePerformanceData]);
+  }, [statusFetchKey, startDate, endDate, data, updatePerformanceData, loading]);
 
   const timeframeSubnavbar = (
     <div className="flex justify-center items-center w-full">
@@ -101,12 +102,14 @@ const PerformanceMetrics: React.FC = () => {
     </div>
   );
 
+  // Custom Dashboard component that doesn't show the DateRangeFilter
   return (
     <Dashboard
       onDateRangeChange={handleDateRangeChange}
       kpiSection={<KPISection />}
       pageTitle="Performance Metrics"
       subnavbar={timeframeSubnavbar}
+      hideDefaultDateFilter={true} // This prop will indicate to hide the DateRangeFilter
     >
       <div className="w-full">
         <InteractiveBarChart 

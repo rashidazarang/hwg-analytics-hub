@@ -16,6 +16,7 @@ type DashboardProps = {
   children: ReactNode;
   subnavbar?: ReactNode; // Prop for the subnavbar content
   pageTitle?: string; // Added page title prop
+  hideDefaultDateFilter?: boolean; // Prop to hide the default DateRangeFilter (used for Performance Metrics)
 };
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -24,6 +25,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   children,
   subnavbar,
   pageTitle = "Dashboard", // Default title
+  hideDefaultDateFilter = false, // Default to showing the date filter
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -126,7 +128,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </Button>
                   <h1 className="text-base xs:text-lg font-semibold tracking-tight">{pageTitle}</h1>
                 </div>
-                {isMobile && (
+                {isMobile && !hideDefaultDateFilter && (
                   <Button 
                     variant="ghost" 
                     size="icon" 
@@ -143,7 +145,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h1 className="hidden md:block text-2xl font-bold tracking-tight">{pageTitle}</h1>
               
               <div className="flex items-center space-x-1 sm:space-x-3">
-                {!isMobile && (
+                {!isMobile && !hideDefaultDateFilter && (
                   <DateRangeFilter 
                     dateRange={dateRange}
                     onChange={handleDateChange} 
