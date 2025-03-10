@@ -1,11 +1,9 @@
-
 import React from 'react';
 import { DateRange } from '@/lib/dateUtils';
 import DateRangeFilter from '@/components/filters/DateRangeFilter';
 import TopDealersTable from '@/components/leaderboard/TopDealersTable';
 import LeaderboardSummaryCards from '@/components/leaderboard/LeaderboardSummaryCards';
-import { useTopDealersData } from '@/hooks/leaderboard/useTopDealersData';
-import { useLeaderboardSummary } from '@/hooks/leaderboard/useLeaderboardSummary';
+import { useLeaderboardData } from '@/hooks/leaderboard/useLeaderboardData';
 import Sidebar from '@/components/navigation/Sidebar';
 import { useAtom } from 'jotai';
 import { globalDateRangeAtom } from '@/contexts/DateFilterContext';
@@ -14,19 +12,11 @@ const Leaderboard: React.FC = () => {
   // Use global date range
   const [dateRange, setDateRange] = useAtom(globalDateRangeAtom);
 
-  // Fetch data using our hooks
+  // Fetch data using our optimized hook
   const {
-    data: topDealers,
-    isLoading: isLoadingDealers
-  } = useTopDealersData({
-    dateRange
-  });
-
-  // Fetch summary data for KPIs
-  const {
-    data: summaryData,
-    isLoading: isLoadingSummary
-  } = useLeaderboardSummary({
+    data: leaderboardData,
+    isLoading
+  } = useLeaderboardData({
     dateRange
   });
 
@@ -43,18 +33,19 @@ const Leaderboard: React.FC = () => {
           <DateRangeFilter dateRange={dateRange} onChange={handleDateRangeChange} isPerformancePage={false} />
         </div>
 
-        {/* Add LeaderboardSummaryCards */}
-        {summaryData && (
+        {/* Display KPI summary from top dealers */}
+        {leaderboardData?.summary && (
           <LeaderboardSummaryCards 
-            data={summaryData} 
-            isLoading={isLoadingSummary} 
+            data={leaderboardData.summary} 
+            isLoading={isLoading} 
           />
         )}
 
+        {/* Display top dealers table */}
         <div className="space-y-4">
           <TopDealersTable 
-            data={topDealers || []} 
-            isLoading={isLoadingDealers} 
+            data={leaderboardData?.topDealers || []} 
+            isLoading={isLoading} 
             hideSearch={true} // Disable search on leaderboard page
           />
         </div>

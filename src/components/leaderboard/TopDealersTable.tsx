@@ -1,14 +1,13 @@
-
 import React from 'react';
 import { Building2, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
-import { TopDealer } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import DataTable, { Column } from '@/components/tables/DataTable';
+import { TopDealerWithKPIs } from '@/hooks/leaderboard/useLeaderboardData';
 
 interface TopDealersTableProps {
-  data: TopDealer[];
+  data: TopDealerWithKPIs[];
   isLoading: boolean;
-  hideSearch?: boolean; // New prop to control search visibility
+  hideSearch?: boolean; // Prop to control search visibility
 }
 
 const TopDealersTable: React.FC<TopDealersTableProps> = ({ 
@@ -16,7 +15,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
   isLoading,
   hideSearch = false // Default to showing search
 }) => {
-  const columns: Column<TopDealer>[] = [
+  const columns: Column<TopDealerWithKPIs>[] = [
     {
       key: 'rank',
       title: 'Rank',
@@ -46,9 +45,9 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
       key: 'total_contracts',
       title: 'Contracts',
       render: (row) => (
-        <div className="font-medium">{row.total_contracts.toLocaleString()}</div>
+        <div className="font-medium">{Number(row.total_contracts).toLocaleString()}</div>
       ),
-      sortable: false,
+      sortable: true,
     },
     {
       key: 'expected_revenue',
@@ -56,10 +55,10 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
       render: (row) => (
         <div className="flex items-center">
           <Clock className="h-4 w-4 mr-1 text-amber-500" />
-          <span className="font-medium">{formatCurrency(row.expected_revenue || 0)}</span>
+          <span className="font-medium">{formatCurrency(Number(row.expected_revenue) || 0)}</span>
         </div>
       ),
-      sortable: false,
+      sortable: true,
     },
     {
       key: 'funded_revenue',
@@ -67,31 +66,31 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
       render: (row) => (
         <div className="flex items-center">
           <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
-          <span className="font-medium">{formatCurrency(row.funded_revenue || 0)}</span>
+          <span className="font-medium">{formatCurrency(Number(row.funded_revenue) || 0)}</span>
         </div>
       ),
-      sortable: false,
+      sortable: true,
     },
     {
-      key: 'cancelled_contracts',
-      title: 'Cancellations',
+      key: 'cancellation_rate',
+      title: 'Cancellation Rate',
       render: (row) => (
         <div className="flex items-center">
-          <AlertTriangle className={`h-4 w-4 mr-1 ${row.cancelled_contracts > 0 ? 'text-red-500' : 'text-gray-400'}`} />
-          <span className="font-medium">{row.cancelled_contracts.toLocaleString()}</span>
+          <AlertTriangle className={`h-4 w-4 mr-1 ${Number(row.cancellation_rate) > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+          <span className="font-medium">{Number(row.cancellation_rate).toFixed(1)}%</span>
         </div>
       ),
-      sortable: false,
+      sortable: true,
     },
   ];
 
   return (
     <div className="bg-card rounded-lg border shadow-sm p-4">
-      <h2 className="text-lg font-semibold mb-4">Top Performing Dealers</h2>
+      <h2 className="text-lg font-semibold mb-4">Top 10 Dealers by Revenue</h2>
       <DataTable
         data={data || []}
         columns={columns}
-        rowKey={(row) => row.dealer_name}
+        rowKey={(row) => row.dealer_uuid}
         loading={isLoading}
         searchConfig={{
           enabled: !hideSearch, // Only enable search if hideSearch is false
