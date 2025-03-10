@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { DateRange } from '@/lib/dateUtils';
@@ -20,9 +20,11 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
   searchQuery = '',
   dateRange
 }) => {
+  // Store these in ref to prevent unnecessary re-renders
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+  const [isFilterChanged, setIsFilterChanged] = useState(false);
 
   // Only reset pagination when core filters change
   useEffect(() => {
@@ -34,14 +36,29 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         'undefined'
     });
     
-    // Reset to page 1 when filters change
-    setPage(1);
-    setLocalSearchQuery(searchQuery);
+    // Set flag to indicate filters changed
+    setIsFilterChanged(true);
+    
+    // Don't immediately reset page to allow useEffect cleanup
     
     // We don't need to explicitly invalidate queries here since
     // the useClaimsFetching hook uses the current filter values
     // in its query key
   }, [dealerFilter, searchQuery, dateRange]);
+
+  // Handle filter changes in a separate effect to avoid race conditions
+  useEffect(() => {
+    if (isFilterChanged) {
+      console.log('🔍 ClaimsTable - Resetting to page 1 due to filter change');
+      setPage(1);
+      setIsFilterChanged(false);
+    }
+  }, [isFilterChanged]);
+
+  useEffect(() => {
+    // Update local search query when prop changes
+    setLocalSearchQuery(searchQuery);
+  }, [searchQuery]);
 
   // Fetch claims data with all filters
   const { 
@@ -69,6 +86,23 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     
     return filtered;
   }, [claims, localSearchQuery]);
+
+  // Make these callbacks to prevent re-renders
+  const handleSearch = useCallback((term: string) => {
+    console.log('🔍 ClaimsTable: Search term changed to:', term);
+    setLocalSearchQuery(term);
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    console.log('📄 ClaimsTable: Page changed to:', newPage);
+    setPage(newPage);
+  }, []);
+
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    console.log('📄 ClaimsTable: Page size changed to:', newPageSize);
+    setPageSize(newPageSize);
+    setPage(1); // Reset to first page when changing page size
+  }, []);
 
   // Define table columns
   const columns: Column<any>[] = [
@@ -198,20 +232,6 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
     }
   ];
 
-  // Handlers
-  const handleSearch = (term: string) => {
-    console.log("🔍 Claims search term updated:", term);
-    setLocalSearchQuery(term);
-    setPage(1); // Reset page only when searching
-    
-    // If we're clearing a previous search, refresh the data to ensure
-    // we get the full dataset back
-    if (!term.trim() && localSearchQuery.trim()) {
-      console.log("🔄 Clearing search term, refreshing claims data");
-      // The hook will re-fetch data without the search filter
-    }
-  };
-
   // Fixed: When using search term with DB query, we need to keep pagination working
   // Local filtering is only applied to the current page of results
   const displayedCount = filteredClaims.length;
@@ -248,11 +268,8 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
           currentPage: page,
           totalItems: effectiveTotalCount,
           pageSize: pageSize,
-          onPageChange: setPage,
-          onPageSizeChange: (newPageSize) => {
-            setPageSize(newPageSize);
-            setPage(1); // Reset to first page when changing page size
-          },
+          onPageChange: handlePageChange,
+          onPageSizeChange: handlePageSizeChange,
         }}
       />
     </div>

@@ -667,14 +667,42 @@ export async function fetchClaimsData({
     // If we couldn't get payment data, use default values
     // Always set totalPaid to a valid number (0)
     // and set lastPaymentDate to null
-    const claimsWithPaymentInfo = claims.map(claim => ({
-      ...claim,
-      totalPaid: 0,  // Default value - always a number, never undefined or null
-      lastPaymentDate: null  // Default value - always null for unpaid claims
-    }));
+    
+    // Check if payment data was already processed by looking for totalPaid property
+    const hasExistingPaymentData = claims.some(claim => 
+      'totalPaid' in claim && 'lastPaymentDate' in claim
+    );
+    
+    // Only apply default values if payment data wasn't already processed
+    const claimsWithPaymentInfo = hasExistingPaymentData 
+      ? claims 
+      : claims.map(claim => ({
+          ...claim,
+          totalPaid: 0,  // Default value - always a number, never undefined or null
+          lastPaymentDate: null  // Default value - always null for unpaid claims
+        }));
 
     console.log(`[SHARED_CLAIMS] Fetched ${claims.length} claims. Total count: ${count || 'N/A'}`);
     console.log('[SHARED_CLAIMS] Status breakdown:', statusBreakdown);
+    console.log('[SHARED_CLAIMS] Payment data status:', hasExistingPaymentData 
+      ? 'Using existing payment data' 
+      : 'Applied default payment values');
+      
+    // Debug output for payment data - show sample of first few claims
+    if (process.env.NODE_ENV === 'development' && claims.length > 0) {
+      const sampleClaims = claims.slice(0, Math.min(3, claims.length));
+      console.log('[SHARED_CLAIMS] Payment data sample:', 
+        sampleClaims.map(claim => ({
+          ClaimID: claim.ClaimID,
+          paymentInfo: {
+            totalPaid: 'totalPaid' in claim ? claim.totalPaid : 'not set',
+            lastPaymentDate: 'lastPaymentDate' in claim && claim.lastPaymentDate 
+              ? new Date(claim.lastPaymentDate as string | number | Date).toISOString() 
+              : 'not set'
+          }
+        }))
+      );
+    }
 
     return {
       data: claimsWithPaymentInfo,
