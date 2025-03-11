@@ -34,9 +34,36 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files from the dist directory with caching
+// Define MIME types for common file extensions
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.eot': 'font/eot'
+};
+
+// Serve static files from the dist directory with proper MIME types and caching
 app.use(express.static(path.join(__dirname, 'dist'), {
-  maxAge: NODE_ENV === 'production' ? '1d' : 0
+  maxAge: NODE_ENV === 'production' ? '1d' : 0,
+  setHeaders: (res, filePath) => {
+    const ext = path.extname(filePath);
+    if (mimeTypes[ext]) {
+      res.setHeader('Content-Type', mimeTypes[ext]);
+    }
+    
+    // Set long cache for assets in the assets directory
+    if (filePath.includes('/assets/')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
 }));
 
 // Add a health check endpoint
