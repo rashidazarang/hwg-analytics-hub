@@ -36,7 +36,13 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
           <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center mr-2">
             <Building2 className="h-4 w-4" />
           </div>
-          <span>{row.dealer_name}</span>
+          <a 
+            href={`/dealer/${row.dealer_uuid}`} 
+            className="hover:text-primary hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {row.dealer_name}
+          </a>
         </div>
       ),
       searchable: true,

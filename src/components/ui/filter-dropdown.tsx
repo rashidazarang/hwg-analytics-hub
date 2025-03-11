@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Check, Filter } from 'lucide-react';
+import { Check, Filter, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -42,6 +41,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
   };
 
   const activeFiltersCount = selectedValues.length;
+  const hasActiveFilters = activeFiltersCount > 0;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,12 +49,18 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
         <Button 
           variant="outline" 
           size="sm" 
-          className={cn("h-8 relative", className)}
+          className={cn(
+            hasActiveFilters 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-muted text-muted-foreground',
+            'h-9 w-9 p-0 rounded-md transition-all duration-200',
+            className
+          )}
+          aria-label={`Filter ${label}`}
         >
-          <Filter className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">{label}</span>
+          <SlidersHorizontal className="h-4 w-4" />
           {activeFiltersCount > 0 && (
-            <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary-foreground text-[10px] font-medium text-primary">
               {activeFiltersCount}
             </span>
           )}

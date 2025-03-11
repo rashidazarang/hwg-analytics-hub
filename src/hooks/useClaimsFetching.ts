@@ -10,12 +10,15 @@ export function useClaimsFetching(
   page: number, 
   pageSize: number, 
   dealerFilter?: string, 
-  dateRange?: DateRange
+  dateRange?: DateRange,
+  sortByPaymentDate: boolean = false
 ) {
   // Remove the artificial limitation on page size
   // This is critical to ensure pagination works properly and we see more than 100 records
   const safePageSize = pageSize; // Remove page size restriction entirely
   console.log(`[CLAIMS_FETCHING] Using safe page size: ${safePageSize} for page ${page}`);
+  console.log(`[CLAIMS_FETCHING] Sort by payment date: ${sortByPaymentDate}`);
+  
   // If limiting date range is enabled, limit to the last 12 months for better performance
   let effectiveDateRange = dateRange;
   
@@ -54,16 +57,20 @@ export function useClaimsFetching(
       page,
       pageSize: safePageSize // Use the safety-limited page size
     },
-    includeCount: true
+    includeCount: true,
+    sortByPaymentDate // Pass the sort parameter to the shared hook
   });
 
   // Add debugging to check data before transformation
   if (result.data?.data && result.data.data.length > 0) {
+    const sampleClaim = result.data.data[0] as any; // Use type assertion to avoid TypeScript errors
     console.log('[CLAIMS_FETCHING] Raw data sample:', {
-      sampleClaim: result.data.data[0],
-      hasTotalPaid: result.data.data[0].hasOwnProperty('totalPaid'),
-      totalPaid: result.data.data[0].totalPaid,
-      dataKeys: Object.keys(result.data.data[0])
+      sampleClaim,
+      hasTotalPaid: sampleClaim.hasOwnProperty('totalPaid') || sampleClaim.hasOwnProperty('TotalPaid'),
+      totalPaid: sampleClaim.totalPaid || sampleClaim.TotalPaid,
+      hasLastPaymentDate: sampleClaim.hasOwnProperty('lastPaymentDate') || sampleClaim.hasOwnProperty('LastPaymentDate'),
+      lastPaymentDate: sampleClaim.lastPaymentDate || sampleClaim.LastPaymentDate,
+      dataKeys: Object.keys(sampleClaim)
     });
   }
 
@@ -73,16 +80,22 @@ export function useClaimsFetching(
     data: {
       data: result.data?.data || [],
       count: result.data?.count || 0
-    }
+    },
+    // Expose the total count directly for easier access
+    totalCount: result.data?.count || 0
   };
 
   // Debug the transformed result
   if (transformedResult.data.data.length > 0) {
+    const sampleClaim = transformedResult.data.data[0] as any; // Use type assertion to avoid TypeScript errors
     console.log('[CLAIMS_FETCHING] Transformed data sample:', {
-      sampleClaim: transformedResult.data.data[0],
-      hasTotalPaid: transformedResult.data.data[0].hasOwnProperty('totalPaid'),
-      totalPaid: transformedResult.data.data[0].totalPaid,
-      dataKeys: Object.keys(transformedResult.data.data[0])
+      sampleClaim,
+      hasTotalPaid: sampleClaim.hasOwnProperty('totalPaid') || sampleClaim.hasOwnProperty('TotalPaid'),
+      totalPaid: sampleClaim.totalPaid || sampleClaim.TotalPaid,
+      hasLastPaymentDate: sampleClaim.hasOwnProperty('lastPaymentDate') || sampleClaim.hasOwnProperty('LastPaymentDate'),
+      lastPaymentDate: sampleClaim.lastPaymentDate || sampleClaim.LastPaymentDate,
+      dataKeys: Object.keys(sampleClaim),
+      totalCount: transformedResult.totalCount
     });
   }
 

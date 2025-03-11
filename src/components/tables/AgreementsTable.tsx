@@ -9,6 +9,8 @@ import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
 import FilterDropdown, { FilterOption } from '@/components/ui/filter-dropdown';
+import { useSearchAgreementById } from '@/hooks/useSharedAgreementsData';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Dealer {
   DealerUUID: string;
@@ -187,6 +189,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [isIdSearch, setIsIdSearch] = useState(false);
 
   useEffect(() => {
     console.log('🔍 AgreementsTable - Current dealer UUID filter:', dealerFilter);
@@ -210,6 +213,26 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     }
   }, [searchQuery]);
 
+  // Check if the search term is an ID search
+  const isIdSearchPattern = useMemo(() => {
+    const term = searchTerm.trim();
+    return term.length >= 3 && /^[a-zA-Z0-9-]+$/.test(term);
+  }, [searchTerm]);
+
+  // Use the ID search hook when doing an ID search
+  const { 
+    data: idSearchResults = { data: [], count: 0 },
+    isFetching: isFetchingIdSearch,
+    error: idSearchError
+  } = useSearchAgreementById(isIdSearch ? searchTerm : '');
+
+  useEffect(() => {
+    if (idSearchError) {
+      console.error("Failed to search agreements by ID:", idSearchError);
+      toast.error("Failed to search for agreement by ID");
+    }
+  }, [idSearchError]);
+
   const agreementsQueryKey = useMemo(() => {
     const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
     const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
@@ -232,6 +255,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     refetchOnWindowFocus: false,
     retry: 2,
     retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
+    enabled: !isIdSearch, // Only fetch regular data when not doing an ID search
   });
 
   useEffect(() => {
@@ -248,8 +272,9 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     }
   }, [agreementsError, refetchAgreements]);
   
-  const agreements = agreementsData.data || [];
-  const totalCount = agreementsData.count || 0;
+  // Use ID search results when doing an ID search, otherwise use regular agreements data
+  const agreements = isIdSearch ? idSearchResults.data : agreementsData.data || [];
+  const totalCount = isIdSearch ? idSearchResults.count : agreementsData.count || 0;
 
   const { 
     data: dealers = [],
@@ -296,6 +321,11 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     console.log(`🔍 Filtering ${agreements.length} agreements with search term: "${searchTerm}"`);
     console.log(`🔍 Filtering agreements by status:`, statusFilters);
     
+    // If we're doing an ID search, don't apply additional filtering
+    if (isIdSearch) {
+      return agreements;
+    }
+    
     let filtered = agreements;
     
     if (searchTerm.trim()) {
@@ -312,7 +342,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     }
     
     return filtered;
-  }, [agreements, searchTerm, statusFilters]);
+  }, [agreements, searchTerm, statusFilters, isIdSearch]);
   
   useEffect(() => {
     if (agreements.length > 0) {
@@ -326,12 +356,16 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     }
   }, [agreements, totalCount]);
 
-  const isFetching = isFetchingAgreements || isFetchingDealers;
+  const isFetching = isFetchingAgreements || isFetchingDealers || isFetchingIdSearch;
 
   const handleSearch = (term: string) => {
     console.log("🔍 Search term updated:", term);
     setSearchTerm(term);
     setPage(1);
+    
+    // Check if this is an ID search
+    const isIdSearchPattern = term.trim().length >= 3 && /^[a-zA-Z0-9-]+$/.test(term.trim());
+    setIsIdSearch(isIdSearchPattern);
     
     // When searching locally, we should reset the filter if the term is cleared
     if (!term.trim() && searchTerm.trim()) {
@@ -432,7 +466,8 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     pageSize: pageSize,
     totalCount: totalCount,
     displayedAfterFiltering: displayedCount,
-    effectiveTotalForPagination: effectiveTotalCount
+    effectiveTotalForPagination: effectiveTotalCount,
+    isIdSearch
   });
 
   const currentStatus = isFetching
@@ -441,6 +476,13 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
 
   return (
     <>
+      {isIdSearch && (
+        <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+          <AlertDescription>
+            <span className="font-medium">ID Search Mode:</span> Searching for Agreement ID "{searchTerm}". All other filters are ignored.
+          </AlertDescription>
+        </Alert>
+      )}
       <DataTable
         data={filteredAgreements}
         columns={columns}

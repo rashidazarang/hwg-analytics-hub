@@ -26,6 +26,7 @@ export type SearchConfig = {
   placeholder?: string;
   onChange?: (term: string) => void;
   searchKeys?: string[];
+  sortToggle?: React.ReactNode;
 };
 
 type DataTableProps<T> = {
@@ -248,7 +249,7 @@ const DataTable = <T extends Record<string, any>>({
             </div>
             
             <div className="flex flex-row items-center w-full sm:w-auto">
-              <div className="relative flex-1 sm:flex-auto sm:w-auto mr-4">
+              <div className="relative flex-1 sm:flex-auto sm:w-auto mr-2">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder={searchConfig.placeholder || "Search..."}
@@ -257,6 +258,11 @@ const DataTable = <T extends Record<string, any>>({
                   className="pl-8 h-9 w-full sm:w-44 text-sm"
                 />
               </div>
+              {searchConfig.sortToggle && (
+                <div className="mr-2">
+                  {searchConfig.sortToggle}
+                </div>
+              )}
               {customFilters && (
                 <div>
                   {customFilters}
@@ -448,50 +454,78 @@ const DataTable = <T extends Record<string, any>>({
             </Button>
           </div>
           
-          {/* Manual page selector */}
-          <div className="flex items-center space-x-2">
-            <div className="text-sm">Go to page:</div>
-            <form 
-              className="flex items-center" 
-              onSubmit={(e) => {
-                e.preventDefault();
-                const input = e.currentTarget.elements.namedItem('pageNumber') as HTMLInputElement;
-                const pageNum = parseInt(input.value, 10);
-                
-                if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
-                  // Store current page locally to prevent race conditions
-                  const currentPageBeforeChange = paginationProps.currentPage;
-                  
-                  // Only change if actually moving to a different page
-                  if (currentPageBeforeChange !== pageNum) {
-                    console.log(`[DataTable] Navigating to specific page: ${pageNum}`);
-                    // Use setTimeout with a longer delay to avoid React batching issues
-                    setTimeout(() => {
-                      paginationProps.onPageChange(pageNum);
-                    }, 100);
+          <div className="flex items-center space-x-4">
+            {/* Page size selector */}
+            <div className="flex items-center space-x-2">
+              <div className="text-sm">Rows per page:</div>
+              <Select
+                value={paginationProps.pageSize.toString()}
+                onValueChange={(value) => {
+                  const newPageSize = parseInt(value, 10);
+                  if (!isNaN(newPageSize) && newPageSize > 0) {
+                    console.log(`[DataTable] Changing page size to ${newPageSize}`);
+                    paginationProps.onPageSizeChange(newPageSize);
                   }
-                }
-              }}
-            >
-              <input
-                type="number"
-                name="pageNumber"
-                min={1}
-                max={totalPages}
-                defaultValue={paginationProps.currentPage}
-                className="w-14 h-8 px-2 text-sm border rounded"
-                disabled={loading || paginationProps.totalItems <= 0}
-              />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                type="submit"
-                className="ml-1 h-8"
+                }}
                 disabled={loading || paginationProps.totalItems <= 0}
               >
-                Go
-              </Button>
-            </form>
+                <SelectTrigger className="w-[70px] h-8">
+                  <SelectValue placeholder={paginationProps.pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="250">250</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Manual page selector */}
+            <div className="flex items-center space-x-2">
+              <div className="text-sm">Go to page:</div>
+              <form 
+                className="flex items-center" 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const input = e.currentTarget.elements.namedItem('pageNumber') as HTMLInputElement;
+                  const pageNum = parseInt(input.value, 10);
+                  
+                  if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                    // Store current page locally to prevent race conditions
+                    const currentPageBeforeChange = paginationProps.currentPage;
+                    
+                    // Only change if actually moving to a different page
+                    if (currentPageBeforeChange !== pageNum) {
+                      console.log(`[DataTable] Navigating to specific page: ${pageNum}`);
+                      // Use setTimeout with a longer delay to avoid React batching issues
+                      setTimeout(() => {
+                        paginationProps.onPageChange(pageNum);
+                      }, 100);
+                    }
+                  }
+                }}
+              >
+                <input
+                  type="number"
+                  name="pageNumber"
+                  min={1}
+                  max={totalPages}
+                  defaultValue={paginationProps.currentPage}
+                  className="w-14 h-8 px-2 text-sm border rounded"
+                  disabled={loading || paginationProps.totalItems <= 0}
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  type="submit"
+                  className="ml-1 h-8"
+                  disabled={loading || paginationProps.totalItems <= 0}
+                >
+                  Go
+                </Button>
+              </form>
+            </div>
           </div>
         </div>
       )}

@@ -10,7 +10,7 @@ interface ClaimStatusBadgeProps {
 /**
  * Displays a color-coded badge with the claim's status
  */
-const ClaimStatusBadge: React.FC<ClaimStatusBadgeProps> = ({ claim }) => {
+export const ClaimStatusBadge: React.FC<ClaimStatusBadgeProps> = ({ claim }) => {
   const status = getClaimStatus(claim);
   
   return (
@@ -22,5 +22,3 @@ const ClaimStatusBadge: React.FC<ClaimStatusBadgeProps> = ({ claim }) => {
     </Badge>
   );
 };
-
-export default ClaimStatusBadge;

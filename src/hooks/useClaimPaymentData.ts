@@ -95,9 +95,9 @@ export async function fetchSubclaimsForClaims(claimIds: string[]) {
       if (testResult.data && testResult.data.length > 0) {
         console.log('[CLAIM_PAYMENT] Sample data structure:', {
           keys: Object.keys(testResult.data[0]),
-          totalpaid: testResult.data[0].totalpaid,
-          totalpaidType: typeof testResult.data[0].totalpaid,
-          lastpaymentdate: testResult.data[0].lastpaymentdate
+          totalpaid: testResult.data[0].totalpaid || testResult.data[0].TotalPaid,
+          totalpaidType: typeof (testResult.data[0].totalpaid || testResult.data[0].TotalPaid),
+          lastpaymentdate: testResult.data[0].lastpaymentdate || testResult.data[0].LastPaymentDate
         });
       }
     }
@@ -150,9 +150,9 @@ export async function fetchSubclaimsForClaims(claimIds: string[]) {
             if (batchResults.length > 0) {
               console.log(`[CLAIM_PAYMENT] Sample from batch ${Math.floor(i/BATCH_SIZE) + 1}:`, {
                 ClaimID: batchResults[0].ClaimID,
-                totalpaid: batchResults[0].totalpaid,
-                totalpaidType: typeof batchResults[0].totalpaid,
-                lastpaymentdate: batchResults[0].lastpaymentdate
+                totalpaid: batchResults[0].totalpaid || batchResults[0].TotalPaid,
+                totalpaidType: typeof (batchResults[0].totalpaid || batchResults[0].TotalPaid),
+                lastpaymentdate: batchResults[0].lastpaymentdate || batchResults[0].LastPaymentDate
               });
             }
             
@@ -222,19 +222,19 @@ export async function fetchSubclaimsForClaims(claimIds: string[]) {
             };
             
             // Use the enhanced extraction function
-            const totalPaidValue = extractTotalPaid(item.totalpaid);
+            const totalPaidValue = extractTotalPaid(item.totalpaid || item.TotalPaid);
             
             // Log processing for debugging
             console.log(`[CLAIM_PAYMENT] Processed ${item.ClaimID}: `, {
-              originalValue: item.totalpaid,
-              originalType: typeof item.totalpaid, 
+              originalValue: item.totalpaid || item.TotalPaid,
+              originalType: typeof (item.totalpaid || item.TotalPaid), 
               processedValue: totalPaidValue
             });
             
             return {
               ClaimID: item.ClaimID,
               totalPaid: totalPaidValue,
-              lastPaymentDate: item.lastpaymentdate ? new Date(item.lastpaymentdate) : null
+              lastPaymentDate: item.lastpaymentdate || item.LastPaymentDate ? new Date(item.lastpaymentdate || item.LastPaymentDate) : null
             };
           } catch (processError) {
             console.error(`[CLAIM_PAYMENT] Error processing item ${item.ClaimID}:`, processError);
@@ -477,9 +477,9 @@ export function useClaimPaymentData(claimId: string) {
     queryFn: async () => {
       console.log(`[CLAIM_PAYMENT] Fetching payment data for individual claim: ${claimId}`);
       
-      // First check if we can get the data from SQL function
+      // ALWAYS use the SQL function - prioritize RPC
       try {
-        console.log(`[CLAIM_PAYMENT] Trying SQL function for claim ${claimId}`);
+        console.log(`[CLAIM_PAYMENT] Using SQL function for claim ${claimId}`);
         
         // Fix for ClaimID type mismatch when fetching individual claim
         const isNumeric = !isNaN(Number(claimId));
@@ -491,175 +491,214 @@ export function useClaimPaymentData(claimId: string) {
           'get_claims_payment_info',
           { 
             claim_ids: [formattedClaimId], // Using properly formatted ID
-            max_results: null // No limit - get all results
+            max_results: 1 // Just get one result since we're only interested in this claim
           }
         );
         
         if (error) {
           console.error(`[CLAIM_PAYMENT] SQL function error for claim ${claimId}:`, error);
-        } else if (data && data.length > 0) {
-          console.log(`[CLAIM_PAYMENT] SQL function succeeded for claim ${claimId}`);
+          throw error; // Throw the error to trigger the fallback
+        }
+        
+        if (!data || !Array.isArray(data) || data.length === 0) {
+          console.log(`[CLAIM_PAYMENT] SQL function returned no data for claim ${claimId}`);
+          return { totalPaid: 0, lastPaymentDate: null };
+        }
+        
+        console.log(`[CLAIM_PAYMENT] SQL function succeeded for claim ${claimId}`, data[0]);
+        
+        const item = data[0];
+        
+        // Enhanced function to extract payment values consistently
+        const extractTotalPaid = (value: any): number => {
+          // If value is null or undefined, return 0
+          if (value === null || value === undefined) return 0;
           
-          const item = data[0];
+          // Handle numeric type directly
+          if (typeof value === 'number') {
+            return isNaN(value) ? 0 : value;
+          }
           
-          // Enhanced function to extract payment values consistently
-          const extractTotalPaid = (value: any): number => {
-            // If value is null or undefined, return 0
-            if (value === null || value === undefined) return 0;
-            
-            // Handle numeric type directly
-            if (typeof value === 'number') {
-              return isNaN(value) ? 0 : value;
-            }
-            
-            // Handle string representation
-            if (typeof value === 'string') {
-              const parsed = parseFloat(value);
+          // Handle string representation
+          if (typeof value === 'string') {
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? 0 : parsed;
+          }
+          
+          // Handle Postgres numeric type (object with value property)
+          if (typeof value === 'object') {
+            // If the object has a value property
+            if (value && 'value' in value) {
+              const parsed = parseFloat(value.value);
               return isNaN(parsed) ? 0 : parsed;
             }
             
-            // Handle Postgres numeric type (object with value property)
-            if (typeof value === 'object') {
-              // If the object has a value property
-              if (value && 'value' in value) {
-                const parsed = parseFloat(value.value);
-                return isNaN(parsed) ? 0 : parsed;
-              }
-              
-              // Try JSON value if present
-              if (value && 'json' in value) {
-                try {
-                  const jsonVal = JSON.parse(value.json);
-                  return typeof jsonVal === 'number' ? jsonVal : 0;
-                } catch (e) {
-                  console.error('[CLAIM_PAYMENT] Error parsing JSON value:', e);
-                  return 0;
-                }
-              }
-              
-              // Last resort - try to stringify and parse the object
+            // Try JSON value if present
+            if (value && 'json' in value) {
               try {
-                const strValue = String(value);
-                const parsed = parseFloat(strValue);
-                return isNaN(parsed) ? 0 : parsed;
+                const jsonVal = JSON.parse(value.json);
+                return typeof jsonVal === 'number' ? jsonVal : 0;
               } catch (e) {
-                console.error('[CLAIM_PAYMENT] Error parsing object as string:', e);
+                console.error('[CLAIM_PAYMENT] Error parsing JSON value:', e);
                 return 0;
               }
             }
             
-            // Default fallback
-            return 0;
-          };
-          
-          // Use the enhanced extraction function for consistent processing
-          const totalPaidValue = extractTotalPaid(item.totalpaid);
-          
-          console.log(`[CLAIM_PAYMENT] Total paid for claim ${claimId} from SQL: $${totalPaidValue.toFixed(2)}`);
-          
-          return {
-            totalPaid: totalPaidValue,
-            lastPaymentDate: item.lastpaymentdate ? new Date(item.lastpaymentdate) : null
-          };
-        } else {
-          console.log(`[CLAIM_PAYMENT] SQL function returned no data for claim ${claimId}`);
-          return { totalPaid: 0, lastPaymentDate: null };
-        }
-      } catch (sqlErr) {
-        console.error(`[CLAIM_PAYMENT] Error using SQL function for claim ${claimId}:`, sqlErr);
-      }
-      
-      // Fall back to direct data fetching
-      console.log(`[CLAIM_PAYMENT] Falling back to direct query for claim ${claimId}`);
-      
-      try {
-        // Only get PAID subclaims for efficiency
-        const { data: subclaims, error: subclaimsError } = await supabase
-          .from('subclaims')
-          .select('*')
-          .eq('ClaimID', claimId)
-          .eq('Status', 'PAID'); // Only get PAID subclaims
-          
-        if (subclaimsError) {
-          console.error(`[CLAIM_PAYMENT] Error fetching subclaims for claim ${claimId}:`, subclaimsError);
-          return { totalPaid: 0, lastPaymentDate: null };
-        }
-        
-        console.log(`[CLAIM_PAYMENT] Found ${subclaims?.length || 0} PAID subclaims for claim ${claimId}`);
-        
-        const subclaimIds = subclaims?.map(s => s.SubClaimID) || [];
-        
-        if (subclaimIds.length === 0) {
-          console.log(`[CLAIM_PAYMENT] No subclaims found for claim ${claimId}, returning zero`);
-          return { totalPaid: 0, lastPaymentDate: null };
-        }
-        
-        // Get the last payment date
-        let lastPaymentDate = null;
-        
-        if (subclaims && subclaims.length > 0) {
-          const modifiedDates = subclaims
-            .filter(sc => sc.LastModified)
-            .map(sc => new Date(sc.LastModified));
-          
-          if (modifiedDates.length > 0) {
-            lastPaymentDate = new Date(Math.max(...modifiedDates.map(d => d.getTime())));
+            // Last resort - try to stringify and parse the object
+            try {
+              const strValue = String(value);
+              const parsed = parseFloat(strValue);
+              return isNaN(parsed) ? 0 : parsed;
+            } catch (e) {
+              console.error('[CLAIM_PAYMENT] Error parsing object as string:', e);
+              return 0;
+            }
           }
-        }
-        
-        // Fetch subclaim parts to calculate payment amounts
-        const { data: subclaimParts, error: partsError } = await supabase
-          .from('subclaim_parts')
-          .select('*')
-          .in('SubClaimID', subclaimIds);
           
-        if (partsError) {
-          console.error(`[CLAIM_PAYMENT] Error fetching parts for claim ${claimId}:`, partsError);
-          return { 
-            totalPaid: 0, 
-            lastPaymentDate: lastPaymentDate // Still return the date if we have it
-          };
-        }
+          // Default fallback
+          return 0;
+        };
         
-        console.log(`[CLAIM_PAYMENT] Found ${subclaimParts?.length || 0} parts for claim ${claimId}`);
+        // Check all possible property names for the total paid value
+        const possibleTotalPaidProps = ['totalpaid', 'TotalPaid', 'totalPaid', 'total_paid'];
+        let totalPaidValue = 0;
         
-        // Calculate total paid amount
-        let totalPaid = 0;
-        
-        if (subclaimParts && subclaimParts.length > 0) {
-          for (const part of subclaimParts) {
-            if (part.PaidPrice !== null && part.PaidPrice !== undefined) {
-              // Handle different formats of PaidPrice
-              let partAmount = 0;
-              
-              if (typeof part.PaidPrice === 'number') {
-                partAmount = part.PaidPrice;
-              } else if (typeof part.PaidPrice === 'string') {
-                partAmount = parseFloat(part.PaidPrice) || 0;
-              } else if (typeof part.PaidPrice === 'object' && part.PaidPrice !== null) {
-                if ('value' in part.PaidPrice) {
-                  partAmount = parseFloat(part.PaidPrice.value) || 0;
-                } else {
-                  // Try to convert the object to a string and parse it
-                  const strValue = String(part.PaidPrice);
-                  partAmount = parseFloat(strValue) || 0;
-                }
-              }
-              
-              totalPaid += partAmount;
+        for (const prop of possibleTotalPaidProps) {
+          if (item[prop] !== undefined) {
+            const extractedValue = extractTotalPaid(item[prop]);
+            if (extractedValue > 0) {
+              totalPaidValue = extractedValue;
+              console.log(`[CLAIM_PAYMENT] Found total paid value in property '${prop}': ${totalPaidValue}`);
+              break;
             }
           }
         }
         
-        console.log(`[CLAIM_PAYMENT] Calculated total paid for claim ${claimId} from direct query: $${totalPaid.toFixed(2)}`);
+        // If we still don't have a value, try one more time with the first property
+        if (totalPaidValue === 0 && item.totalpaid !== undefined) {
+          totalPaidValue = extractTotalPaid(item.totalpaid);
+        }
+        
+        console.log(`[CLAIM_PAYMENT] Total paid for claim ${claimId} from SQL: $${totalPaidValue.toFixed(2)}`);
+        
+        // Check all possible property names for the last payment date
+        const possibleDateProps = ['lastpaymentdate', 'LastPaymentDate', 'lastPaymentDate', 'last_payment_date'];
+        let lastPaymentDate = null;
+        
+        for (const prop of possibleDateProps) {
+          if (item[prop]) {
+            try {
+              const date = new Date(item[prop]);
+              if (!isNaN(date.getTime())) {
+                lastPaymentDate = date;
+                console.log(`[CLAIM_PAYMENT] Found last payment date in property '${prop}': ${lastPaymentDate.toISOString()}`);
+                break;
+              }
+            } catch (e) {
+              console.error(`[CLAIM_PAYMENT] Error parsing date from property '${prop}':`, e);
+            }
+          }
+        }
         
         return {
-          totalPaid,
-          lastPaymentDate
+          totalPaid: totalPaidValue,
+          lastPaymentDate: lastPaymentDate
         };
-      } catch (directQueryError) {
-        console.error(`[CLAIM_PAYMENT] Fatal error fetching payment data for claim ${claimId}:`, directQueryError);
-        return { totalPaid: 0, lastPaymentDate: null };
+      } catch (sqlErr) {
+        console.error(`[CLAIM_PAYMENT] Error using SQL function for claim ${claimId}:`, sqlErr);
+        
+        // Fall back to direct data fetching as a last resort
+        console.log(`[CLAIM_PAYMENT] Falling back to direct query for claim ${claimId}`);
+        
+        try {
+          // Only get PAID subclaims for efficiency
+          const { data: subclaims, error: subclaimsError } = await supabase
+            .from('subclaims')
+            .select('*')
+            .eq('ClaimID', claimId)
+            .eq('Status', 'PAID'); // Only get PAID subclaims
+            
+          if (subclaimsError) {
+            console.error(`[CLAIM_PAYMENT] Error fetching subclaims for claim ${claimId}:`, subclaimsError);
+            return { totalPaid: 0, lastPaymentDate: null };
+          }
+          
+          console.log(`[CLAIM_PAYMENT] Found ${subclaims?.length || 0} PAID subclaims for claim ${claimId}`);
+          
+          const subclaimIds = subclaims?.map(s => s.SubClaimID) || [];
+          
+          if (subclaimIds.length === 0) {
+            console.log(`[CLAIM_PAYMENT] No subclaims found for claim ${claimId}, returning zero`);
+            return { totalPaid: 0, lastPaymentDate: null };
+          }
+          
+          // Get the last payment date
+          let lastPaymentDate = null;
+          
+          if (subclaims && subclaims.length > 0) {
+            const closedDates = subclaims
+              .filter(sc => sc.Closed)
+              .map(sc => new Date(sc.Closed));
+            
+            if (closedDates.length > 0) {
+              lastPaymentDate = new Date(Math.max(...closedDates.map(d => d.getTime())));
+            }
+          }
+          
+          // Fetch subclaim parts to calculate payment amounts
+          const { data: subclaimParts, error: partsError } = await supabase
+            .from('subclaim_parts')
+            .select('*')
+            .in('SubClaimID', subclaimIds);
+            
+          if (partsError) {
+            console.error(`[CLAIM_PAYMENT] Error fetching parts for claim ${claimId}:`, partsError);
+            return { 
+              totalPaid: 0, 
+              lastPaymentDate: lastPaymentDate // Still return the date if we have it
+            };
+          }
+          
+          console.log(`[CLAIM_PAYMENT] Found ${subclaimParts?.length || 0} parts for claim ${claimId}`);
+          
+          // Calculate total paid amount
+          let totalPaid = 0;
+          
+          if (subclaimParts && subclaimParts.length > 0) {
+            for (const part of subclaimParts) {
+              if (part.PaidPrice !== null && part.PaidPrice !== undefined) {
+                // Handle different formats of PaidPrice
+                let partAmount = 0;
+                
+                if (typeof part.PaidPrice === 'number') {
+                  partAmount = part.PaidPrice;
+                } else if (typeof part.PaidPrice === 'string') {
+                  partAmount = parseFloat(part.PaidPrice) || 0;
+                } else if (typeof part.PaidPrice === 'object' && part.PaidPrice !== null) {
+                  if ('value' in part.PaidPrice) {
+                    partAmount = parseFloat(part.PaidPrice.value) || 0;
+                  } else {
+                    // Try to convert the object to a string and parse it
+                    const strValue = String(part.PaidPrice);
+                    partAmount = parseFloat(strValue) || 0;
+                  }
+                }
+                
+                totalPaid += partAmount;
+              }
+            }
+          }
+          
+          console.log(`[CLAIM_PAYMENT] Calculated total paid for claim ${claimId} from direct query: $${totalPaid.toFixed(2)}`);
+          
+          return {
+            totalPaid,
+            lastPaymentDate
+          };
+        } catch (directQueryError) {
+          console.error(`[CLAIM_PAYMENT] Fatal error fetching payment data for claim ${claimId}:`, directQueryError);
+          return { totalPaid: 0, lastPaymentDate: null };
+        }
       }
     },
     // Don't retry too many times to avoid rate limits
@@ -696,22 +735,181 @@ export function usePrefetchClaimsPaymentData(claimIds: string[] = []) {
     queryFn: async () => {
       console.log(`[CLAIM_PAYMENT] Prefetching payment data for ${claimIds.length} claims`);
       
+      if (claimIds.length === 0) {
+        console.log('[CLAIM_PAYMENT] No claim IDs provided for prefetching');
+        return [];
+      }
+      
       try {
-        // First try the RPC function (most efficient)
-        const results = await fetchSubclaimsForClaims(claimIds);
+        // Always use the RPC function for batch fetching
+        console.log(`[CLAIM_PAYMENT] Using RPC function to fetch payment data for ${claimIds.length} claims`);
         
-        if (results && results.length > 0) {
-          console.log(`[CLAIM_PAYMENT] Successfully prefetched ${results.length} payment records`);
+        // Process in reasonable batches to avoid hitting limits
+        const BATCH_SIZE = 50; // Use smaller batches for better error tracking
+        let allResults = [];
+        
+        // Process claims in batches to prevent timeouts or memory issues
+        for (let i = 0; i < claimIds.length; i += BATCH_SIZE) {
+          const batchClaimIds = claimIds.slice(i, i + BATCH_SIZE);
+          console.log(`[CLAIM_PAYMENT] Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(claimIds.length/BATCH_SIZE)}, size: ${batchClaimIds.length}`);
+          
+          try {
+            // Fix for ClaimID type mismatch - ensure we're passing values in the correct type
+            const areClaimIdsNumeric = batchClaimIds.length > 0 && !isNaN(Number(batchClaimIds[0]));
+            
+            // Convert claim IDs to the appropriate type
+            const formattedClaimIds = areClaimIdsNumeric 
+              ? batchClaimIds.map(id => Number(id)) // Convert to numbers if they appear numeric
+              : batchClaimIds; // Keep as strings if they're not numeric
+              
+            console.log(`[CLAIM_PAYMENT] Using ${areClaimIdsNumeric ? 'numeric' : 'string'} claim IDs:`, 
+              formattedClaimIds.slice(0, 2)); // Log first two for debugging
+            
+            const { data: batchResults, error: batchError } = await supabase.rpc(
+              'get_claims_payment_info',
+              { 
+                claim_ids: formattedClaimIds,
+                max_results: batchClaimIds.length
+              }
+            );
+            
+            if (batchError) {
+              console.error(`[CLAIM_PAYMENT] Error in batch ${Math.floor(i/BATCH_SIZE) + 1}:`, batchError);
+              continue;
+            }
+            
+            if (batchResults && Array.isArray(batchResults)) {
+              console.log(`[CLAIM_PAYMENT] Batch ${Math.floor(i/BATCH_SIZE) + 1} returned ${batchResults.length} results`);
+              
+              // Process the batch results
+              const processedBatchResults = batchResults.map(item => {
+                // Enhanced function to extract payment values consistently
+                const extractTotalPaid = (value: any): number => {
+                  // If value is null or undefined, return 0
+                  if (value === null || value === undefined) return 0;
+                  
+                  // Handle numeric type directly
+                  if (typeof value === 'number') {
+                    return isNaN(value) ? 0 : value;
+                  }
+                  
+                  // Handle string representation
+                  if (typeof value === 'string') {
+                    const parsed = parseFloat(value);
+                    return isNaN(parsed) ? 0 : parsed;
+                  }
+                  
+                  // Handle Postgres numeric type (object with value property)
+                  if (typeof value === 'object') {
+                    // If the object has a value property
+                    if (value && 'value' in value) {
+                      const parsed = parseFloat(value.value);
+                      return isNaN(parsed) ? 0 : parsed;
+                    }
+                    
+                    // Try JSON value if present
+                    if (value && 'json' in value) {
+                      try {
+                        const jsonVal = JSON.parse(value.json);
+                        return typeof jsonVal === 'number' ? jsonVal : 0;
+                      } catch (e) {
+                        console.error('[CLAIM_PAYMENT] Error parsing JSON value:', e);
+                        return 0;
+                      }
+                    }
+                    
+                    // Last resort - try to stringify and parse the object
+                    try {
+                      const strValue = String(value);
+                      const parsed = parseFloat(strValue);
+                      return isNaN(parsed) ? 0 : parsed;
+                    } catch (e) {
+                      console.error('[CLAIM_PAYMENT] Error parsing object as string:', e);
+                      return 0;
+                    }
+                  }
+                  
+                  // Default fallback
+                  return 0;
+                };
+                
+                // Check all possible property names for the total paid value
+                const possibleTotalPaidProps = ['totalpaid', 'TotalPaid', 'totalPaid', 'total_paid'];
+                let totalPaidValue = 0;
+                
+                for (const prop of possibleTotalPaidProps) {
+                  if (item[prop] !== undefined) {
+                    const extractedValue = extractTotalPaid(item[prop]);
+                    if (extractedValue > 0) {
+                      totalPaidValue = extractedValue;
+                      break;
+                    }
+                  }
+                }
+                
+                // If we still don't have a value, try one more time with the first property
+                if (totalPaidValue === 0 && item.totalpaid !== undefined) {
+                  totalPaidValue = extractTotalPaid(item.totalpaid);
+                }
+                
+                // Check all possible property names for the last payment date
+                const possibleDateProps = ['lastpaymentdate', 'LastPaymentDate', 'lastPaymentDate', 'last_payment_date'];
+                let lastPaymentDate = null;
+                
+                for (const prop of possibleDateProps) {
+                  if (item[prop]) {
+                    try {
+                      const date = new Date(item[prop]);
+                      if (!isNaN(date.getTime())) {
+                        lastPaymentDate = date;
+                        break;
+                      }
+                    } catch (e) {
+                      console.error(`[CLAIM_PAYMENT] Error parsing date from property '${prop}':`, e);
+                    }
+                  }
+                }
+                
+                return {
+                  ClaimID: item.ClaimID,
+                  totalPaid: totalPaidValue,
+                  lastPaymentDate: lastPaymentDate
+                };
+              });
+              
+              allResults.push(...processedBatchResults);
+              
+              // Log a sample of the processed data for debugging
+              if (processedBatchResults.length > 0) {
+                console.log(`[CLAIM_PAYMENT] Processed sample from batch ${Math.floor(i/BATCH_SIZE) + 1}:`, {
+                  ClaimID: processedBatchResults[0].ClaimID,
+                  totalPaid: processedBatchResults[0].totalPaid,
+                  hasLastPaymentDate: !!processedBatchResults[0].lastPaymentDate
+                });
+              }
+            } else {
+              console.warn(`[CLAIM_PAYMENT] Batch ${Math.floor(i/BATCH_SIZE) + 1} returned no data`);
+            }
+          } catch (batchError) {
+            console.error(`[CLAIM_PAYMENT] Exception in batch ${Math.floor(i/BATCH_SIZE) + 1}:`, batchError);
+          }
+          
+          // Add a small delay between batches to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        if (allResults.length > 0) {
+          console.log(`[CLAIM_PAYMENT] Successfully prefetched ${allResults.length} payment records`);
           
           // Cache individual results for faster access
-          results.forEach(item => {
+          allResults.forEach(item => {
             queryClient.setQueryData(['claim-payment', item.ClaimID], {
               totalPaid: item.totalPaid,
               lastPaymentDate: item.lastPaymentDate
             });
           });
           
-          return results;
+          return allResults;
         } else {
           console.warn(`[CLAIM_PAYMENT] No payment data found for batch of ${claimIds.length} claims`);
           return [];

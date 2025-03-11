@@ -1,4 +1,3 @@
-
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,6 +11,8 @@ import PerformanceMetrics from "./pages/PerformanceMetrics";
 import Leaderboard from "./pages/Leaderboard";
 import Agreements from "./pages/Agreements";
 import Claims from "./pages/Claims";
+import ClaimDetail from "./pages/ClaimDetail";
+import DealerProfile from "./pages/DealerProfile";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 // Import Sidebar for reference
@@ -45,8 +46,10 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/agreements" element={<Agreements />} />
               <Route path="/claims" element={<Claims />} />
+              <Route path="/claims/:claimId" element={<ClaimDetail />} />
               <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/dealer/:dealerId" element={<DealerProfile />} />
             </Route>
             
             {/* Not found route */}

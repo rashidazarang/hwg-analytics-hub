@@ -1,0 +1,180 @@
+-- First function (optimized top dealers) ✅
+CREATE OR REPLACE FUNCTION get_top_dealers_optimized(
+  start_date DATE,
+  end_date DATE,
+  limit_count INT DEFAULT 10
+)
+RETURNS TABLE (
+  dealer_uuid UUID,
+  dealer_name TEXT,
+  total_contracts INTEGER,
+  active_contracts INTEGER,
+  pending_contracts INTEGER,
+  cancelled_contracts INTEGER,
+  total_revenue NUMERIC,
+  expected_revenue NUMERIC,
+  funded_revenue NUMERIC,
+  cancellation_rate NUMERIC
+) AS $$
+BEGIN
+  RETURN QUERY
+  WITH dealer_stats AS (
+    SELECT
+      d."DealerUUID" AS dealer_uuid,
+      d."Payee" AS dealer_name,
+      COUNT(a."AgreementID")::INTEGER AS total_contracts,
+      -- Count active contracts (ACTIVE or CLAIMABLE status)
+      COUNT(CASE WHEN UPPER(a."AgreementStatus") IN ('ACTIVE', 'CLAIMABLE') THEN 1 END)::INTEGER AS active_contracts,
+      -- Count pending contracts
+      COUNT(CASE WHEN UPPER(a."AgreementStatus") = 'PENDING' THEN 1 END)::INTEGER AS pending_contracts,
+      -- Count cancelled contracts (CANCELLED or VOID status)
+      COUNT(CASE WHEN UPPER(a."AgreementStatus") IN ('CANCELLED', 'VOID') THEN 1 END)::INTEGER AS cancelled_contracts,
+      -- Calculate total revenue from all dealer costs
+      COALESCE(SUM(NULLIF(a."DealerCost", 0)), 0) AS total_revenue,
+      -- Calculate expected revenue from pending agreements
+      COALESCE(SUM(CASE WHEN UPPER(a."AgreementStatus") = 'PENDING' THEN NULLIF(a."DealerCost", 0) ELSE 0 END), 0) AS expected_revenue,
+      -- Calculate funded revenue from active agreements
+      COALESCE(SUM(CASE WHEN UPPER(a."AgreementStatus") IN ('ACTIVE', 'CLAIMABLE') THEN NULLIF(a."DealerCost", 0) ELSE 0 END), 0) AS funded_revenue,
+      -- Calculate cancellation rate as percentage of cancelled contracts over total contracts
+      -- This is a key business metric to track dealer performance
+      CASE 
+        WHEN COUNT(a."AgreementID") > 0 
+        THEN (COUNT(CASE WHEN UPPER(a."AgreementStatus") IN ('CANCELLED', 'VOID') THEN 1 END)::NUMERIC / COUNT(a."AgreementID")::NUMERIC) * 100
+        ELSE 0
+      END AS cancellation_rate
+    FROM
+      "agreements" a
+    JOIN 
+      "dealers" d ON a."DealerUUID" = d."DealerUUID"
+    WHERE
+      a."EffectiveDate" >= start_date
+      AND a."EffectiveDate" <= end_date
+    GROUP BY
+      d."DealerUUID", d."Payee"
+  )
+  SELECT
+    dealer_uuid,
+    dealer_name,
+    total_contracts,
+    active_contracts,
+    pending_contracts,
+    cancelled_contracts,
+    total_revenue,
+    expected_revenue,
+    funded_revenue,
+    cancellation_rate
+  FROM dealer_stats
+  WHERE total_contracts > 0
+  ORDER BY total_contracts DESC
+  LIMIT limit_count;
+END;
+$$ LANGUAGE plpgsql;
+
+GRANT EXECUTE ON FUNCTION get_top_dealers_optimized(DATE, DATE, INT) TO authenticated;
+
+-- Corrected dealer profile function ✅
+CREATE OR REPLACE FUNCTION get_dealer_profile(
+  dealer_id UUID,
+  start_date TIMESTAMP,
+  end_date TIMESTAMP
+)
+RETURNS TABLE (
+  dealer_uuid UUID,
+  dealer_name TEXT,
+  dealer_address TEXT,
+  dealer_city TEXT,
+  dealer_region TEXT,
+  dealer_country TEXT,
+  dealer_postal_code TEXT,
+  dealer_contact TEXT,
+  dealer_phone TEXT,
+  dealer_email TEXT,
+  total_contracts INTEGER,
+  active_contracts INTEGER,
+  pending_contracts INTEGER,
+  cancelled_contracts INTEGER,
+  expired_contracts INTEGER,
+  total_revenue NUMERIC,
+  expected_revenue NUMERIC,
+  funded_revenue NUMERIC,
+  cancellation_rate NUMERIC,
+  total_claims INTEGER,
+  open_claims INTEGER,
+  closed_claims INTEGER,
+  claims_per_contract NUMERIC,
+  avg_claim_resolution_days NUMERIC
+) AS $$
+BEGIN
+  RETURN QUERY
+  WITH dealer_data AS (
+    SELECT * FROM get_top_dealers_optimized(start_date::DATE, end_date::DATE, 1000)
+    WHERE dealer_uuid = dealer_id
+  ),
+  dealer_info AS (
+    SELECT
+      "DealerUUID",
+      "Payee",
+      "Address",
+      "City",
+      "State",
+      "Country",
+      "ZipCode",
+      "Contact",
+      "Phone",
+      "Email"
+    FROM dealers
+    WHERE "DealerUUID" = dealer_id
+  ),
+  claims_info AS (
+    SELECT
+      COUNT(*) AS total_claims,
+      COUNT(*) FILTER (WHERE c."Closed" IS NULL) AS open_claims,
+      COUNT(*) FILTER (WHERE c."Closed" IS NOT NULL) AS closed_claims,
+      AVG(
+        CASE 
+          WHEN c."Closed" IS NOT NULL AND c."ReportedDate" IS NOT NULL 
+          THEN EXTRACT(EPOCH FROM (c."Closed" - c."ReportedDate")) / 86400
+          ELSE NULL
+        END
+      ) AS avg_claim_resolution_days
+    FROM claims c
+    JOIN agreements a ON c."AgreementID" = a."AgreementID"
+    WHERE a."DealerUUID" = dealer_id
+      AND a."EffectiveDate" BETWEEN start_date AND end_date
+  )
+  
+  SELECT
+    di."DealerUUID",
+    di."Payee",
+    di."Address",
+    di."City",
+    di."State",
+    di."Country",
+    di."ZipCode",
+    di."Contact",
+    di."Phone",
+    di."Email",
+    COALESCE(dd.total_contracts, 0),
+    COALESCE(dd.active_contracts, 0),
+    COALESCE(dd.pending_contracts, 0),
+    COALESCE(dd.cancelled_contracts, 0),
+    0, -- expired_contracts set explicitly to 0 if intended
+    COALESCE(dd.total_revenue, 0),
+    COALESCE(dd.expected_revenue, 0),
+    COALESCE(dd.funded_revenue, 0),
+    COALESCE(dd.cancellation_rate, 0),
+    COALESCE(cd.total_claims, 0),
+    COALESCE(cd.total_claims - cd.closed_claims, 0) AS open_claims,
+    COALESCE(cd.closed_claims, 0),
+    CASE 
+      WHEN dd.total_contracts > 0 THEN cd.total_claims::NUMERIC / dd.total_contracts::NUMERIC
+      ELSE 0
+    END AS claims_per_contract,
+    COALESCE(cd.avg_claim_resolution_days, 0)
+  FROM dealer_info di
+  LEFT JOIN dealer_data dd ON di."DealerUUID" = dd.dealer_uuid
+  CROSS JOIN dealer_claims_info cd;
+END;
+$$ LANGUAGE plpgsql;
+
+GRANT EXECUTE ON FUNCTION get_dealer_profile(UUID, TIMESTAMP, TIMESTAMP) TO authenticated;

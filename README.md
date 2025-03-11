@@ -1,212 +1,303 @@
 # HWG Analytics Hub
 
-A comprehensive analytics and management dashboard for service agreements and claims data. This application enables administrators to visualize, analyze, and track key performance indicators (KPIs) related to agreements, claims, and dealer performance.
+## Overview
 
-## Features
+This repository contains the HWG Analytics Hub application, a comprehensive solution for managing and analyzing claims data. The application provides dashboards, reports, and analytics tools for tracking agreements, claims, and dealer performance.
 
-- **Interactive Dashboards** - Visualize critical metrics with real-time filtering
-- **Agreement Analytics** - Track active, pending, and cancelled agreements
-- **Claims Management** - Monitor claims status, payment information, and processing times
-- **Dealer Performance** - Compare dealer performance with advanced leaderboards
-- **Advanced Filtering** - Filter by date range, dealer, and status across all views
+## Project Structure
 
-## Technical Overview
+- `/src` - Source code for the frontend application
+- `/supabase` - Supabase configuration, functions, and schema definitions
+  - `/supabase/functions` - SQL functions for data processing and analytics
+  - `/supabase/migrations` - Database migration files
+  - `/supabase/schema.sql` - Complete database schema definition
+  - `/supabase/schema.md` - Human-readable documentation of the database schema
 
-### Tech Stack
+## Database Schema
 
-- **Frontend:** React with TypeScript
-- **Build Tool:** Vite
-- **Backend:** Supabase (PostgreSQL)
-- **UI Components:** shadcn/ui
-- **Styling:** Tailwind CSS
-- **State Management:** 
-  - React Query for server state
-  - React Context for shared state
-- **Data Visualization:** Recharts
+The application uses a Supabase PostgreSQL database with the following main tables:
 
-## Getting Started
+- `agreements` - Stores agreement/contract information
+- `claims` - Stores claim information related to agreements
+- `dealers` - Stores dealer information
+- `subclaims` - Subclaim information related to claims
+- `subclaim_parts` - Parts information for subclaims
+- `option_surcharge_price` - Stores pricing information for optional features
+- `profiles` - User profile information
+
+For a complete schema reference, see [Database Schema Documentation](./supabase/schema.md).
+
+## Supabase Functions
+
+The application uses several PostgreSQL functions to process and analyze data. These functions are stored in the `/supabase/functions` directory.
+
+### Key Functions
+
+| Function Name | Description |
+|---------------|-------------|
+| `check_auth_setup` | Verifies authentication setup |
+| `update_timestamp` | Updates timestamp on record changes |
+| `count_agreements_by_status` | Counts agreements by status within a date range |
+| `get_top_agents_by_contracts` | Returns top agents by number of contracts |
+| `calculate_agreement_revenue` | Calculates revenue for a specific agreement |
+| `calculate_revenue_growth` | Calculates revenue growth between two periods |
+| `get_leaderboard_summary` | Gets summary data for the leaderboard |
+| `get_top_dealers_by_revenue` | Returns top dealers by revenue |
+| `get_top_dealers_with_kpis` | Returns top dealers with KPI metrics |
+| `get_claims_payment_info` | Gets payment information for claims |
+
+For a complete list of functions and their parameters, see the [Functions Reference](#functions-reference) section below.
+
+## API Endpoints
+
+The application uses Supabase's auto-generated REST API for most data operations, with custom RPC endpoints for the SQL functions.
+
+Example API usage:
+
+```javascript
+// Get top dealers by revenue
+const { data, error } = await supabase.rpc('get_top_dealers_by_revenue', {
+  start_date: '2023-01-01',
+  end_date: '2023-12-31',
+  limit_count: 10
+});
+```
+
+## Functions Reference
+
+### Dealer Analytics Functions
+
+#### get_top_dealers_by_revenue
+```sql
+get_top_dealers_by_revenue(
+  start_date DATE,
+  end_date DATE,
+  limit_count INT DEFAULT 10
+) RETURNS TABLE (
+  dealer_name TEXT,
+  total_contracts INTEGER,
+  total_revenue NUMERIC,
+  cancelled_contracts INTEGER
+)
+```
+
+#### get_top_dealers_optimized
+```sql
+get_top_dealers_optimized(
+  start_date DATE,
+  end_date DATE,
+  limit_count INT DEFAULT 10
+) RETURNS TABLE (
+  dealer_uuid UUID,
+  dealer_name TEXT,
+  total_contracts INTEGER,
+  active_contracts INTEGER,
+  pending_contracts INTEGER,
+  cancelled_contracts INTEGER,
+  total_revenue NUMERIC,
+  expected_revenue NUMERIC,
+  funded_revenue NUMERIC,
+  cancellation_rate NUMERIC
+)
+```
+
+#### get_dealer_profile
+```sql
+get_dealer_profile(
+  dealer_id UUID,
+  start_date TIMESTAMP,
+  end_date TIMESTAMP
+) RETURNS TABLE (
+  dealer_uuid UUID,
+  dealer_name TEXT,
+  dealer_address TEXT,
+  dealer_city TEXT,
+  dealer_region TEXT,
+  dealer_country TEXT,
+  dealer_postal_code TEXT,
+  dealer_contact TEXT,
+  dealer_phone TEXT,
+  dealer_email TEXT,
+  total_contracts INTEGER,
+  active_contracts INTEGER,
+  pending_contracts INTEGER,
+  cancelled_contracts INTEGER,
+  expired_contracts INTEGER,
+  total_revenue NUMERIC,
+  expected_revenue NUMERIC,
+  funded_revenue NUMERIC,
+  cancellation_rate NUMERIC,
+  total_claims INTEGER,
+  open_claims INTEGER,
+  closed_claims INTEGER,
+  claims_per_contract NUMERIC,
+  avg_claim_resolution_days NUMERIC
+)
+```
+
+### Agreement Analytics Functions
+
+#### count_agreements_by_status
+```sql
+count_agreements_by_status(
+  from_date DATE,
+  to_date DATE,
+  dealer_uuid UUID DEFAULT NULL
+) RETURNS TABLE (
+  status TEXT,
+  count INT
+)
+```
+
+#### count_agreements_by_date
+```sql
+count_agreements_by_date(
+  from_date DATE,
+  to_date DATE,
+  group_by TEXT DEFAULT 'month',
+  dealer_uuid UUID DEFAULT NULL
+) RETURNS TABLE (
+  date_group TEXT,
+  total_count BIGINT,
+  pending_count BIGINT,
+  active_count BIGINT,
+  claimable_count BIGINT,
+  cancelled_count BIGINT,
+  void_count BIGINT
+)
+```
+
+#### fetch_monthly_agreement_counts_with_status
+```sql
+fetch_monthly_agreement_counts_with_status(
+  start_date DATE,
+  end_date DATE,
+  dealer_uuid UUID DEFAULT NULL
+) RETURNS TABLE (
+  month TEXT,
+  total BIGINT,
+  pending BIGINT,
+  active BIGINT,
+  claimable BIGINT,
+  cancelled BIGINT,
+  void BIGINT
+)
+```
+
+### Claims Analytics Functions
+
+#### get_claims_with_payment_in_date_range
+```sql
+get_claims_with_payment_in_date_range(
+  start_date DATE,
+  end_date DATE,
+  max_results INT DEFAULT 100
+) RETURNS TABLE (
+  claim_id TEXT
+)
+```
+
+#### get_claims_by_filter_type
+```sql
+get_claims_by_filter_type(
+  start_date DATE,
+  end_date DATE,
+  dealer_uuid UUID DEFAULT NULL,
+  page_number INT DEFAULT 1,
+  page_size INT DEFAULT 20
+) RETURNS TABLE (
+  "ClaimID" TEXT,
+  "AgreementID" TEXT,
+  "DealerName" TEXT,
+  "DealerUUID" TEXT,
+  "IncurredDate" TIMESTAMP,
+  "ReportedDate" TIMESTAMP,
+  "Closed" TIMESTAMP,
+  "LastPaymentDate" TIMESTAMP,
+  "TotalPaid" NUMERIC,
+  "SubclaimCount" INTEGER
+)
+```
+
+#### get_claims_payment_info
+```sql
+get_claims_payment_info(
+  claim_ids TEXT[]
+) RETURNS TABLE (
+  "ClaimID" TEXT,
+  "AgreementID" TEXT,
+  "TotalPaid" NUMERIC,
+  "LastPaymentDate" TIMESTAMP
+)
+```
+
+### Revenue Analytics Functions
+
+#### calculate_agreement_revenue
+```sql
+calculate_agreement_revenue(agreement_id TEXT) RETURNS NUMERIC
+```
+
+#### calculate_revenue_growth
+```sql
+calculate_revenue_growth(
+  current_start_date DATE,
+  current_end_date DATE,
+  previous_start_date DATE,
+  previous_end_date DATE
+) RETURNS TABLE (
+  current_revenue NUMERIC,
+  previous_revenue NUMERIC,
+  growth_rate NUMERIC
+)
+```
+
+#### get_agreements_with_revenue
+```sql
+get_agreements_with_revenue(
+  start_date DATE,
+  end_date DATE
+) RETURNS TABLE (
+  "AgreementID" TEXT,
+  "AgreementStatus" TEXT,
+  "DealerUUID" TEXT,
+  dealers JSONB,
+  revenue NUMERIC
+)
+```
+
+## Development
 
 ### Prerequisites
 
-- Node.js (v16 or later)
+- Node.js 16+
 - npm or yarn
-- Access to Supabase project
+- Supabase CLI
 
-### Installation
+### Setup
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd claim-analytics-hub
-   ```
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up environment variables (see `.env.example`)
+4. Start the development server: `npm run dev`
 
-2. Install dependencies:
-   ```bash
-   npm install
-   # or
-   yarn
-   ```
+### Supabase Setup
 
-3. Create a `.env` file with your Supabase credentials:
-   ```
-   VITE_SUPABASE_URL=your-supabase-url
-   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-   ```
-
-### Development
-
-Start the development server:
-```bash
-npm run dev
-# or
-yarn dev
-```
-
-### Building for Production
-
-```bash
-npm run build
-# or
-yarn build
-```
-
-## Data Architecture
-
-The application works with several core data entities:
-
-- **Agreements** - Service contracts with dealers
-- **Claims** - Customer claims against agreements
-- **Subclaims** - Individual components of a claim
-- **Dealers** - Businesses that sell service agreements
-
-### Key Data Relationships
-
-- **Agreements** are linked to **Dealers** via `DealerUUID`
-- **Claims** are linked to **Agreements** via `AgreementID`
-- **Subclaims** are linked to **Claims** via `ClaimID`
-
-## Core Features
-
-### Dashboard
-
-The main dashboard displays:
-
-- Summary KPIs for agreements and claims
-- Alerts and action items based on data thresholds
-- Leaderboard highlights showing top dealers
-- Quick access to other sections of the application
-
-### Claims Dashboard
-
-- Claims KPIs (open, pending, closed)
-- Filterable table of claims
-- Status distribution visualization
-- Date range filtering
-
-### Performance Metrics
-
-- Historical performance data with interactive charts
-- Time period selection (week, month, 6 months, year)
-- Trend analysis by agreement status
-- Comparative metrics
-
-### Leaderboard
-
-- Top-performing dealers by revenue and contracts
-- Performance metrics and rankings
-- Visual charts for revenue and contract comparison
-
-## Best Practices
-
-### Date Filtering Guidelines
-
-- **Claims**: Always use `LastModified` for date filtering
-- **Agreements**: Always use `EffectiveDate` for date filtering
-
-### Dealer Filtering
-
-- Filter by `agreements.DealerUUID` consistently across all components
-
-### Claim Status Logic
-
-Use standardized function for claim status:
-```js
-function getClaimStatus(claim) {
-  if (claim.Closed) return 'CLOSED';
-  if (!claim.ReportedDate && !claim.Closed) return 'PENDING';
-  return 'OPEN';
-}
-```
+1. Install Supabase CLI: `npm install -g supabase`
+2. Initialize Supabase: `supabase init`
+3. Start Supabase locally: `supabase start`
+4. Apply migrations: `supabase db push`
 
 ## Deployment
 
-The application is deployed on DigitalOcean App Platform with an Express server:
+The application can be deployed to any hosting platform that supports Node.js applications. The Supabase backend should be deployed to Supabase.com.
 
-```javascript
-// server.js serves the built application
-const express = require('express');
-const path = require('path');
-const app = express();
-const PORT = process.env.PORT || 3000;
+### Deployment Steps
 
-// Set timezone to CST (America/Chicago)
-process.env.TZ = 'America/Chicago';
+1. Build the application: `npm run build`
+2. Deploy the frontend to your hosting provider
+3. Deploy the Supabase functions: `supabase functions deploy`
 
-// Serve static files from the 'dist' directory
-app.use(express.static(path.join(__dirname, 'dist')));
+## License
 
-// For any route that doesn't match a static file, serve index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-```
-
-## Extending the Application
-
-### Adding New Features
-
-To add new features:
-
-1. Create new components in the appropriate directories
-2. Add data hooks in the hooks directory
-3. Update routes in App.tsx
-4. Update sidebar navigation in Sidebar.tsx
-
-### Adding New Charts
-
-1. Create a new component in the charts directory
-2. Implement with Recharts components
-3. Apply consistent styling
-4. Add data processing as needed
-
-## Troubleshooting
-
-### Common Issues
-
-#### Authentication Problems
-- Check browser console for errors
-- Verify Supabase configuration in client.ts
-- Check if user exists in Supabase auth
-
-#### Data Loading Issues
-- Check network requests in browser dev tools
-- Verify query keys in React Query hooks
-- Check date range filters are properly formatted
-- Verify dealer filter is correctly applied
-
-#### SQL Function Timeouts
-- Use optimized approach with CTEs
-- Verify SQL functions are properly installed in Supabase
-- Break up large date ranges into smaller chunks
-
-## Contributing
-
-1. Ensure consistent filtering across all components
-2. Follow TypeScript patterns
-3. Maintain responsive design principles
-4. Add detailed logging for debugging
-5. Test across different screen sizes and data volumes
+This project is proprietary and confidential. Unauthorized copying, distribution, or use is strictly prohibited.

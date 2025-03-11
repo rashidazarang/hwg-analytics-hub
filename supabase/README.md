@@ -1,82 +1,118 @@
-# Supabase Database Functions - Deployment Instructions
+# Supabase Configuration
 
-This folder contains SQL migrations that need to be applied to the Supabase project to fix performance metrics visualizations and restore missing functions.
+This directory contains all Supabase-related configuration, functions, and schema definitions for the Claim Analytics Hub application.
 
-## Issues Addressed
+## Directory Structure
 
-1. **Performance Metrics Data Discrepancy**:
-   - In the 6-month and Year timeframes, data was not being distributed correctly across months
-   - All contracts for a given month (e.g., February 2025's 938 contracts) were incorrectly appearing on a single day (Feb 28, 2025)
-   - The query logic failed to properly group by day/month
+- `/functions` - SQL functions for data processing and analytics
+- `/migrations` - Database migration files
+- `/schema.sql` - Complete database schema definition
+- `/schema.md` - Human-readable documentation of the database schema
 
-2. **Missing Function**:
-   - The `get_leaderboard_summary` function was missing, affecting the leaderboard page
+## Database Schema
 
-## SQL Function Updates
+The application uses a PostgreSQL database with the following main tables:
 
-1. `count_agreements_by_date` - Now properly groups by day, month, or week using DATE_TRUNC
-2. `fetch_monthly_agreement_counts_with_status` - Improved monthly aggregation with proper date grouping  
-3. `execute_sql` - Added utility function for more flexible SQL execution
-4. `get_leaderboard_summary` - Re-created function with proper revenue calculation
+- `agreements` - Stores agreement/contract information
+- `claims` - Stores claim information related to agreements
+- `dealers` - Stores dealer information
+- `subclaims` - Subclaim information related to claims
+- `subclaim_parts` - Parts information for subclaims
+- `option_surcharge_price` - Stores pricing information for optional features
+- `profiles` - User profile information
 
-## Deployment Steps
+For a complete schema reference, see [schema.md](./schema.md).
 
-To deploy these fixes to Supabase:
+## SQL Functions
 
-1. Connect to the Supabase Dashboard
-2. Navigate to the SQL Editor
-3. **IMPORTANT: First drop the conflicting function variants:**
-   - Copy and run the contents of `migrations/drop_specific_functions.sql`
-   - This will remove only the text-parameter versions of the functions while keeping the UUID versions needed by the frontend
-4. Then deploy the new functions in this order:
-   - First, run `migrations/create_leaderboard_summary_function.sql` to restore the missing function
-   - Then run `migrations/fix_agreement_date_grouping.sql` to update the date grouping functions
-5. Verify the functions were created by checking function definitions with:
-   ```sql
-   SELECT proname, nspname 
-   FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid 
-   WHERE proname IN ('count_agreements_by_date', 'fetch_monthly_agreement_counts_with_status', 'execute_sql', 'get_leaderboard_summary');
-   ```
+The application uses several PostgreSQL functions to process and analyze data. These functions are stored in the `/functions` directory.
 
-## Testing After Deployment
+### Function Categories
 
-After deploying the changes:
+#### Dealer Analytics Functions
 
-1. **Performance Metrics Page**:
-   - Test with different timeframes (week, month, 6 months, year)
-   - Verify that data is correctly distributed across days/months
-   - Check that all status types (PENDING, ACTIVE, CLAIMABLE, CANCELLED, VOID) appear correctly
-   - Verify the totals match expectations
+- `get_top_dealers_by_revenue` - Returns top dealers by revenue
+- `get_top_dealers_optimized` - Optimized version with more metrics
+- `get_top_dealers_aggregated` - Returns aggregated dealer metrics
+- `get_top_dealers_with_kpis` - Returns top dealers with KPI metrics
+- `get_dealer_profile` - Gets comprehensive dealer profile data
+- `get_dealer_agreement_distribution` - Gets agreement distribution for a dealer
+- `get_dealer_claims_distribution` - Gets claims distribution for a dealer
+- `get_dealer_monthly_revenue` - Gets monthly revenue for a dealer
+- `delete_duplicate_dealers` - Utility to remove duplicate dealer records
 
-2. **Leaderboard Page**:
-   - Verify the leaderboard page loads successfully
-   - Check that summary statistics appear (active contracts, total revenue, etc.)
-   - Confirm the top dealers and agents lists display correctly
-   - Validate that revenue calculations include both dealer cost and option costs
+#### Agreement Analytics Functions
 
-If you encounter any issues after deployment:
-- The performance metrics page has multiple fallbacks and will gracefully degrade to client-side data processing
-- For leaderboard issues, check the browser console for specific error messages related to the `get_leaderboard_summary` function
+- `count_agreements_by_status` - Counts agreements by status
+- `count_agreements_by_date` - Groups agreements by date
+- `fetch_monthly_agreement_counts` - Gets monthly agreement counts
+- `fetch_monthly_agreement_counts_with_status` - Gets monthly agreement counts with status breakdown
+- `get_agreements_with_revenue` - Gets agreements with calculated revenue
+- `calculate_agreement_revenue` - Calculates revenue for a specific agreement
+- `calculate_revenue_growth` - Calculates revenue growth between two periods
+- `get_leaderboard_summary` - Gets summary data for the leaderboard
+- `get_top_agents_by_contracts` - Returns top agents by number of contracts
 
-## Function Documentation
+#### Claims Analytics Functions
 
-### get_leaderboard_summary
+- `get_claims_with_payment_in_date_range` - Gets claims with payments in date range
+- `get_claims_by_filter_type` - Gets claims filtered by various criteria
+- `get_claims_payment_info` - Gets payment information for specific claims
+- `get_claims_with_dealer_info` - Gets claims with dealer information
 
-```sql
-get_leaderboard_summary(start_date timestamp, end_date timestamp)
+#### Utility Functions
+
+- `check_auth_setup` - Verifies authentication setup
+- `update_timestamp` - Updates timestamp on record changes
+- `set_timezone` - Sets the timezone for the session
+- `execute_sql` - Executes dynamic SQL (admin only)
+- `handle_new_user` - Handles new user creation
+
+### Function Implementation
+
+Each function is implemented in its own SQL file in the `/functions` directory. The `index.sql` file includes all functions and creates necessary indexes.
+
+### Using Functions
+
+Functions can be called using Supabase's RPC endpoints:
+
+```javascript
+// Example: Get top dealers by revenue
+const { data, error } = await supabase.rpc('get_top_dealers_by_revenue', {
+  start_date: '2023-01-01',
+  end_date: '2023-12-31',
+  limit_count: 10
+});
 ```
 
-Returns a table with:
-- `active_contracts` - Count of active contracts in the date range
-- `total_revenue` - Sum of revenue from active contracts
-- `cancellation_rate` - Percentage of cancelled contracts
-- `top_dealer` - Name of the dealer with highest revenue
-- `top_agent` - Name of the agent with most contracts
+## Deployment
 
-### count_agreements_by_date
+To deploy Supabase functions:
+
+1. Ensure you have the Supabase CLI installed
+2. Run `supabase functions deploy`
+
+## Development
+
+### Adding a New Function
+
+1. Create a new SQL file in the `/functions` directory
+2. Implement the function with proper parameter types and return types
+3. Add the function to `index.sql`
+4. Grant appropriate permissions to the function
+
+### Testing Functions
+
+You can test functions using the Supabase SQL Editor:
 
 ```sql
-count_agreements_by_date(from_date timestamp, to_date timestamp, dealer_uuid uuid, group_by text)
+-- Example: Test get_top_dealers_by_revenue
+SELECT * FROM get_top_dealers_by_revenue('2023-01-01', '2023-12-31', 5);
 ```
 
-Groups agreements by date with proper time-based grouping and status breakdowns.
+## Performance Considerations
+
+- Use appropriate indexes for frequently queried columns
+- Limit date ranges to reasonable periods
+- Use pagination for large result sets
+- Consider using materialized views for complex, frequently-used queries
