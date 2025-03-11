@@ -48,26 +48,24 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
       try {
         // Use the optimized RPC function with explicit limit and timeout settings
         // This should prevent the query from timing out
-        const { data, error } = await executeWithCSTTimezone(
+        const result = await executeWithCSTTimezone(
           supabase,
-          (client) => client.rpc('get_top_dealers_optimized', {
-            start_date: startDate.toISOString(),
-            end_date: endDate.toISOString(),
-            limit_count: 50 // Fetch top 50 dealers
-          }).options({
-            count: 'exact'
-          })
+          async (client) => {
+            const { data, error } = await client.rpc('get_top_dealers_optimized', {
+              start_date: startDate.toISOString(),
+              end_date: endDate.toISOString(),
+              limit_count: 50 // Fetch top 50 dealers
+            });
+            
+            if (error) throw error;
+            return data;
+          }
         );
 
-        if (error) {
-          console.error('[LEADERBOARD] Error fetching optimized top dealers:', error);
-          throw error;
-        }
-
-        console.log('[LEADERBOARD] Successfully fetched top dealers:', data?.length || 0);
+        console.log('[LEADERBOARD] Successfully fetched top dealers:', result?.length || 0);
 
         // Process the data to fit our expected structure
-        const topDealers = (data || []).map((dealer: any) => ({
+        const topDealers = (result || []).map((dealer: any) => ({
           dealer_uuid: dealer.dealer_uuid || '',
           dealer_name: dealer.dealer_name || '',
           total_contracts: Number(dealer.total_contracts || 0),
@@ -130,28 +128,28 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
         // Fallback to a simpler query approach that's less likely to timeout
         try {
           // Use a direct query with pagination that only gets the necessary fields
-          const { data: dealersData, error: dealersError } = await executeWithCSTTimezone(
+          const result = await executeWithCSTTimezone(
             supabase,
-            (client) => client
-              .from('agreements')
-              .select(`
-                dealers:DealerUUID (
-                  DealerUUID,
-                  Payee
-                ),
-                AgreementStatus
-              `)
-              .gte('EffectiveDate', startDate.toISOString())
-              .lte('EffectiveDate', endDate.toISOString())
-              .limit(5000) // Limit to a reasonable number of rows
+            async (client) => {
+              const { data, error } = await client
+                .from('agreements')
+                .select(`
+                  dealers:DealerUUID (
+                    DealerUUID,
+                    Payee
+                  ),
+                  AgreementStatus
+                `)
+                .gte('EffectiveDate', startDate.toISOString())
+                .lte('EffectiveDate', endDate.toISOString())
+                .limit(5000); // Limit to a reasonable number of rows
+              
+              if (error) throw error;
+              return data;
+            }
           );
 
-          if (dealersError) {
-            console.error('[LEADERBOARD] Error fetching dealers in fallback mode:', dealersError);
-            throw dealersError;
-          }
-
-          console.log('[LEADERBOARD] Fetched agreements for fallback processing:', dealersData?.length || 0);
+          console.log('[LEADERBOARD] Fetched agreements for fallback processing:', result?.length || 0);
 
           // Process the data client-side
           const dealerMap = new Map<string, {
@@ -164,11 +162,12 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
           }>();
 
           // Process agreements to count by dealer
-          dealersData?.forEach(agreement => {
-            if (!agreement.dealers || !agreement.dealers.DealerUUID) return;
-
-            const dealerUUID = agreement.dealers.DealerUUID;
-            const dealerName = agreement.dealers.Payee || 'Unknown Dealer';
+          result?.forEach((agreement: any) => {
+            // Check if dealers exists and has the expected structure
+            const dealerUUID = agreement.dealers?.DealerUUID;
+            const dealerName = agreement.dealers?.Payee || 'Unknown Dealer';
+            
+            if (!dealerUUID) return;
             
             if (!dealerMap.has(dealerUUID)) {
               dealerMap.set(dealerUUID, {
