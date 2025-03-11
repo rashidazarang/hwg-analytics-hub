@@ -445,7 +445,6 @@ export async function fetchSubclaimsForClaims(claimIds: string[]) {
       lastPaymentDate: null
     }));
   }
-  });
 }
 
 // Custom hook to get payment information for a claim
@@ -502,7 +501,6 @@ export function useClaimPaymentData(claimId: string) {
           console.log(`[CLAIM_PAYMENT] SQL function succeeded for claim ${claimId}`);
           
           const item = data[0];
-          let totalPaidValue = 0;
           
           // Enhanced function to extract payment values consistently
           const extractTotalPaid = (value: any): number => {
@@ -556,7 +554,6 @@ export function useClaimPaymentData(claimId: string) {
           
           // Use the enhanced extraction function for consistent processing
           const totalPaidValue = extractTotalPaid(item.totalpaid);
-          }
           
           console.log(`[CLAIM_PAYMENT] Total paid for claim ${claimId} from SQL: $${totalPaidValue.toFixed(2)}`);
           
@@ -566,6 +563,7 @@ export function useClaimPaymentData(claimId: string) {
           };
         } else {
           console.log(`[CLAIM_PAYMENT] SQL function returned no data for claim ${claimId}`);
+          return { totalPaid: 0, lastPaymentDate: null };
         }
       } catch (sqlErr) {
         console.error(`[CLAIM_PAYMENT] Error using SQL function for claim ${claimId}:`, sqlErr);
