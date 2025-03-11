@@ -92,11 +92,10 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             throw new Error('RPC returned empty data');
           }
           
-     // Use a hard-coded value for activeDealers if we're having timeout issues
+     // Get total dealers count without filtering by IsActive since that column doesn't exist
 const activeDealers = await supabase
 .from('dealers')
-.select('*', { count: 'exact', head: true })
-.eq('IsActive', true);
+.select('*', { count: 'exact', head: true });
 
 // Obtain claims count using a very simple query
 const claimsCount = await supabase
