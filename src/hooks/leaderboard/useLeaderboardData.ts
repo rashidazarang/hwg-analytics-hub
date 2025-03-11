@@ -53,7 +53,7 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
           (client) => client.rpc('get_top_dealers_optimized', {
             start_date: startDate.toISOString(),
             end_date: endDate.toISOString(),
-            limit_count: 10 // Only fetch top 10 dealers
+            limit_count: 50 // Fetch top 50 dealers
           }).options({
             count: 'exact'
           })
@@ -199,10 +199,10 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
             }
           });
 
-          // Sort dealers by total agreements and get top 10
+          // Sort dealers by total agreements and get top 50
           const topDealers = Array.from(dealerMap.values())
             .sort((a, b) => b.total - a.total)
-            .slice(0, 10)
+            .slice(0, 50)
             .map(dealer => {
               // Calculate estimated revenue values
               // These are rough estimates since we don't have actual revenue data

@@ -29,7 +29,7 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
           (client) => client.rpc('get_top_dealers_aggregated', {
             start_date: startDate.toISOString(),
             end_date: endDate.toISOString(),
-            max_results: 10 // Limit to top 10 dealers
+            max_results: 50 // Limit to top 50 dealers
           })
         );
 
@@ -148,11 +148,11 @@ export function useTopDealersData({ dateRange }: { dateRange: DateRange }) {
             }
           });
 
-          // Sort dealers by total contracts and get top 10
+          // Sort dealers by total contracts and get top 50
           const topDealers = Array.from(dealerMap.entries())
             .map(([_, dealer]) => dealer)
             .sort((a, b) => b.total_contracts - a.total_contracts)
-            .slice(0, 10);
+            .slice(0, 50);
 
           console.log('[LEADERBOARD] Successfully processed top dealers in fallback mode:', topDealers.length);
           

@@ -26,7 +26,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
           </span>
         </div>
       ),
-      sortable: true,
+      sortable: false,
     },
     {
       key: 'dealer_name',
@@ -47,7 +47,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
       render: (row) => (
         <div className="font-medium">{Number(row.total_contracts).toLocaleString()}</div>
       ),
-      sortable: true,
+      sortable: false,
     },
     {
       key: 'expected_revenue',
@@ -58,7 +58,7 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
           <span className="font-medium">{formatCurrency(Number(row.expected_revenue) || 0)}</span>
         </div>
       ),
-      sortable: true,
+      sortable: false,
     },
     {
       key: 'funded_revenue',
@@ -80,13 +80,13 @@ const TopDealersTable: React.FC<TopDealersTableProps> = ({
           <span className="font-medium">{Number(row.cancellation_rate).toFixed(1)}%</span>
         </div>
       ),
-      sortable: true,
+      sortable: false,
     },
   ];
 
   return (
     <div className="bg-card rounded-lg border shadow-sm p-4">
-      <h2 className="text-lg font-semibold mb-4">Top 10 Dealers by Revenue</h2>
+      <h2 className="text-lg font-semibold mb-4">Top 50 Dealers by Revenue</h2>
       <DataTable
         data={data || []}
         columns={columns}

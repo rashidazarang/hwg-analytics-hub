@@ -18,7 +18,7 @@ const LeaderboardSummaryCards: React.FC<LeaderboardSummaryCardsProps> = ({
       <KPICard
         title="Total Expected Revenue"
         value={isLoading ? "..." : formatCurrency(data?.total_expected_revenue || 0)}
-        description="From top 10 dealers - pending contracts"
+        description="From top 50 dealers - pending contracts"
         icon={TrendingUp}
         color="default"
       />
@@ -26,7 +26,7 @@ const LeaderboardSummaryCards: React.FC<LeaderboardSummaryCardsProps> = ({
       <KPICard
         title="Total Funded Revenue"
         value={isLoading ? "..." : formatCurrency(data?.total_funded_revenue || 0)}
-        description="From top 10 dealers - active contracts"
+        description="From top 50 dealers - active contracts"
         icon={CheckCircle}
         color="success"
       />
@@ -34,7 +34,7 @@ const LeaderboardSummaryCards: React.FC<LeaderboardSummaryCardsProps> = ({
       <KPICard
         title="Cancellation Rate"
         value={isLoading ? "..." : `${data?.avg_cancellation_rate.toFixed(1)}%` || "0%"}
-        description="Weighted average from top 10 dealers"
+        description="Weighted average from top 50 dealers"
         icon={AlertTriangle}
         color={data?.avg_cancellation_rate > 10 ? "destructive" : (data?.avg_cancellation_rate > 5 ? "warning" : "default")}
       />

@@ -92,44 +92,44 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             throw new Error('RPC returned empty data');
           }
           
-          // Use a hard-coded value for activeDealers if we're having timeout issues
-          const activeDealers = await supabase
-            .from('dealers')
-            .select('*', { count: 'exact', head: true })
-            .eq('IsActive', true);
-          
-          // Obtain claims count using a very simple query
-          const claimsCount = await supabase
-            .from('claims')
-            .select('*', { count: 'exact', head: true })
-            .gte('LastModified', fromDate)
-            .lte('LastModified', toDate);
-            
-          // Get basic claim status breakdown with separate simpler queries
-          const [openClaimsCount, closedClaimsCount, pendingClaimsCount] = await Promise.all([
-            // Open claims
-            supabase.from('claims')
-              .select('*', { count: 'exact', head: true })
-              .eq('Closed', false)
-              .not('ReportedDate', 'is', null)
-              .gte('LastModified', fromDate)
-              .lte('LastModified', toDate),
-            
-            // Closed claims
-            supabase.from('claims')
-              .select('*', { count: 'exact', head: true })
-              .eq('Closed', true)
-              .gte('LastModified', fromDate)
-              .lte('LastModified', toDate),
-              
-            // Pending claims (no ReportedDate)
-            supabase.from('claims')
-              .select('*', { count: 'exact', head: true })
-              .eq('Closed', false)
-              .is('ReportedDate', null)
-              .gte('LastModified', fromDate)
-              .lte('LastModified', toDate)
-          ]);
+     // Use a hard-coded value for activeDealers if we're having timeout issues
+const activeDealers = await supabase
+.from('dealers')
+.select('*', { count: 'exact', head: true })
+.eq('IsActive', true);
+
+// Obtain claims count using a very simple query
+const claimsCount = await supabase
+.from('claims')
+.select('*', { count: 'exact', head: true })
+.gte('LastModified', fromDate)
+.lte('LastModified', toDate);
+
+// Get basic claim status breakdown with separate simpler queries
+const [openClaimsCount, closedClaimsCount, pendingClaimsCount] = await Promise.all([
+// Open claims (Claims where Closed timestamp is NULL)
+supabase.from('claims')
+  .select('*', { count: 'exact', head: true })
+  .is('Closed', null)
+  .not('ReportedDate', 'is', null) // Ensures it's a reported claim
+  .gte('LastModified', fromDate)
+  .lte('LastModified', toDate),
+
+// Closed claims (Claims where Closed timestamp is NOT NULL)
+supabase.from('claims')
+  .select('*', { count: 'exact', head: true })
+  .not('Closed', 'is', null)
+  .gte('LastModified', fromDate)
+  .lte('LastModified', toDate),
+  
+// Pending claims (Claims where ReportedDate is NULL)
+supabase.from('claims')
+  .select('*', { count: 'exact', head: true })
+  .is('Closed', null) // Still open
+  .is('ReportedDate', null) // Not reported yet
+  .gte('LastModified', fromDate)
+  .lte('LastModified', toDate)
+]);
           
           // Create safe status breakdown
           const safeStatusBreakdown = {
