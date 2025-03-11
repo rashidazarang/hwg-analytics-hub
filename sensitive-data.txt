@@ -1,0 +1,7 @@
+# Sensitive data patterns for BFG Repo-Cleaner
+
+# Supabase URL
+https://piyqnldhdxkmuwqajkhz.supabase.co
+
+# Supabase Anon Key (partial to match the pattern)
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpeXFubGRoZHhrbXV3cWFqa2h6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MTgxODUsImV4cCI6MjA1NTk5NDE4NX0.K-NJF3CBlBHGQuNFUvYqrJvw0cOXL53Q6UK79rdhjEI
