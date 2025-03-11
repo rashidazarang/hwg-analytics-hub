@@ -746,26 +746,26 @@ export async function fetchClaimsData({
         // If count is small enough, proceed with normal fetch
         console.log(`[SHARED_CLAIMS] Total count (${totalCount}) is under 1000, fetching normally`);
       }
-    }
-
-    // Safety check to make sure query is defined before using it
-    if (!query) {
-      console.error('[SHARED_CLAIMS] Query object is undefined, creating a fallback query');
-      query = extendedClient
-        .from("claims")
-        .select(`
-          id,
-          ClaimID, 
-          AgreementID,
-          ReportedDate, 
-          Closed,
-          Cause,
-          Correction,
-          Deductible,
-          LastModified,
-          agreements!inner(DealerUUID, dealers(Payee))
-        `)
-        .limit(100); // Use a small limit for safety
+    } finally {
+      // Safety check to make sure query is defined before using it
+      if (!query) {
+        console.error('[SHARED_CLAIMS] Query object is undefined, creating a fallback query');
+        query = extendedClient
+          .from("claims")
+          .select(`
+            id,
+            ClaimID, 
+            AgreementID,
+            ReportedDate, 
+            Closed,
+            Cause,
+            Correction,
+            Deductible,
+            LastModified,
+            agreements!inner(DealerUUID, dealers(Payee))
+          `)
+          .limit(100); // Use a small limit for safety
+      }
     }
 
     let data, error;
@@ -1136,6 +1136,33 @@ export async function fetchClaimsData({
       }
     } catch (fallbackError) {
       console.error('[SHARED_CLAIMS] Fallback query also failed:', fallbackError);
+    }
+    
+    // If all else fails, return an empty result
+    return {
+      data: [],
+      count: 0,
+      statusBreakdown: { OPEN: 0, PENDING: 0, CLOSED: 0 }
+    };
+  } finally {
+    // Safety check to make sure query is defined before using it
+    if (!query) {
+      console.error('[SHARED_CLAIMS] Query object is undefined, creating a fallback query');
+      query = extendedClient
+        .from("claims")
+        .select(`
+          id,
+          ClaimID, 
+          AgreementID,
+          ReportedDate, 
+          Closed,
+          Cause,
+          Correction,
+          Deductible,
+          LastModified,
+          agreements!inner(DealerUUID, dealers(Payee))
+        `)
+        .limit(100); // Use a small limit for safety
     }
     
     // If everything fails, return empty data
