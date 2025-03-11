@@ -178,12 +178,9 @@ export async function fetchClaimsData({
           
         // Apply traditional date filtering first
         // This ensures we have at least some filtering applied before attempting the payment date filter
-        query = query.or(
-          `ReportedDate.gte.${dateRange.from.toISOString()},` +
-          `ReportedDate.lte.${dateRange.to.toISOString()},` +
-          `LastModified.gte.${dateRange.from.toISOString()},` +
-          `LastModified.lte.${dateRange.to.toISOString()}`
-        );
+        query = query
+    .gte("LastModified", dateRange.from.toISOString())  // ✅ Prioritize LastModified for indexing
+    .lte("LastModified", dateRange.to.toISOString());
         
         // Check if we should try to use payment date filtering
         const shouldTryPaymentDateFiltering = true; // Set to false to disable it entirely
@@ -530,32 +527,29 @@ export async function fetchClaimsData({
                     lastpaymentdate: string | null;
                   }> = [];
                   
-                  // Process in batches
-                  for (let i = 0; i < claimIds.length; i += PAYMENT_BATCH_SIZE) {
-                    const batchClaimIds = claimIds.slice(i, i + PAYMENT_BATCH_SIZE);
-                    console.log(`[SHARED_CLAIMS] Processing batch ${Math.floor(i/PAYMENT_BATCH_SIZE)+1}/${Math.ceil(claimIds.length/PAYMENT_BATCH_SIZE)}`);
+                  // Process in parallel batches for better performance
+                  const batchPromises = Array.from({ length: Math.ceil(claimIds.length / PAYMENT_BATCH_SIZE) }, (_, i) => {
+                    const batchIds = claimIds.slice(i * PAYMENT_BATCH_SIZE, (i + 1) * PAYMENT_BATCH_SIZE);
+                    console.log(`[SHARED_CLAIMS] Creating batch promise ${i+1}/${Math.ceil(claimIds.length/PAYMENT_BATCH_SIZE)}`);
                     
-                    try {
-                      const { data: batchData, error: batchError } = await extendedClient.rpc(
-                        'get_claims_payment_info',
-                        { 
-                          claim_ids: batchClaimIds,
-                          max_results: batchClaimIds.length
-                        }
-                      );
-                      
-                      if (batchData && Array.isArray(batchData)) {
-                        allPaymentData = [...allPaymentData, ...batchData];
-                      } else if (batchError) {
-                        console.error(`[SHARED_CLAIMS] Batch error:`, batchError);
+                    return extendedClient.rpc('get_claims_payment_info', { 
+                      claim_ids: batchIds, 
+                      max_results: batchIds.length
+                    }).then(result => {
+                      if (result.error) {
+                        console.error(`[SHARED_CLAIMS] Batch error:`, result.error);
+                        return [];
                       }
-                      
-                      // Add a small delay between batches
-                      await new Promise(resolve => setTimeout(resolve, 100));
-                    } catch (error) {
+                      return result.data || [];
+                    }).catch(error => {
                       console.error(`[SHARED_CLAIMS] Batch processing error:`, error);
-                    }
-                  }
+                      return [];
+                    });
+                  });
+                  
+                  // Process all batches in parallel
+                  const batchResults = await Promise.all(batchPromises);
+                  allPaymentData = batchResults.flat();
                   
                   paymentData = allPaymentData;
                 } else {
@@ -872,50 +866,53 @@ export async function fetchClaimsData({
                 
                 let allPaymentData: PaymentDataItem[] = [];
                 
-                // Process in batches
-                for (let i = 0; i < claimIds.length; i += PAYMENT_BATCH_SIZE) {
-                  const batchClaimIds = claimIds.slice(i, i + PAYMENT_BATCH_SIZE);
-                  console.log(`[SHARED_CLAIMS] Processing batch ${Math.floor(i/PAYMENT_BATCH_SIZE)+1}/${Math.ceil(claimIds.length/PAYMENT_BATCH_SIZE)}`);
+                // Process in parallel batches for better performance
+                const batchPromises = Array.from({ length: Math.ceil(claimIds.length / PAYMENT_BATCH_SIZE) }, (_, i) => {
+                  const batchClaimIds = claimIds.slice(i * PAYMENT_BATCH_SIZE, (i + 1) * PAYMENT_BATCH_SIZE);
+                  console.log(`[SHARED_CLAIMS] Setting up batch ${i+1}/${Math.ceil(claimIds.length/PAYMENT_BATCH_SIZE)}`);
                   
-                  try {
-                    // Fix for ClaimID type mismatch in batch processing
-                    const areClaimIdsNumeric = batchClaimIds.length > 0 && !isNaN(Number(batchClaimIds[0]));
-                    const formattedClaimIds = areClaimIdsNumeric 
-                      ? batchClaimIds.map(id => Number(id)) // Convert to numbers if they appear numeric
-                      : batchClaimIds; // Keep as strings if they're not numeric
-                    
-                    console.log(`[SHARED_CLAIMS] Processing batch with ${areClaimIdsNumeric ? 'numeric' : 'string'} claim IDs`);
-                    
-                    const { data: batchData, error: batchError } = await extendedClient.rpc<PaymentDataItem[]>(
-                      'get_claims_payment_info',
-                      { 
-                        claim_ids: formattedClaimIds,
-                        max_results: batchClaimIds.length
-                      }
-                    );
-                    
-                    if (batchData && Array.isArray(batchData)) {
-                      console.log(`[SHARED_CLAIMS] Retrieved payment data batch with ${batchData.length} results`);
-                      allPaymentData = [...allPaymentData, ...batchData];
+                  // Fix for ClaimID type mismatch in batch processing
+                  const areClaimIdsNumeric = batchClaimIds.length > 0 && !isNaN(Number(batchClaimIds[0]));
+                  const formattedClaimIds = areClaimIdsNumeric 
+                    ? batchClaimIds.map(id => Number(id)) // Convert to numbers if they appear numeric
+                    : batchClaimIds; // Keep as strings if they're not numeric
+                  
+                  console.log(`[SHARED_CLAIMS] Processing batch with ${areClaimIdsNumeric ? 'numeric' : 'string'} claim IDs`);
+                  
+                  return extendedClient.rpc<PaymentDataItem[]>(
+                    'get_claims_payment_info',
+                    { 
+                      claim_ids: formattedClaimIds,
+                      max_results: batchClaimIds.length
+                    }
+                  ).then(result => {
+                    if (result.data && Array.isArray(result.data)) {
+                      console.log(`[SHARED_CLAIMS] Retrieved payment data batch with ${result.data.length} results`);
                       
                       // Log a sample of the payment data for debugging
-                      if (batchData.length > 0) {
+                      if (result.data.length > 0) {
                         console.log(`[SHARED_CLAIMS] Payment data sample:`, {
-                          sampleItem: batchData[0],
-                          totalpaidType: typeof batchData[0].totalpaid,
-                          totalpaidValue: batchData[0].totalpaid
+                          sampleItem: result.data[0],
+                          totalpaidType: typeof result.data[0].totalpaid,
+                          totalpaidValue: result.data[0].totalpaid
                         });
                       }
-                    } else if (batchError) {
-                      console.error(`[SHARED_CLAIMS] Batch error:`, batchError);
+                      
+                      return result.data;
+                    } else if (result.error) {
+                      console.error(`[SHARED_CLAIMS] Batch error:`, result.error);
+                      return [];
                     }
-                    
-                    // Add a small delay between batches
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                  } catch (error) {
+                    return [];
+                  }).catch(error => {
                     console.error(`[SHARED_CLAIMS] Batch processing error:`, error);
-                  }
-                }
+                    return [];
+                  });
+                });
+                
+                // Execute all batches in parallel
+                const batchResults = await Promise.all(batchPromises);
+                allPaymentData = batchResults.flat();
                 
                 paymentData = allPaymentData;
               } else {
@@ -928,13 +925,19 @@ export async function fetchClaimsData({
                 
                 console.log(`[SHARED_CLAIMS] Processing all claims with ${areClaimIdsNumeric ? 'numeric' : 'string'} IDs`);
                 
-                const { data: rpcData, error } = await extendedClient.rpc<PaymentDataItem[]>(
-                  'get_claims_payment_info',
-                  { 
-                    claim_ids: formattedClaimIds,
-                    max_results: claimIds.length
-                  }
-                );
+                const PAYMENT_BATCH_SIZE = 200;  // ✅ Reduce batch size
+
+                const paymentPromises = Array.from({ length: Math.ceil(formattedClaimIds.length / PAYMENT_BATCH_SIZE) }, (_, i) => {
+                    const batchIds = formattedClaimIds.slice(i * PAYMENT_BATCH_SIZE, (i + 1) * PAYMENT_BATCH_SIZE);
+                    return extendedClient.rpc('get_claims_payment_info', { 
+                        claim_ids: batchIds, 
+                        max_results: batchIds.length 
+                    });
+                });
+
+                const paymentResults = await Promise.all(paymentPromises);
+                const rpcData = paymentResults.flatMap(r => r.data || []);
+                const error = paymentResults.find(r => r.error)?.error || null;
                 
                 if (rpcData && Array.isArray(rpcData) && rpcData.length > 0) {
                   console.log(`[SHARED_CLAIMS] Retrieved payment data with ${rpcData.length} results`);
