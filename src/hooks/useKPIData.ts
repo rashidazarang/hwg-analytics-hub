@@ -154,7 +154,7 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
             statusBreakdown: safeStatusBreakdown,
           };
         } catch (error) {
-          clearTimeout(timeoutId);
+   
           console.error('[KPI_DATA] Error in simplified query approach:', error);
           
           // Return fallback values if all else fails

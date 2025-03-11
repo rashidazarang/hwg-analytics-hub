@@ -22,6 +22,7 @@ import {
 } from 'date-fns';
 import { toCSTISOString, setCSTHours, CST_TIMEZONE, toCSTDate } from '@/lib/dateUtils';
 import { TimeframeOption } from '@/components/filters/TimeframeFilter';
+import { assertCountAgreementsByDateResult, assertCountAgreementsByStatusResult, assertFetchMonthlyAgreementCountsResult, assertFetchMonthlyAgreementCountsWithStatusResult } from '@/integrations/supabase/rpc-types';
 
 // New optimized data processing functions
 // These take the raw agreements data and process it into the appropriate format for each timeframe
@@ -557,24 +558,28 @@ async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: st
         group_by: 'month'
       });
       
-      if (!groupedError && monthlyGroupedData && monthlyGroupedData.length > 0) {
-        console.log('[PERFORMANCE] Successfully used count_agreements_by_date with month grouping:', monthlyGroupedData.length, 'months');
-        console.log('[PERFORMANCE] First few months:', monthlyGroupedData.slice(0, 3));
+      if (!groupedError && monthlyGroupedData) {
+        const typedData = assertCountAgreementsByDateResult(monthlyGroupedData);
         
-        // Map the data to our expected format
-        return monthlyGroupedData.map(item => {
-          const monthDate = new Date(item.date_group + '-01'); // Convert YYYY-MM to YYYY-MM-DD
-          return {
-            label: format(monthDate, 'MMM').toLowerCase(),
-            value: parseInt(item.total_count),
-            pending: parseInt(item.pending_count),
-            active: parseInt(item.active_count),
-            claimable: parseInt(item.claimable_count),
-            cancelled: parseInt(item.cancelled_count),
-            void: parseInt(item.void_count),
-            rawDate: monthDate
-          };
-        });
+        if (typedData.length > 0) {
+          console.log('[PERFORMANCE] Successfully used count_agreements_by_date with month grouping:', typedData.length, 'months');
+          console.log('[PERFORMANCE] First few months:', typedData.slice(0, 3));
+          
+          // Map the data to our expected format
+          return typedData.map(item => {
+            const monthDate = new Date(item.date_group + '-01'); // Convert YYYY-MM to YYYY-MM-DD
+            return {
+              label: format(monthDate, 'MMM').toLowerCase(),
+              value: parseInt(item.total_count),
+              pending: parseInt(item.pending_count),
+              active: parseInt(item.active_count),
+              claimable: parseInt(item.claimable_count),
+              cancelled: parseInt(item.cancelled_count),
+              void: parseInt(item.void_count),
+              rawDate: monthDate
+            };
+          });
+        }
       }
     } catch (fallbackErr) {
       console.error('[PERFORMANCE] Error using count_agreements_by_date fallback:', fallbackErr);
@@ -589,79 +594,23 @@ async function fetchMonthlyData(startDate: Date, endDate: Date, dealerFilter: st
       dealer_uuid: dealerFilter || null
     });
     
-    if (functionError) {
-      console.warn('[PERFORMANCE] fetch_monthly_agreement_counts_with_status error:', functionError.message);
-      console.log('[PERFORMANCE] Trying fetch_monthly_agreement_counts as fallback');
+    if (!functionError && monthlyData) {
+      const typedMonthlyData = assertFetchMonthlyAgreementCountsWithStatusResult(monthlyData);
       
-      // Try using the simpler monthly function without status breakdown
-      try {
-        const { data: simpleMonthlyData, error: simpleError } = await supabase.rpc('fetch_monthly_agreement_counts', {
-          start_date: startIso,
-          end_date: endIso
-        });
-        
-        if (simpleError || !simpleMonthlyData) {
-          console.warn('[PERFORMANCE] fetch_monthly_agreement_counts error:', simpleError?.message);
-          return await fetchMonthlyAgreementCounts(startDate, endDate, dealerFilter);
-        }
-        
-        console.log('[PERFORMANCE] Successfully used fetch_monthly_agreement_counts:', simpleMonthlyData.length, 'months');
-        
-        // Get the total counts by status for this period for ratio estimates
-        const { data: statusTotals } = await supabase.rpc('count_agreements_by_status', {
-          from_date: startIso,
-          to_date: endIso,
-          dealer_uuid: dealerFilter || null
-        });
-        
-        // Calculate ratios to estimate breakdowns
-        let pendingRatio = 0.9;  // Default if we can't get real data
-        let activeRatio = 0.09;
-        let cancelledRatio = 0.01;
-        
-        if (statusTotals && statusTotals.length > 0) {
-          const total = statusTotals.reduce((sum, item) => sum + parseInt(item.count), 0);
-          if (total > 0) {
-            const pendingCount = statusTotals.find(s => s.status === 'PENDING')?.count || 0;
-            const activeCount = statusTotals.find(s => s.status === 'ACTIVE')?.count || 0;
-            const claimableCount = statusTotals.find(s => s.status === 'CLAIMABLE')?.count || 0;
-            const cancelledCount = statusTotals.find(s => s.status === 'CANCELLED')?.count || 0;
-            const voidCount = statusTotals.find(s => s.status === 'VOID')?.count || 0;
-            
-            pendingRatio = pendingCount / total;
-            activeRatio = (activeCount + claimableCount) / total;
-            cancelledRatio = (cancelledCount + voidCount) / total;
-          }
-        }
-        
-        // Convert the simple monthly data to our expected format
-        return simpleMonthlyData.map(item => {
-          const monthDate = new Date(item.month + '-01'); // Convert YYYY-MM to YYYY-MM-DD
-          const total = parseInt(item.total);
-          
-          // Since we don't have status breakdowns with the simple function,
-          // we'll estimate them based on the overall status distribution
-          const pendingCount = Math.round(total * pendingRatio);
-          const activeCount = Math.round(total * (activeRatio * 0.9)); // Mostly active
-          const claimableCount = Math.round(total * (activeRatio * 0.1)); // Small portion claimable
-          const cancelledCount = Math.round(total * (cancelledRatio * 0.8)); // Mostly cancelled
-          const voidCount = Math.round(total * (cancelledRatio * 0.2)); // Small portion void
-          
-          return {
-            label: format(monthDate, 'MMM').toLowerCase(),
-            value: total,
-            pending: pendingCount,
-            active: activeCount,
-            claimable: claimableCount,
-            cancelled: cancelledCount,
-            void: voidCount,
-            rawDate: monthDate
-          };
-        });
-      } catch (simpleErr) {
-        console.error('[PERFORMANCE] Error with simple monthly function:', simpleErr);
-        return await fetchMonthlyAgreementCounts(startDate, endDate, dealerFilter);
-      }
+      // Convert the detailed monthly data to our expected format
+      return typedMonthlyData.map(item => {
+        const monthDate = new Date(item.month + '-01'); // Convert YYYY-MM to YYYY-MM-DD
+        return {
+          label: format(monthDate, 'MMM').toLowerCase(),
+          value: parseInt(item.total),
+          pending: parseInt(item.pending_count),
+          active: parseInt(item.active_count),
+          claimable: parseInt(item.claimable_count),
+          cancelled: parseInt(item.cancelled_count),
+          void: parseInt(item.void_count),
+          rawDate: monthDate
+        };
+      });
     }
     
     if (monthlyData && monthlyData.length > 0) {
@@ -1081,15 +1030,12 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
         group_by: 'day'
       });
       
-      if (!error && dailyData && dailyData.length > 0) {
-        console.log('[PERFORMANCE] Successfully used count_agreements_by_date fallback:', dailyData.length, 'days');
-        
-        // Get all days in the interval to ensure complete data
-        const days = eachDayOfInterval({ start: startDate, end: endDate });
+      if (!error && dailyData) {
+        const typedDailyData = assertCountAgreementsByDateResult(dailyData);
         
         // Create a map of the SQL data for fast lookups
         const dateMap = new Map();
-        dailyData.forEach(row => {
+        typedDailyData.forEach(row => {
           // Convert date_group string back to Date for proper comparison
           const dateKey = row.date_group;
           dateMap.set(dateKey, {
@@ -1101,6 +1047,9 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
             void: parseInt(row.void_count)
           });
         });
+        
+        // Get all days in the interval to ensure complete data
+        const days = eachDayOfInterval({ start: startDate, end: endDate });
         
         // Map to the expected format, using zeroes for days with no data
         return days.map(day => {
@@ -1115,7 +1064,7 @@ async function fetchDailyAgreementsByStatus(startDate: Date, endDate: Date, deal
           };
           
           return {
-            label: format(day, 'd'), // Use day of month as label
+            label: format(day, 'd'),
             value: stats.total,
             pending: stats.pending,
             active: stats.active,
@@ -1253,6 +1202,92 @@ async function fetchDailyDataWithClientGrouping(startDate: Date, endDate: Date, 
   });
 }
 
+// Add these new helper functions for consistent data processing
+function processDailyTimeSeriesData(data: any[], startDate: Date, endDate: Date): PerformanceDataPoint[] {
+  // Get all days in the range
+  const days = eachDayOfInterval({ start: startDate, end: endDate });
+  
+  // Create a map for data lookup
+  const dataMap = new Map();
+  if (data) {
+    data.forEach(item => {
+      const dayKey = item.date_group; // Format should be 'YYYY-MM-DD'
+      dataMap.set(dayKey, {
+        pending: parseInt(item.pending_count) || 0,
+        active: parseInt(item.active_count) || 0,
+        claimable: parseInt(item.claimable_count) || 0,
+        cancelled: parseInt(item.cancelled_count) || 0,
+        void: parseInt(item.void_count) || 0
+      });
+    });
+  }
+  
+  // Generate data points for each day
+  return days.map(day => {
+    const dayKey = format(day, 'yyyy-MM-dd');
+    const stats = dataMap.get(dayKey) || {
+      pending: 0, active: 0, claimable: 0, cancelled: 0, void: 0
+    };
+    
+    // Calculate total from components to ensure consistency
+    const total = stats.pending + stats.active + stats.claimable + stats.cancelled + stats.void;
+    
+    return {
+      label: format(day, 'd'),
+      value: total,
+      pending: stats.pending,
+      active: stats.active,
+      claimable: stats.claimable,
+      cancelled: stats.cancelled,
+      void: stats.void,
+      rawDate: day
+    };
+  });
+}
+
+function processMonthlyTimeSeriesData(data: any[], startDate: Date, endDate: Date): PerformanceDataPoint[] {
+  // Get all months in the range
+  const months = eachMonthOfInterval({ start: startDate, end: endDate });
+  
+  // Create a map for data lookup
+  const dataMap = new Map();
+  if (data) {
+    data.forEach(item => {
+      const monthKey = item.date_group; // Format should be 'YYYY-MM'
+      dataMap.set(monthKey, {
+        pending: parseInt(item.pending_count) || 0,
+        active: parseInt(item.active_count) || 0,
+        claimable: parseInt(item.claimable_count) || 0,
+        cancelled: parseInt(item.cancelled_count) || 0,
+        void: parseInt(item.void_count) || 0
+      });
+    });
+  }
+  
+  // Generate data points for each month
+  return months.map(month => {
+    const monthKey = format(month, 'yyyy-MM');
+    const stats = dataMap.get(monthKey) || {
+      pending: 0, active: 0, claimable: 0, cancelled: 0, void: 0
+    };
+    
+    // Calculate total from components to ensure consistency
+    const total = stats.pending + stats.active + stats.claimable + stats.cancelled + stats.void;
+    
+    return {
+      label: format(month, 'MMM').toLowerCase(),
+      value: total,
+      pending: stats.pending,
+      active: stats.active,
+      claimable: stats.claimable,
+      cancelled: stats.cancelled,
+      void: stats.void,
+      rawDate: month
+    };
+  });
+}
+
+
 export interface PerformanceMetricsOptions {
   timeframe: TimeframeOption;
   offsetPeriods?: number;
@@ -1373,7 +1408,7 @@ function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): Perf
 
   // Directly fetch data from the database using a consistent batched approach
   const queryFn = useCallback(async () => {
-    console.log(`[PERFORMANCE] Fetching with:`, {
+    console.log(`[PERFORMANCE_DEBUG] Fetching with:`, {
       timeframe: timeframe, 
       offset: offsetPeriods, 
       startDate: formattedDates.startDate, 
@@ -1381,37 +1416,105 @@ function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): Perf
       dealer: dealerFilter
     });
     
-    // Log the equivalent SQL query for direct comparison
-    console.log(`[PERFORMANCE] Equivalent SQL query: SELECT * FROM count_agreements_by_status('${formattedDates.startDate}', '${formattedDates.endDate}'${dealerFilter ? `, '${dealerFilter}'` : ', NULL'});`);
-    
-    // First fetch all the data using our efficient batched approach
-    const allAgreements = await fetchBatchedData(startDate, endDate, dealerFilter);
-    
-    // Process the data based on the selected timeframe
-    switch(timeframe) {
-      case 'day':
-        // For day view, process the data for a single day
-        return processSingleDayData(allAgreements, startDate);
-      case 'week':
-      case 'month':
-        // Process data into daily buckets
-        return processDailyData(allAgreements, startDate, endDate);
-      case '6months':
-      case 'year':
-        // Process data into monthly buckets
-        return processMonthlyData(allAgreements, startDate, endDate);
-      default:
-        throw new Error(`Unknown timeframe: ${timeframe}`);
+    // ALWAYS use the count_agreements_by_status RPC function - same as SQL query
+    try {
+      const { data: statusData, error } = await supabase.rpc('count_agreements_by_status', {
+        start_date: formattedDates.startDate,
+        to_date: formattedDates.endDate,
+        dealer_uuid: dealerFilter || null
+      });
+      
+      if (error) throw error;
+      
+      console.log(`[PERFORMANCE_DEBUG] count_agreements_by_status result:`, statusData);
+      
+      // Extract the counts from the SQL function result
+      let pendingCount = 0;
+      let activeCount = 0;
+      let claimableCount = 0;
+      let cancelledCount = 0;
+      let voidCount = 0;
+      
+      if (statusData) {
+        statusData.forEach(item => {
+          if (item.status === 'PENDING') pendingCount = parseInt(item.count);
+          else if (item.status === 'ACTIVE') activeCount = parseInt(item.count);
+          else if (item.status === 'CLAIMABLE') claimableCount = parseInt(item.count);
+          else if (item.status === 'CANCELLED') cancelledCount = parseInt(item.count);
+          else if (item.status === 'VOID') voidCount = parseInt(item.count);
+        });
+      }
+      
+      // Calculate the correct total
+      const totalCount = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
+      
+      console.log(`[PERFORMANCE_DEBUG] Calculated totals:`, {
+        pending: pendingCount,
+        active: activeCount,
+        claimable: claimableCount,
+        cancelled: cancelledCount,
+        void: voidCount,
+        total: totalCount
+      });
+      
+      // For 'day' view, use the totals directly
+      if (timeframe === 'day') {
+        return [
+          {
+            label: format(startDate, 'MMM d, yyyy'),
+            value: totalCount,
+            pending: pendingCount,
+            active: activeCount,
+            claimable: claimableCount,
+            cancelled: cancelledCount,
+            void: voidCount,
+            rawDate: startDate
+          }
+        ];
+      } else {
+        // For other views, get time-based breakdowns while preserving the totals
+        const groupBy = (timeframe === 'week' || timeframe === 'month') ? 'day' : 'month';
+        
+        const { data: timeSeriesData, error: timeError } = await supabase.rpc('count_agreements_by_date', {
+          from_date: formattedDates.startDate,
+          to_date: formattedDates.endDate,
+          dealer_uuid: dealerFilter || null,
+          group_by: groupBy
+        });
+        
+        if (timeError) throw timeError;
+        
+        // Process the time series data according to timeframe
+        let processedData;
+        if (groupBy === 'day') {
+          processedData = processDailyTimeSeriesData(timeSeriesData, startDate, endDate);
+        } else {
+          processedData = processMonthlyTimeSeriesData(timeSeriesData, startDate, endDate);
+        }
+        
+        // Verify total matches
+        const dataTotal = processedData.reduce((sum, point) => sum + point.value, 0);
+        console.log(`[PERFORMANCE_DEBUG] Verification:`, {
+          calculatedTotal: totalCount,
+          timeSeriesTotal: dataTotal,
+          match: dataTotal === totalCount ? 'YES' : 'NO'
+        });
+        
+        return processedData;
+      }
+    } catch (err) {
+      console.error('[PERFORMANCE_DEBUG] Error fetching performance data:', err);
+      throw err;
     }
-  }, [timeframe, formattedDates, startDate, endDate, dealerFilter, fetchBatchedData]);
+  }, [timeframe, formattedDates, startDate, endDate, dealerFilter]);
   
   // Use React Query with adjusted settings to ensure fresh data
   const { data, isLoading, error } = useQuery({
     queryKey: queryKey,
     queryFn: queryFn,
-    staleTime: 0, // Consider data immediately stale to force refetch when params change
-    cacheTime: 1000 * 60 * 5, // Cache for 5 minutes only
-    refetchOnWindowFocus: false, // Don't refetch automatically on window focus
+    staleTime: 0, // Consider data immediately stale
+    gcTime: 0, // Updated from cacheTime to gcTime for React Query v4
+    refetchOnWindowFocus: true, // Refetch when window regains focus
     refetchOnMount: true, // Always refetch when component mounts
     retry: 1, // Only retry once to avoid excessive fetching on errors
   });

@@ -137,9 +137,14 @@ const PerformanceMetrics: React.FC = () => {
 
   // This is a dummy function that won't be used since we're removing the DateRangeFilter
   const handleDateRangeChange = useCallback((range: DateRange) => {
-    console.log("[PERFORMANCE] Date range change called but ignored", range);
-    // Intentionally not setting the date range as we're using timeframe selection instead
-  }, []);
+    console.log("[PERFORMANCE_DEBUG] Applying date range change:", range);
+    // Apply the date range by adapting the timeframe and period as needed
+    setSelectedDate(range.from);
+    
+    // Invalidate cache to ensure fresh data with new date range
+    queryClient.invalidateQueries(["performance-metrics"]);
+    console.log('[PERFORMANCE_DEBUG] Invalidated query cache after date range change');
+  }, [queryClient]);
 
   // Use the new interface for fetching performance metrics data
   const { data, loading, error, startDate, endDate } = usePerformanceMetricsData({
@@ -160,12 +165,12 @@ const PerformanceMetrics: React.FC = () => {
     if (error) {
       console.error("[PERFORMANCE] Error occurred while fetching data:", error);
     }
-    
+        
     // Skip if loading or no data
     if (loading || !data) {
       return;
     }
-    
+        
     // Check for empty data
     if (data.length === 0) {
       console.log("[PERFORMANCE] No data returned for the selected period");
@@ -178,6 +183,48 @@ const PerformanceMetrics: React.FC = () => {
         { pending: 0, active: 0, claimable: 0, cancelled: 0, void: 0 }
       );
       return;
+    }
+  
+    // ADD THIS VERIFICATION CODE RIGHT HERE
+    // Verify data consistency before calculating totals
+    const verifyDataConsistency = () => {
+      if (!data || data.length === 0) return true;
+      
+      // Calculate totals from data points
+      const sumPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
+      const sumActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
+      const sumClaimable = data.reduce((sum, point) => sum + (point.claimable || 0), 0);
+      const sumCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
+      const sumVoid = data.reduce((sum, point) => sum + (point.void || 0), 0);
+      
+      // Calculate total from value field
+      const totalFromValues = data.reduce((sum, point) => sum + (point.value || 0), 0);
+      
+      // Calculate expected total
+      const calculatedTotal = sumPending + sumActive + sumClaimable + sumCancelled + sumVoid;
+      
+      console.log('[PERFORMANCE_DEBUG] Data consistency check:', {
+        dataPointTotals: {
+          pending: sumPending,
+          active: sumActive,
+          claimable: sumClaimable,
+          cancelled: sumCancelled,
+          void: sumVoid,
+          calculated: calculatedTotal
+        },
+        valueTotal: totalFromValues,
+        match: calculatedTotal === totalFromValues ? 'YES' : 'NO ⚠️',
+        dataPointCount: data.length
+      });
+      
+      // Return true if consistent, false if inconsistent
+      return calculatedTotal === totalFromValues;
+    };
+  
+    // Call verification function
+    const isDataConsistent = verifyDataConsistency();
+    if (!isDataConsistent) {
+      console.warn('[PERFORMANCE_DEBUG] ⚠️ Data inconsistency detected - chart values may not match KPIs!');
     }
 
     // Calculate totals from SQL data to display in KPI cards
