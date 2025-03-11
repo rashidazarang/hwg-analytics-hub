@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import Dashboard from '@/components/layout/Dashboard';
 import DealershipSearch from '@/components/search/DealershipSearch';
 import { FileSignature, AlertTriangle, Clock, BarChart, CircleDollarSign, CheckSquare, XCircle } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Custom KPI Section specifically for Performance page that shows all status types separately
 const PerformanceKPISection: React.FC = () => {
@@ -17,13 +18,26 @@ const PerformanceKPISection: React.FC = () => {
   // Check if we have any data yet
   const hasData = performanceData.data && performanceData.data.length > 0;
   
-  // Get the summed totals rather than averages
-  const totalPending = hasData ? performanceData.data.reduce((sum, point) => sum + point.pending, 0) : 0;
-  const totalActive = hasData ? performanceData.data.reduce((sum, point) => sum + point.active, 0) : 0;
-  const totalClaimable = hasData ? performanceData.data.reduce((sum, point) => sum + point.claimable, 0) : 0;
-  const totalCancelled = hasData ? performanceData.data.reduce((sum, point) => sum + point.cancelled, 0) : 0;
-  const totalVoid = hasData ? performanceData.data.reduce((sum, point) => sum + point.void, 0) : 0;
+  // Get the totals from averages that are passed from usePerformanceMetricsData
+  // This ensures values directly match the SQL query totals
+  const totalPending = hasData ? performanceData.averages.pending : 0;
+  const totalActive = hasData ? performanceData.averages.active : 0;
+  const totalClaimable = hasData ? performanceData.averages.claimable : 0;
+  const totalCancelled = hasData ? performanceData.averages.cancelled : 0;
+  const totalVoid = hasData ? performanceData.averages.void : 0;
   const totalContracts = totalPending + totalActive + totalClaimable + totalCancelled + totalVoid;
+  
+  // Log the values for debugging
+  console.log("[PERFORMANCE] KPI Totals:", {
+    totalPending,
+    totalActive,
+    totalClaimable,
+    totalCancelled,
+    totalVoid,
+    totalContracts,
+    // Log this to compare with direct SQL results
+    source: "Using direct values from performanceData.averages (not summing data points)"
+  });
   
   // Show loading state if we don't have data yet
   const isLoading = !hasData;
@@ -85,6 +99,7 @@ const PerformanceMetrics: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   
   const { updatePerformanceData } = useSharedPerformanceData();
+  const queryClient = useQueryClient();
 
   const handleTimeframeChange = useCallback((newTimeframe: TimeframeOption) => {
     console.log(`[PERFORMANCE] Changing timeframe to ${newTimeframe}`);
@@ -95,18 +110,30 @@ const PerformanceMetrics: React.FC = () => {
     if (selectedDate) {
       setSelectedDate(undefined);
     }
-  }, [selectedDate]);
+    
+    // Invalidate cache to ensure fresh data with new timeframe
+    queryClient.invalidateQueries(["performance-metrics"]);
+    console.log('[PERFORMANCE] Invalidated query cache after timeframe change');
+  }, [selectedDate, queryClient]);
 
   const handlePeriodChange = useCallback((newOffset: number) => {
     console.log(`[PERFORMANCE] Changing period offset to ${newOffset}`);
     setPeriodOffset(newOffset);
-  }, []);
+    
+    // Invalidate cache for new period
+    queryClient.invalidateQueries(["performance-metrics"]);
+    console.log('[PERFORMANCE] Invalidated query cache after period change');
+  }, [queryClient]);
 
   const handleDealershipSelect = useCallback((dealershipId: string, dealershipName: string) => {
     console.log(`[PERFORMANCE] Selected dealership: ID='${dealershipId}', Name='${dealershipName}'`);
     setDealerFilter(dealershipId);
     setDealerName(dealershipName);
-  }, []);
+    
+    // Invalidate cache for new dealer filter
+    queryClient.invalidateQueries(["performance-metrics"]);
+    console.log('[PERFORMANCE] Invalidated query cache after dealer change');
+  }, [queryClient]);
 
   // This is a dummy function that won't be used since we're removing the DateRangeFilter
   const handleDateRangeChange = useCallback((range: DateRange) => {
@@ -153,37 +180,102 @@ const PerformanceMetrics: React.FC = () => {
       return;
     }
 
-    // Calculate totals from data points to display in KPI cards
-    // We want exact values, not averages, to match the chart
-    const calculateTotals = () => {
+    // Calculate totals from SQL data to display in KPI cards
+    const calculateTotals = async () => {
       try {
-        // Sum all status counts across all data points with null/undefined checks
-        // This will match exactly what is shown in the chart
-        const totalPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
-        const totalActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
-        const totalClaimable = data.reduce((sum, point) => sum + (point.claimable || 0), 0);
-        const totalCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
-        const totalVoid = data.reduce((sum, point) => sum + (point.void || 0), 0);
-        
-        // Log the totals for debugging
-        console.log("[PERFORMANCE] Status totals for KPI calculations:", { 
-          totalPending, 
-          totalActive,
-          totalClaimable,
-          totalCancelled,
-          totalVoid,
-          totalDataPoints: data.length,
-          totalSum: totalPending + totalActive + totalClaimable + totalCancelled + totalVoid
+        // Make a direct SQL query to get the actual totals from the database
+        const { data: sqlTotals, error: sqlError } = await supabase.rpc('count_agreements_by_status', {
+          from_date: startDate.toISOString(),
+          to_date: endDate.toISOString(),
+          dealer_uuid: dealerFilter || null
         });
+
+        if (sqlError) {
+          console.error("[PERFORMANCE] Error fetching SQL status totals:", sqlError);
+          // Fall back to summing data points if SQL query fails
+          const totalPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
+          const totalActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
+          const totalClaimable = data.reduce((sum, point) => sum + (point.claimable || 0), 0);
+          const totalCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
+          const totalVoid = data.reduce((sum, point) => sum + (point.void || 0), 0);
+          
+          console.log("[PERFORMANCE] Using fallback values from data points:", { 
+            totalPending, 
+            totalActive,
+            totalClaimable,
+            totalCancelled,
+            totalVoid,
+            totalDataPoints: data.length,
+            totalSum: totalPending + totalActive + totalClaimable + totalCancelled + totalVoid,
+            source: "Fallback calculation from data points (SQL query failed)"
+          });
+          
+          return {
+            pending: totalPending || 0,
+            active: totalActive || 0,
+            claimable: totalClaimable || 0,
+            cancelled: totalCancelled || 0,
+            void: totalVoid || 0
+          };
+        }
         
-        // Return the exact totals, not averages, so KPIs match chart data exactly
-        return {
-          pending: totalPending || 0,
-          active: totalActive || 0,
-          claimable: totalClaimable || 0,
-          cancelled: totalCancelled || 0,
-          void: totalVoid || 0
-        };
+        // Process SQL results
+        if (sqlTotals && Array.isArray(sqlTotals)) {
+          const pendingCount = Number(sqlTotals.find(s => s.status === 'PENDING')?.count) || 0;
+          const activeCount = Number(sqlTotals.find(s => s.status === 'ACTIVE')?.count) || 0;
+          const claimableCount = Number(sqlTotals.find(s => s.status === 'CLAIMABLE')?.count) || 0;
+          const cancelledCount = Number(sqlTotals.find(s => s.status === 'CANCELLED')?.count) || 0;
+          const voidCount = Number(sqlTotals.find(s => s.status === 'VOID')?.count) || 0;
+          
+          // Calculate the total
+          const totalCount = pendingCount + activeCount + claimableCount + cancelledCount + voidCount;
+          
+          // Log the SQL-based totals for debugging comparison
+          console.log("[PERFORMANCE] Status totals from direct SQL:", { 
+            pendingCount, 
+            activeCount,
+            claimableCount,
+            cancelledCount,
+            voidCount,
+            totalCount,
+            source: "Direct SQL query via count_agreements_by_status",
+            sqlResults: sqlTotals 
+          });
+          
+          // Return the exact SQL totals
+          return {
+            pending: pendingCount,
+            active: activeCount,
+            claimable: claimableCount,
+            cancelled: cancelledCount,
+            void: voidCount
+          };
+        } else {
+          console.error("[PERFORMANCE] SQL totals not in expected format:", sqlTotals);
+          // Fall back to summing if SQL results are not valid
+          const totalPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
+          const totalActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
+          const totalClaimable = data.reduce((sum, point) => sum + (point.claimable || 0), 0);
+          const totalCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
+          const totalVoid = data.reduce((sum, point) => sum + (point.void || 0), 0);
+          
+          console.log("[PERFORMANCE] Using fallback values due to invalid SQL results:", { 
+            totalPending, 
+            totalActive,
+            totalClaimable,
+            totalCancelled,
+            totalVoid,
+            source: "Fallback calculation (invalid SQL result format)"
+          });
+          
+          return {
+            pending: totalPending || 0,
+            active: totalActive || 0,
+            claimable: totalClaimable || 0,
+            cancelled: totalCancelled || 0,
+            void: totalVoid || 0
+          };
+        }
       } catch (err) {
         console.error("[PERFORMANCE] Error calculating totals:", err);
         // Return zero values if calculation fails
@@ -197,23 +289,31 @@ const PerformanceMetrics: React.FC = () => {
       }
     };
     
-    // Update shared performance data with exact totals
-    const statusTotals = calculateTotals();
-    const dateRangeForKPI = {
-      from: startDate || new Date(),
-      to: endDate || new Date()
+    // Update shared performance data with exact totals from SQL
+    const updateKPIs = async () => {
+      const statusTotals = await calculateTotals();
+      const dateRangeForKPI = {
+        from: startDate || new Date(),
+        to: endDate || new Date()
+      };
+      
+      // Log the actual update for debugging
+      console.log(`[PERFORMANCE] Updating performance data for timeframe: ${timeframe}`, {
+        statusTotals,
+        dateRange: dateRangeForKPI,
+        dataPoints: data.length
+      });
+      
+      updatePerformanceData(
+        data, 
+        timeframe, 
+        dateRangeForKPI, 
+        dealerFilter,
+        statusTotals
+      );
     };
     
-    // Log the actual update for debugging
-    console.log(`[PERFORMANCE] Updating performance data for timeframe: ${timeframe}, with ${data.length} data points`);
-    
-    updatePerformanceData(
-      data, 
-      timeframe, 
-      dateRangeForKPI, 
-      dealerFilter,
-      statusTotals
-    );
+    updateKPIs();
     
   }, [statusFetchKey, startDate, endDate, data, updatePerformanceData, loading, dealerFilter, error, timeframe]);
 
@@ -260,6 +360,10 @@ const PerformanceMetrics: React.FC = () => {
             setTimeframe(newTimeframe);
             setSelectedDate(date);
             setPeriodOffset(0); // Reset period offset when drilling down
+            
+            // Invalidate cache for the drill down
+            queryClient.invalidateQueries(["performance-metrics"]);
+            console.log('[PERFORMANCE] Invalidated query cache after drill down');
           }}
         />
         

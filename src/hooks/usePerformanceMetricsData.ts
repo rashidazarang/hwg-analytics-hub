@@ -1299,11 +1299,11 @@ function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): Perf
     endDate: endDate.toISOString()
   }), [startDate, endDate]);
   
-  // Create a stable query key that doesn't change unnecessarily
-  // Removing Date.now() prevents constant refetching
+  // Create a stable query key that captures all parameters that affect the data
+  // The top-level key is "performance-metrics" to match the invalidation in the page component
   const queryKey = useMemo(() => 
-    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate?.toISOString()], 
-    [timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate]
+    ['performance-metrics', timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate?.toISOString(), offsetPeriods], 
+    [timeframe, formattedDates.startDate, formattedDates.endDate, dealerFilter, specificDate, offsetPeriods]
   );
   
   // Reusable function for batched fetching with proper pagination
@@ -1373,7 +1373,16 @@ function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): Perf
 
   // Directly fetch data from the database using a consistent batched approach
   const queryFn = useCallback(async () => {
-    console.log(`[PERFORMANCE] Fetching data for ${timeframe} from ${formattedDates.startDate} to ${formattedDates.endDate}${dealerFilter ? ` with dealer filter ${dealerFilter}` : ''}`);
+    console.log(`[PERFORMANCE] Fetching with:`, {
+      timeframe: timeframe, 
+      offset: offsetPeriods, 
+      startDate: formattedDates.startDate, 
+      endDate: formattedDates.endDate, 
+      dealer: dealerFilter
+    });
+    
+    // Log the equivalent SQL query for direct comparison
+    console.log(`[PERFORMANCE] Equivalent SQL query: SELECT * FROM count_agreements_by_status('${formattedDates.startDate}', '${formattedDates.endDate}'${dealerFilter ? `, '${dealerFilter}'` : ', NULL'});`);
     
     // First fetch all the data using our efficient batched approach
     const allAgreements = await fetchBatchedData(startDate, endDate, dealerFilter);
@@ -1396,14 +1405,14 @@ function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): Perf
     }
   }, [timeframe, formattedDates, startDate, endDate, dealerFilter, fetchBatchedData]);
   
-  // Use React Query with optimized settings to prevent unnecessary refetching
+  // Use React Query with adjusted settings to ensure fresh data
   const { data, isLoading, error } = useQuery({
     queryKey: queryKey,
     queryFn: queryFn,
-    staleTime: 1000 * 60 * 5, // Data stays fresh for 5 minutes to prevent unnecessary fetches
-    cacheTime: 1000 * 60 * 30, // Cache for 30 minutes
+    staleTime: 0, // Consider data immediately stale to force refetch when params change
+    cacheTime: 1000 * 60 * 5, // Cache for 5 minutes only
     refetchOnWindowFocus: false, // Don't refetch automatically on window focus
-    refetchOnMount: true, // Refetch when component mounts
+    refetchOnMount: true, // Always refetch when component mounts
     retry: 1, // Only retry once to avoid excessive fetching on errors
   });
   
