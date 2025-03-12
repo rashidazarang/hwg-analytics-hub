@@ -1,0 +1,15 @@
+{
+  "name": "claim-analytics-etl",
+  "version": "1.0.0",
+  "description": "ETL process for claim analytics",
+  "main": "etl.js",
+  "type": "module",
+  "scripts": {
+    "start": "node etl.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "mongodb": "^5.0.0",
+    "@supabase/supabase-js": "^2.10.0"
+  }
+}
