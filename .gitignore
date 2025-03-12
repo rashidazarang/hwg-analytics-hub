@@ -12,6 +12,7 @@ lerna-debug.log*
 .env.local
 .env.development
 .env.production
+.env.etl
 
 node_modules
 # dist - Keep dist folder for now for easier deployment

@@ -7,24 +7,48 @@
  ***************************************************/
 
 // 1. Load Environment Variables and Required Modules
-require("dotenv").config();
-const { MongoClient } = require("mongodb");
-const { createClient } = require("@supabase/supabase-js");
+import dotenv from 'dotenv';
+import { MongoClient } from 'mongodb';
+import { createClient } from '@supabase/supabase-js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import fs from 'fs';
+
+// Get the current file path and directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load environment variables from .env.etl if it exists, otherwise from .env
+const envFile = fs.existsSync('.env.etl') ? '.env.etl' : '.env';
+dotenv.config({ path: envFile });
 
 // 2. Configure MongoDB and Supabase
 const MONGO_URI = process.env.MONGODB_URI;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE;
 
-// Initialize MongoDB client
-const mongoClient = new MongoClient(MONGO_URI);
+// Log configuration (without sensitive data)
+console.log('ETL Configuration:');
+console.log(`- MongoDB URI: ${MONGO_URI ? '✅ Set' : '❌ Not set'}`);
+console.log(`- Supabase URL: ${SUPABASE_URL ? '✅ Set' : '❌ Not set'}`);
+console.log(`- Supabase Service Role: ${SUPABASE_SERVICE_ROLE ? '✅ Set' : '❌ Not set'}`);
+
+// Initialize MongoDB client with options
+const mongoClient = new MongoClient(MONGO_URI, {
+  connectTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 50,
+  retryWrites: true,
+  retryReads: true
+});
 
 // Initialize Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
 // 3. Constants
-const BATCH_SIZE = 500;
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '500', 10);
 const HEADSTART_PAYEE_ID = "1"; // Fallback PayeeID
+const FALLBACK_AGREEMENT_ID = "FALLBACK-0001"; // Fallback AgreementID for claims with missing agreements
 const PLACEHOLDER_TIMESTAMP = "0001-01-01T01:01:01";
 
 /** Convert placeholder timestamps => null */
@@ -257,24 +281,55 @@ console.log("✅ dealerIdToDealerUUID map updated with all dealers.");
 
     // 4. Upsert claims in batches into Supabase (including new fields)
     console.log("🚀 Upserting claims in batches...");
+    
+    // Fetch all existing agreement IDs from Supabase
+    console.log("🔄 Fetching existing agreements from Supabase...");
+    const existingAgreementIDs = new Set();
+    let agreementFrom = 0;
+    const agreementPageSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from("agreements")
+        .select("AgreementID")
+        .range(agreementFrom, agreementFrom + agreementPageSize - 1);
+      if (error) {
+        console.error("❌ Error fetching existing agreements:", error.message);
+        break;
+      }
+      if (!data || data.length === 0) break;
+      data.forEach(agreement => existingAgreementIDs.add(agreement.AgreementID));
+      if (data.length < agreementPageSize) break; // no more rows
+      agreementFrom += agreementPageSize;
+    }
+    console.log(`✅ Fetched ${existingAgreementIDs.size} existing agreements from Supabase.`);
+    
     for (let i = 0; i < claimsToUpsert.length; i += BATCH_SIZE) {
       const batch = claimsToUpsert.slice(i, i + BATCH_SIZE);
 
-      const formattedBatch = batch.map((claim) => ({
-        ClaimID: claim.ClaimID,
-        AgreementID: claim.AgreementID,
-        IncurredDate: normalizeTimestamp(claim.IncurredDate),
-        ReportedDate: normalizeTimestamp(claim.ReportedDate),
-        Closed: normalizeTimestamp(claim.Closed),
-        Deductible: claim.Deductible ? parseFloat(claim.Deductible.toString()) : null,
-        Complaint: claim.Complaint || null,
-        Cause: claim.Cause || null,
-        Correction: claim.Correction || null,
-        CauseID: claim.CauseID || null,
-        LastModified: normalizeTimestamp(claim.LastModified),
-        ComplaintID: claim.ComplaintID || null,
-        CorrectionID: claim.CorrectionID || null,
-      }));
+      const formattedBatch = batch.map((claim) => {
+        // Use fallback agreement ID if the claim does not have one or if the agreement doesn't exist in Supabase
+        let finalAgreementID = claim.AgreementID;
+        if (!finalAgreementID || !existingAgreementIDs.has(finalAgreementID)) {
+          console.warn(`⚠️ WARNING: No valid agreement ID for ClaimID = ${claim.ClaimID}. Using fallback: ${FALLBACK_AGREEMENT_ID}`);
+          finalAgreementID = FALLBACK_AGREEMENT_ID;
+        }
+
+        return {
+          ClaimID: claim.ClaimID,
+          AgreementID: finalAgreementID,
+          IncurredDate: normalizeTimestamp(claim.IncurredDate),
+          ReportedDate: normalizeTimestamp(claim.ReportedDate),
+          Closed: normalizeTimestamp(claim.Closed),
+          Deductible: claim.Deductible ? parseFloat(claim.Deductible.toString()) : null,
+          Complaint: claim.Complaint || null,
+          Cause: claim.Cause || null,
+          Correction: claim.Correction || null,
+          CauseID: claim.CauseID || null,
+          LastModified: normalizeTimestamp(claim.LastModified),
+          ComplaintID: claim.ComplaintID || null,
+          CorrectionID: claim.CorrectionID || null,
+        };
+      });
 
       const { error: claimsError } = await supabase
         .from("claims")
@@ -314,13 +369,46 @@ console.log("✅ dealerIdToDealerUUID map updated with all dealers.");
     const allSubclaims = await subclaimsCollection.find({}).toArray();
     console.log(`✅ Found ${allSubclaims.length} subclaims.`);
 
+    // Create a map to deduplicate subclaims by SubClaimID
+    const uniqueSubclaimsMap = new Map();
+    
+    // Process all subclaims and keep only the unique ones
+    allSubclaims.forEach(subclaim => {
+      const key = subclaim.SubClaimID;
+      
+      // If we already have this subclaim, only replace it if it's newer (based on job_run or LastModified)
+      if (uniqueSubclaimsMap.has(key)) {
+        const existingSubclaim = uniqueSubclaimsMap.get(key);
+        const existingJobRun = existingSubclaim.job_run || 0;
+        const newJobRun = subclaim.job_run || 0;
+        
+        const existingLastModified = existingSubclaim.LastModified ? new Date(existingSubclaim.LastModified).getTime() : 0;
+        const newLastModified = subclaim.LastModified ? new Date(subclaim.LastModified).getTime() : 0;
+        
+        // Replace only if the new subclaim has a higher job_run number or a newer LastModified date
+        if (newJobRun > existingJobRun || 
+            (newJobRun === existingJobRun && newLastModified > existingLastModified) ||
+            (newJobRun === existingJobRun && newLastModified === existingLastModified && 
+             subclaim._id.toString() > existingSubclaim._id.toString())) {
+          uniqueSubclaimsMap.set(key, subclaim);
+        }
+      } else {
+        // First time seeing this subclaim, add it to the map
+        uniqueSubclaimsMap.set(key, subclaim);
+      }
+    });
+    
+    // Convert the map back to an array
+    const uniqueSubclaims = Array.from(uniqueSubclaimsMap.values());
+    console.log(`✅ Deduplicated to ${uniqueSubclaims.length} unique subclaims.`);
+
     console.log("🔄 Loading processed_subclaims from Supabase...");
     let processedSubclaims = [];
     from = 0;
     while (true) {
       const { data, error } = await supabase
         .from("subclaims")
-        .select("_id, Md5")
+        .select("_id, Md5, SubClaimID") // Also fetch SubClaimID
         .range(from, from + pageSize - 1);
 
       if (error) {
@@ -340,10 +428,22 @@ console.log("✅ dealerIdToDealerUUID map updated with all dealers.");
       from += pageSize;
     }
 
+    // Create maps for both _id and SubClaimID
     const processedSubclaimsMap = new Map(processedSubclaims.map((d) => [d._id, d.Md5]));
+    const existingSubClaimIDs = new Set(processedSubclaims.map(d => d.SubClaimID));
     console.log(`✅ Found ${processedSubclaimsMap.size} records in processed_subclaims.`);
+    console.log(`✅ Found ${existingSubClaimIDs.size} unique SubClaimIDs in processed_subclaims.`);
 
-    const subclaimsToUpsert = allSubclaims.filter((sc) => {
+    // Filter out subclaims that would violate the unique constraint
+    const subclaimsToUpsert = uniqueSubclaims.filter((sc) => {
+      // Skip if this SubClaimID already exists in the database but with a different _id
+      if (existingSubClaimIDs.has(sc.SubClaimID) && 
+          !processedSubclaimsMap.has(sc._id.toString())) {
+        console.log(`⚠️ Skipping subclaim with SubClaimID ${sc.SubClaimID} to avoid constraint violation`);
+        return false;
+      }
+      
+      // Otherwise, include it if it's new or has a different Md5
       if (!processedSubclaimsMap.has(sc._id.toString())) return true;
       return processedSubclaimsMap.get(sc._id.toString()) !== sc.Md5;
     });
@@ -402,13 +502,41 @@ console.log("✅ dealerIdToDealerUUID map updated with all dealers.");
     const allSubclaimParts = await subclaimPartsCollection.find({}).toArray();
     console.log(`✅ Found ${allSubclaimParts.length} subclaim-parts.`);
 
+    // Create a map to deduplicate subclaim parts by SubClaimID and PartNumber
+    const uniqueSubclaimPartsMap = new Map();
+    
+    // Process all subclaim parts and keep only the unique ones
+    allSubclaimParts.forEach(part => {
+      const key = `${part.SubClaimID}-${part.PartNumber || 'unknown'}`;
+      
+      // If we already have this part, only replace it if it's newer (based on job_run or _id)
+      if (uniqueSubclaimPartsMap.has(key)) {
+        const existingPart = uniqueSubclaimPartsMap.get(key);
+        const existingJobRun = existingPart.job_run || 0;
+        const newJobRun = part.job_run || 0;
+        
+        // Replace only if the new part has a higher job_run number or a newer _id
+        if (newJobRun > existingJobRun || 
+            (newJobRun === existingJobRun && part._id.toString() > existingPart._id.toString())) {
+          uniqueSubclaimPartsMap.set(key, part);
+        }
+      } else {
+        // First time seeing this part, add it to the map
+        uniqueSubclaimPartsMap.set(key, part);
+      }
+    });
+    
+    // Convert the map back to an array
+    const uniqueSubclaimParts = Array.from(uniqueSubclaimPartsMap.values());
+    console.log(`✅ Deduplicated to ${uniqueSubclaimParts.length} unique subclaim-parts.`);
+
     console.log("🔄 Loading processed_subclaim_parts from Supabase...");
     let processedSubclaimParts = [];
     from = 0;
     while (true) {
       const { data, error } = await supabase
         .from("subclaim_parts")
-        .select("_id, Md5")
+        .select("_id, Md5, SubClaimID, PartNumber")
         .range(from, from + pageSize - 1);
 
       if (error) {
@@ -428,10 +556,34 @@ console.log("✅ dealerIdToDealerUUID map updated with all dealers.");
       from += pageSize;
     }
 
+    // Create maps for both _id and a composite key of SubClaimID+PartNumber
     const processedPartsMap = new Map(processedSubclaimParts.map((d) => [d._id, d.Md5]));
+    const existingMd5Values = new Set(processedSubclaimParts.map(d => d.Md5));
+    const existingPartKeys = new Set(
+      processedSubclaimParts.map(d => `${d.SubClaimID}-${d.PartNumber || 'unknown'}`)
+    );
     console.log(`✅ Found ${processedPartsMap.size} records in processed_subclaim_parts.`);
+    console.log(`✅ Found ${existingMd5Values.size} unique Md5 values in processed_subclaim_parts.`);
 
-    const partsToUpsert = allSubclaimParts.filter((part) => {
+    // Filter out parts that would violate unique constraints
+    const partsToUpsert = uniqueSubclaimParts.filter((part) => {
+      const partKey = `${part.SubClaimID}-${part.PartNumber || 'unknown'}`;
+      
+      // Skip if this part's Md5 already exists in the database but with a different _id
+      if (existingMd5Values.has(part.Md5) && 
+          !processedPartsMap.has(part._id.toString())) {
+        console.log(`⚠️ Skipping part with Md5 ${part.Md5} to avoid constraint violation`);
+        return false;
+      }
+      
+      // Skip if this SubClaimID+PartNumber combination already exists with a different _id
+      if (existingPartKeys.has(partKey) && 
+          !processedPartsMap.has(part._id.toString())) {
+        console.log(`⚠️ Skipping part with key ${partKey} to avoid constraint violation`);
+        return false;
+      }
+      
+      // Otherwise, include it if it's new or has a different Md5
       if (!processedPartsMap.has(part._id.toString())) return true;
       return processedPartsMap.get(part._id.toString()) !== part.Md5;
     });
@@ -770,8 +922,167 @@ if (changedOrNew.length > 0) {
   console.log("✅ No new or changed surcharge records to upsert.");
 }
 
+/***************************************************
+ * L) FETCH & UPSERT CONTRACTS
+ ***************************************************/
+console.log("🔄 Loading existing contracts from Supabase...");
+let existingContracts = [];
+from = 0;
+
+while (true) {
+  const { data, error } = await supabase
+    .from("contracts")
+    .select("id")
+    .range(from, from + pageSize - 1);
+
+  if (error) {
+    console.error("❌ Error fetching contracts from Supabase:", error.message);
+    break;
+  }
+
+  if (!data || data.length === 0) break;
+
+  existingContracts.push(...data);
   
-  
+  if (data.length < pageSize) break; // No more records
+  from += pageSize;
+}
+
+// Build a set of existing contract IDs
+const existingContractIds = new Set(existingContracts.map(contract => contract.id));
+
+// Fetch contracts from MongoDB
+console.log("🔄 Fetching contracts from MongoDB...");
+const contractsCollection = db.collection("contracts_warehouse_all_2024-03-25");
+const allContracts = await contractsCollection.find({}).toArray();
+console.log(`✅ Found ${allContracts.length} contracts in MongoDB.`);
+
+// Map only fields that exist in Supabase and filter out existing contracts that haven't changed
+const formattedContracts = allContracts.map(contract => ({
+  id: contract._id.toString(),
+  crm_source: contract.CRM_Source || null,
+  job_run: contract.job_run || null,
+  finance_source: contract.Finance_Source || null,
+  tpa: contract.TPA || null,
+  agent_nbr: contract.Agent_Nbr || null,
+  dealer_nbr: contract.Dealer_Nbr || null,
+  dealer_name: contract.Dealer_Name || null,
+  contract_nbr: contract.Contract_Nbr || null,
+  contract_nbr_alternate: contract.Contract_Nbr_Alternate || null,
+  status: contract.Status || null,
+  insurance_status: contract.Insurance_Status || null,
+  inception_date: normalizeTimestamp(contract.Inception_Date),
+  effective_date: normalizeTimestamp(contract.Effective_Date),
+  sale_odom: contract.Sale_Odom || null,
+  contract_form_nbr: contract.Contract_Form_Nbr || null,
+  batch_nbr: contract.Batch_Nbr || null,
+  register_nbr: contract.Register_Nbr || null,
+  contract_holder_name_title: contract.Contract_Holder_Name_Title || null,
+  contract_holder_first_name: contract.Contract_Holder_First_Name || null,
+  contract_holder_last_name: contract.Contract_Holder_Last_Name || null,
+  contract_holder_middle_name: contract.Contract_Holder_Middle_Name || null,
+  contract_holder_spouse_name: contract.Contract_Holder_Spouse_Name || null,
+  contract_holder_address: contract.Contract_Holder_Address || null,
+  contract_holder_city: contract.Contract_Holder_City || null,
+  contract_holder_state: contract.Contract_Holder_State || null,
+  contract_holder_zip: contract.Contract_Holder_Zip || null,
+  contract_holder_phone_nbr: contract.Contract_Holder_Phone_Nbr || null,
+  contract_holder_work_nbr: contract.Contract_Holder_Work_Nbr || null,
+  contract_holder_ext_1: contract.Contract_Holder_Ext_1 || null,
+  contract_holder_ext_2: contract.Contract_Holder_Ext_2 || null,
+  contract_holder_email: contract.Contract_Holder_email || null,
+  contract_holder_mobile_nbr: contract.Contract_Holder_Mobile_Nbr || null,
+  dealer_cost: contract.Dealer_Cost ? parseFloat(contract.Dealer_Cost.toString()) : null,
+  sale_total: contract.Sale_Total ? parseFloat(contract.Sale_Total.toString()) : null,
+  retail_rate: contract.Retail_Rate ? parseFloat(contract.Retail_Rate.toString()) : null,
+  product_code: contract.Product_Code || null,
+  product: contract.Product || null,
+  rate_class: contract.Rate_Class || null,
+  vin: contract.Vin || null,
+  model_year: contract.Model_Year || null,
+  vehicle_year: contract.Vehicle_Year || null,
+  manufacturer_id: contract.Manufacturer_Id || null,
+  model: contract.Model || null,
+  expire_miles: contract.Expire_Miles || null,
+  contract_term_months: contract.Contract_Term_Months || null,
+  contract_term_mileage: contract.Contract_Term_Mileage || null,
+  deductible_amount: contract.Deductible_Amount ? parseFloat(contract.Deductible_Amount.toString()) : null,
+  deductible_type: contract.Deductible_Type || null,
+  premium_amount: contract.Premium_Amount ? parseFloat(contract.Premium_Amount.toString()) : null,
+  reserves: contract.Reserves ? parseFloat(contract.Reserves.toString()) : null,
+  clip_fee: contract.Clip_Fee ? parseFloat(contract.Clip_Fee.toString()) : null,
+  producer_bucket_total: contract.Producer_Bucket_Total ? parseFloat(contract.Producer_Bucket_Total.toString()) : null,
+  mfg_warranty_term: contract.Mfg_Warranty_Term || null,
+  mfg_mileage: contract.Mfg_Mileage || null,
+  contract_sale_date: contract.Contract_Sale_Date || null,
+  vehicle_purhase_price: contract.Vehicle_Purhase_Price || null,
+  vehicle_auto_code: contract.Vehicle_Auto_Code || null,
+  lienholder_nbr: contract.Lienholder_Nbr || null,
+  reinsurance_id: contract.Reinsurance_Id || null,
+  vehicle_in_service_date: contract.Vehicle_In_Service_Date || null,
+  member_id: contract.Member_Id || null,
+  no_charge_back: contract.No_Charge_Back || null,
+  monthly_payment_effective_date: contract.Monthly_Payment_Effective_Date || null,
+  fortegra_plan_code: contract.Fortegra_Plan_Code || null,
+  rate_book_id: contract.Rate_Book_Id || null,
+  new_used: contract.New_Used || null,
+  plan_name: contract.Plan_Name || null,
+  plan_code: contract.Plan_Code || null,
+  language: contract.Language || null,
+  s_lien_name: contract.S_Lien_Name || null,
+  s_lien_address: contract.S_Lien_Address || null,
+  s_lien_address_2: contract.S_Lien_Address_2 || null,
+  s_lien_city: contract.S_Lien_City || null,
+  s_lien_state: contract.S_Lien_State || null,
+  s_lien_zip: contract.S_Lien_Zip || null,
+  s_lien_phone_nbr: contract.S_Lien_Phone_Nbr || null,
+  s_lien_contract: contract.S_Lien_contract || null,
+  s_lien_fed_tax_id: contract.S_Lien_Fed_Tax_Id || null,
+  s_contract_entry_app_name: contract.S_Contract_Entry_App_Name || null,
+  payment_option: contract.Payment_Option || null,
+  deal_type: contract.Deal_type || null,
+  financed_amount: contract.Financed_Amount || null,
+  apr: contract.Apr || null,
+  financed_term: contract.Financed_Term || null,
+  monthly_payment: contract.Monthly_Payment || null,
+  first_payment_date: contract.First_Payment_Date || null,
+  balloon_amount: contract.Balloon_Amount || null,
+  residual_amount: contract.Residual_Amount || null,
+  msrp: contract.Msrp || null,
+  base_acv: contract.Base_Acv || null,
+  nada_value: contract.Nada_Value || null,
+  financed_account_number: contract.Financed_Account_Number || null,
+  incoming_client_filename: contract.incoming_client_filename || null,
+  mongo_id: contract.mongo_id || null,
+  ins_form_plan_code: contract.ins_form_plan_code || null,
+  ins_form_rate_book_id: contract.ins_form_rate_book_id || null,
+  ins_form_plan_name: contract.ins_form_plan_name || null,
+  new_used_field: contract.new_used || null,
+  do_not_send_to_insurer: contract.Do_Not_Send_To_Insurer || false
+}));
+
+// Filter out contracts that already exist in Supabase
+const contractsToUpsert = formattedContracts.filter(contract => !existingContractIds.has(contract.id));
+console.log(`🔄 Contracts to upsert: ${contractsToUpsert.length} out of ${formattedContracts.length} total contracts`);
+
+// Upsert contracts in batches
+if (contractsToUpsert.length > 0) {
+  console.log(`🚀 Upserting ${contractsToUpsert.length} contracts into Supabase...`);
+  for (let i = 0; i < contractsToUpsert.length; i += BATCH_SIZE) {
+    const batch = contractsToUpsert.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase
+      .from("contracts")
+      .upsert(batch, { onConflict: "id" });
+    
+    if (error) {
+      console.error(`❌ Error upserting contracts batch ${Math.floor(i / BATCH_SIZE) + 1}:`, error.message);
+    } else {
+      console.log(`✅ Contracts batch ${Math.floor(i / BATCH_SIZE) + 1} upserted successfully.`);
+    }
+  }
+} else {
+  console.log("✅ No new contracts to upsert.");
+}
 
 /***************************************************
  * DONE
