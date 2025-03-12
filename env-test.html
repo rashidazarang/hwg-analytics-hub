@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Environment Variables Test</title>
+</head>
+<body>
+  <h1>Environment Variables Test</h1>
+  <div id="result"></div>
+
+  <script type="module">
+    // Check if Vite environment variables are available
+    const resultDiv = document.getElementById('result');
+    
+    try {
+      const envValues = {
+        VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+        VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        VITE_SUPABASE_SERVICE_KEY: import.meta.env.VITE_SUPABASE_SERVICE_KEY
+      };
+      
+      resultDiv.innerHTML = `
+        <h2>Environment Variables:</h2>
+        <pre>
+VITE_SUPABASE_URL: ${envValues.VITE_SUPABASE_URL ? '✅ Defined' : '❌ Missing'}
+VITE_SUPABASE_ANON_KEY: ${envValues.VITE_SUPABASE_ANON_KEY ? '✅ Defined' : '❌ Missing'}
+VITE_SUPABASE_SERVICE_KEY: ${envValues.VITE_SUPABASE_SERVICE_KEY ? '✅ Defined' : '❌ Missing'}
+        </pre>
+        <p>If variables are missing, ensure you're running this through the Vite development server.</p>
+      `;
+    } catch (error) {
+      resultDiv.innerHTML = `
+        <h2>Error:</h2>
+        <pre>${error.message}</pre>
+        <p>Make sure you're accessing this page through the Vite development server (npm run dev).</p>
+      `;
+    }
+  </script>
+</body>
+</html> 
