@@ -4,7 +4,7 @@ import Dashboard from '@/components/layout/Dashboard';
 import InteractiveBarChart from '@/components/charts/InteractiveBarChart';
 import { DateRange } from '@/lib/dateUtils';
 import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
-import { FileSignature, AlertTriangle, Clock, BarChart, CircleDollarSign, CheckSquare, XCircle } from 'lucide-react';
+import { FileSignature, AlertTriangle, Clock, BarChart } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import KPICard from '@/components/metrics/KPICard';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,19 +22,13 @@ const PerformanceKPISection: React.FC = () => {
   // This ensures values directly match the SQL query totals
   const totalPending = hasData ? performanceData.averages.pending : 0;
   const totalActive = hasData ? performanceData.averages.active : 0;
-  const totalClaimable = hasData ? performanceData.averages.claimable : 0;
   const totalCancelled = hasData ? performanceData.averages.cancelled : 0;
-  const totalVoid = hasData ? performanceData.averages.void : 0;
-  const totalContracts = totalPending + totalActive + totalClaimable + totalCancelled + totalVoid;
   
   // Log the values for debugging
   console.log("[PERFORMANCE] KPI Totals:", {
     totalPending,
     totalActive,
-    totalClaimable,
     totalCancelled,
-    totalVoid,
-    totalContracts,
     // Log this to compare with direct SQL results
     source: "Using direct values from performanceData.averages (not summing data points)"
   });
@@ -43,47 +37,26 @@ const PerformanceKPISection: React.FC = () => {
   const isLoading = !hasData;
   
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 w-full mb-6 animate-fade-in">
+    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6 w-full mb-6 animate-fade-in">
       <KPICard
-        title="Total Contracts"
-        value={isLoading ? "..." : totalContracts.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-        description={`Total contracts in selected period`}
-        icon={CircleDollarSign}
-        color="primary"
-      />
-      <KPICard
-        title="Pending"
-        value={isLoading ? "..." : totalPending.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-        description={`Pending contracts`}
-        icon={Clock}
-        color="warning"
-      />
-      <KPICard
-        title="Active"
+        title="Active Contracts"
         value={isLoading ? "..." : totalActive.toLocaleString("en-US", { maximumFractionDigits: 0 })}
         description={`Active contracts`}
         icon={FileSignature}
         color="success"
       />
       <KPICard
-        title="Claimable"
-        value={isLoading ? "..." : totalClaimable.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-        description={`Claimable contracts`}
-        icon={CheckSquare}
-        color="success"
+        title="Pending Contracts"
+        value={isLoading ? "..." : totalPending.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+        description={`Pending contracts`}
+        icon={Clock}
+        color="warning"
       />
       <KPICard
-        title="Cancelled"
+        title="Cancelled Contracts"
         value={isLoading ? "..." : totalCancelled.toLocaleString("en-US", { maximumFractionDigits: 0 })}
         description={`Cancelled contracts`}
         icon={AlertTriangle}
-        color="destructive"
-      />
-      <KPICard
-        title="Void"
-        value={isLoading ? "..." : totalVoid.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-        description={`Void contracts`}
-        icon={XCircle}
         color="destructive"
       />
     </div>
