@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import MockDataService from '@/lib/mockDataService';
 
 // Function to get the last payment date for a claim
 export function getLastPaymentDate(claimId: string, subclaims: any[]) {
@@ -475,6 +476,12 @@ export function useClaimPaymentData(claimId: string) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['claim-payment', claimId],
     queryFn: async () => {
+      // Use mock data in development mode
+      if (shouldUseMockData()) {
+        console.log('[CLAIM_PAYMENT] 🔧 Using mock data in development mode');
+        return { totalPaid: Math.floor(Math.random() * 5000) + 500, lastPaymentDate: new Date().toISOString() };
+      }
+
       console.log(`[CLAIM_PAYMENT] Fetching payment data for individual claim: ${claimId}`);
       
       // ALWAYS use the SQL function - prioritize RPC

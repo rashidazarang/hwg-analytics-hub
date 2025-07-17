@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import MockDataService from '@/lib/mockDataService';
 import { PostgrestError } from '@supabase/supabase-js';
 
 // Types for the claim details page
@@ -76,6 +77,21 @@ export const useClaimDetail = (claimId: string) => {
   return useQuery({
     queryKey: ['claim-detail', claimId],
     queryFn: async () => {
+      // Use mock data in development mode
+      if (shouldUseMockData()) {
+        console.log('[CLAIM_DETAIL] 🔧 Using mock data in development mode');
+        const claims = MockDataService.getClaimsData(0, 1, '');
+        if (claims.data.length > 0) {
+          const mockClaim = claims.data[0];
+          return {
+            ...mockClaim,
+            ClaimID: claimId,
+            subclaims: []
+          };
+        }
+        throw new Error(`Mock claim with ID ${claimId} not found`);
+      }
+
       console.log(`[CLAIM_DETAIL] Fetching claim detail for ID: ${claimId}`);
       
       // Fetch basic claim information with related agreement and dealer

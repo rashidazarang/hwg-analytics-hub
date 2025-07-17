@@ -326,16 +326,30 @@ export class MockDataService {
         claims_per_contract: dealerAgreements.length > 0 ? dealerClaims.length / dealerAgreements.length : 0,
         avg_claim_resolution_days: 15
       },
-      agreementDistribution: [
-        { status: 'ACTIVE', count: dealerAgreements.filter(a => a.status === 'ACTIVE').length },
-        { status: 'PENDING', count: dealerAgreements.filter(a => a.status === 'PENDING').length },
-        { status: 'CANCELLED', count: dealerAgreements.filter(a => a.status === 'CANCELLED').length }
-      ],
-      claimsDistribution: [
-        { status: 'OPEN', count: dealerClaims.filter(c => c.status === 'OPEN').length },
-        { status: 'CLOSED', count: dealerClaims.filter(c => c.status === 'CLOSED').length },
-        { status: 'PENDING', count: dealerClaims.filter(c => c.status === 'PENDING').length }
-      ],
+      agreementDistribution: (() => {
+        const active = dealerAgreements.filter(a => a.status === 'ACTIVE').length;
+        const pending = dealerAgreements.filter(a => a.status === 'PENDING').length;
+        const cancelled = dealerAgreements.filter(a => a.status === 'CANCELLED').length;
+        const total = active + pending + cancelled || 1; // Avoid division by zero
+        
+        return [
+          { status: 'ACTIVE', count: active, percentage: (active / total) * 100 },
+          { status: 'PENDING', count: pending, percentage: (pending / total) * 100 },
+          { status: 'CANCELLED', count: cancelled, percentage: (cancelled / total) * 100 }
+        ];
+      })(),
+      claimsDistribution: (() => {
+        const open = dealerClaims.filter(c => c.status === 'OPEN').length;
+        const closed = dealerClaims.filter(c => c.status === 'CLOSED').length;
+        const pending = dealerClaims.filter(c => c.status === 'PENDING').length;
+        const total = open + closed + pending || 1; // Avoid division by zero
+        
+        return [
+          { status: 'OPEN', count: open, percentage: (open / total) * 100 },
+          { status: 'CLOSED', count: closed, percentage: (closed / total) * 100 },
+          { status: 'PENDING', count: pending, percentage: (pending / total) * 100 }
+        ];
+      })(),
       monthlyRevenue: Array.from({ length: 12 }, (_, i) => ({
         month: new Date(2025, i, 1).toLocaleDateString('en-US', { month: 'short' }),
         revenue: Math.floor(Math.random() * 50000) + 10000

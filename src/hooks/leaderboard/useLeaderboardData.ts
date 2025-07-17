@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import MockDataService from '@/lib/mockDataService';
 import { executeWithCSTTimezone } from '@/integrations/supabase/timezone-utils';
 import { DateRange } from '@/lib/dateUtils';
 import { getFormattedDateRange } from './dateRangeUtils';
@@ -36,6 +37,25 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
       topDealers: TopDealerWithKPIs[];
       summary: TopDealersSummary;
     }> => {
+      // Use mock data in development mode
+      if (shouldUseMockData()) {
+        console.log('[LEADERBOARD] 🔧 Using mock data in development mode');
+        const mockTopDealers = MockDataService.getTopDealers(10);
+        const mockSummary = MockDataService.getLeaderboardSummary();
+        
+        return {
+          topDealers: mockTopDealers.map(dealer => ({
+            ...dealer,
+            percentage_total_revenue: Math.random() * 20 + 5 // Random percentage between 5-25%
+          })),
+          summary: {
+            total_expected_revenue: mockSummary.total_revenue * 0.3, // 30% is expected/pending
+            total_funded_revenue: mockSummary.total_revenue * 0.7, // 70% is funded/active
+            avg_cancellation_rate: mockSummary.cancellation_rate
+          }
+        };
+      }
+
       // Format date range with proper time boundaries in CST
       const { startDate, endDate } = getFormattedDateRange(dateRange);
 

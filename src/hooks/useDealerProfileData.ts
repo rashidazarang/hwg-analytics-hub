@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import MockDataService from '@/lib/mockDataService';
 import { executeWithCSTTimezone } from '@/integrations/supabase/timezone-utils';
 import { DateRange } from '@/lib/dateUtils';
 import { getFormattedDateRange } from './leaderboard/dateRangeUtils';
@@ -102,6 +103,12 @@ export function useDealerProfileData(dealerUuid: string, dateRange: DateRange) {
     queryKey: dealerProfileQueryKey,
     queryFn: async (): Promise<DealerProfileData> => {
       try {
+        // Use mock data in development mode
+        if (shouldUseMockData()) {
+          console.log('[DEALER_PROFILE] 🔧 Using mock data in development mode');
+          return MockDataService.getDealerProfile(dealerUuid);
+        }
+
         // Format date range with proper time boundaries in CST
         const { startDate, endDate } = getFormattedDateRange(dateRange);
         
