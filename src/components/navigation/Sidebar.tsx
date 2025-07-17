@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import logoImage from '/lovable-uploads/paperwork-flows-logo.png';
 
 type SidebarItemProps = {
   icon: React.ElementType;
@@ -62,9 +63,13 @@ const Sidebar: React.FC = () => {
         <div className="flex items-center h-[57px] px-4 border-b">
           <Link to="/" className="flex items-center">
             <img 
-              src="/lovable-uploads/paperwork-flows-logo.png"
+              src={logoImage}
               alt="PaperworkFlows Logo"
-              className="h-[32px] w-auto max-w-[200px] object-contain"
+              className="h-[24px] w-auto max-w-[160px] object-contain"
+              onError={(e) => {
+                console.error('Logo failed to load:', e);
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           </Link>
         </div>

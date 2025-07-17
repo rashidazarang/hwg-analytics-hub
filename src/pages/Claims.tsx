@@ -60,7 +60,7 @@ const Claims = () => {
         />
       }
       subnavbar={subnavbarContent}
-      pageTitle="Documents Dashboard"
+              pageTitle="Claims"
     >
       <div className="w-full overflow-x-hidden">
         <ClaimsTable

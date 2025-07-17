@@ -459,7 +459,7 @@ const PerformanceMetrics: React.FC = () => {
       <Dashboard
         onDateRangeChange={handleDateRangeChange}
         kpiSection={<PerformanceKPISection />}
-        pageTitle="Workflow Analytics"
+        pageTitle="Analytics"
         subnavbar={timeframeSubnavbar}
         hideDefaultDateFilter={true} // This prop will indicate to hide the DateRangeFilter
       >
