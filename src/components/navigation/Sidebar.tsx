@@ -31,12 +31,12 @@ const sidebarItems = [
     icon: Home
   },
   {
-    name: "Agreements",
+    name: "Workflows",
     path: "/agreements",
     icon: FileSignature
   },
   {
-    name: "Claims",
+    name: "Documents",
     path: "/claims",
     icon: AlertTriangle
   },
@@ -62,9 +62,9 @@ const Sidebar: React.FC = () => {
         <div className="flex items-center h-[57px] px-4 border-b">
           <Link to="/" className="flex items-center">
             <img 
-              src="/lovable-uploads/eb0ad36a-388f-454c-aaa9-4ba36c462126.png"
-              alt="Claims Logo"
-              className="h-[46px]"
+              src="/lovable-uploads/paperwork-flows-logo.png"
+              alt="PaperworkFlows Logo"
+              className="h-[32px] w-auto max-w-[200px] object-contain"
             />
           </Link>
         </div>

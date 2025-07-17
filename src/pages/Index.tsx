@@ -58,7 +58,7 @@ const Index = () => {
           isLeaderboardLoading={isLeaderboardLoading}
         />
       }
-      pageTitle="Analytics Dashboard"
+      pageTitle="PaperworkFlows Dashboard"
     >
       <div className="w-full overflow-x-hidden space-y-6">
         {/* Leaderboard Highlights Section */}

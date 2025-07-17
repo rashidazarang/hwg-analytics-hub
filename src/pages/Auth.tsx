@@ -207,14 +207,14 @@ const Auth = () => {
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white">
                           <ShieldCheck className="h-4 w-4" />
                         </div>
-                        <span className="text-sm font-medium text-blue-700">Claim Analytics</span>
+                        <span className="text-sm font-medium text-blue-700">PaperworkFlows</span>
                       </motion.div>
                       <motion.div variants={itemVariants}>
                         <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
-                          Welcome to Claim Analytics
+                          Welcome to PaperworkFlows
                         </CardTitle>
                         <CardDescription className="text-muted-foreground mt-1">
-                          Frictionless access to your analytics dashboard
+                          Streamline your workflow management and analytics
                         </CardDescription>
                       </motion.div>
                     </CardHeader>

@@ -60,7 +60,7 @@ const Agreements = () => {
         />
       }
       subnavbar={subnavbarContent}
-      pageTitle="Agreements Dashboard"
+      pageTitle="Workflows Dashboard"
     >
       <div className="w-full overflow-x-hidden">
         <AgreementsTable
