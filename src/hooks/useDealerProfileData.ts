@@ -298,6 +298,13 @@ export function useDealerAgreements(dealerUuid: string, dateRange: DateRange) {
     queryKey: agreementsQueryKey, 
     queryFn: async () => {
       try {
+        // Use mock data in development mode
+        if (shouldUseMockData()) {
+          console.log('[DEALER_AGREEMENTS] 🔧 Using mock data in development mode');
+          const mockAgreements = MockDataService.getAgreementsData(0, 50, dealerUuid);
+          return mockAgreements.data;
+        }
+
         // Format date range with proper time boundaries in CST
         const { startDate, endDate } = getFormattedDateRange(dateRange);
         
@@ -352,6 +359,13 @@ export function useDealerClaims(dealerUuid: string, dateRange: DateRange) {
     queryKey: claimsQueryKey,
     queryFn: async () => {
       try {
+        // Use mock data in development mode
+        if (shouldUseMockData()) {
+          console.log('[DEALER_CLAIMS] 🔧 Using mock data in development mode');
+          const mockClaims = MockDataService.getClaimsData(0, 50, dealerUuid);
+          return mockClaims.data;
+        }
+
         // Format date range with proper time boundaries in CST
         const { startDate, endDate } = getFormattedDateRange(dateRange);
         

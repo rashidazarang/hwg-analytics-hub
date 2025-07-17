@@ -350,10 +350,18 @@ export class MockDataService {
           { status: 'PENDING', count: pending, percentage: (pending / total) * 100 }
         ];
       })(),
-      monthlyRevenue: Array.from({ length: 12 }, (_, i) => ({
-        month: new Date(2025, i, 1).toLocaleDateString('en-US', { month: 'short' }),
-        revenue: Math.floor(Math.random() * 50000) + 10000
-      }))
+      monthlyRevenue: Array.from({ length: 12 }, (_, i) => {
+        const totalRevenue = Math.floor(Math.random() * 50000) + 10000;
+        const fundedRevenue = Math.floor(totalRevenue * 0.7);
+        const expectedRevenue = totalRevenue - fundedRevenue;
+        
+        return {
+          month: new Date(2025, i, 1).toLocaleDateString('en-US', { month: 'short' }),
+          total_revenue: totalRevenue,
+          funded_revenue: fundedRevenue,
+          expected_revenue: expectedRevenue
+        };
+      })
     };
   }
 }

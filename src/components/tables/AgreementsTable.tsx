@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
 import FilterDropdown, { FilterOption } from '@/components/ui/filter-dropdown';
 import { useSearchAgreementById } from '@/hooks/useSharedAgreementsData';
+import { useAgreementsFetching } from '@/hooks/useAgreementsFetching';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Dealer {
@@ -30,101 +31,7 @@ const AGREEMENT_STATUS_OPTIONS: FilterOption[] = [
   { value: "TERMINATED", label: "Terminated" }
 ];
 
-async function fetchAgreements(
-  page: number = 1,
-  pageSize: number = PAGE_SIZE,
-  dateRange?: DateRange, 
-  dealerFilter?: string,
-  statusFilters?: string[]
-): Promise<{ data: Agreement[], count: number }> {
-  try {
-    console.log("🔍 Fetching agreements with parameters:");
-    console.log("🔍 Page:", page, "Page size:", pageSize);
-    console.log("🔍 Date Range:", dateRange);
-    console.log("🔍 Dealer UUID filter:", dealerFilter);
-    console.log("🔍 Status filters:", statusFilters);
-
-    const from = dateRange?.from ? dateRange.from.toISOString() : "2020-01-01T00:00:00.000Z";
-    const to = dateRange?.to ? dateRange.to.toISOString() : "2025-12-31T23:59:59.999Z";
-    
-    const startRow = (page - 1) * pageSize;
-    const endRow = startRow + pageSize - 1;
-
-    const buildBaseQuery = (queryBuilder: any) => {
-      let query = queryBuilder
-        .gte("EffectiveDate", from)
-        .lte("EffectiveDate", to);
-      
-      if (dealerFilter && dealerFilter.trim()) {
-        // Ensure dealerFilter is properly trimmed and applied consistently
-        query = query.eq("DealerUUID", dealerFilter.trim());
-        console.log(`🔍 Applied dealer filter: "${dealerFilter.trim()}" to query`);
-      }
-      
-      if (statusFilters && statusFilters.length > 0) {
-        query = query.in("AgreementStatus", statusFilters);
-      }
-      
-      return query;
-    };
-
-    const countQuery = buildBaseQuery(
-      supabase
-        .from("agreements")
-        .select("id", { count: 'exact', head: true })
-    );
-    
-    const { count: totalCount, error: countError } = await countQuery;
-    
-    if (countError) {
-      console.error("❌ Supabase Count Error:", countError);
-      toast.error("Failed to count agreements");
-      return { data: [], count: 0 };
-    }
-    
-    const dataQuery = buildBaseQuery(
-      supabase
-        .from("agreements")
-        .select(`
-          id, 
-          AgreementID, 
-          HolderFirstName, 
-          HolderLastName, 
-          DealerUUID, 
-          DealerID, 
-          EffectiveDate, 
-          ExpireDate, 
-          AgreementStatus, 
-          Total, 
-          DealerCost, 
-          ReserveAmount,
-          StatusChangeDate,
-          dealers(Payee)
-        `)
-        .order("EffectiveDate", { ascending: false })
-    );
-    
-    const { data, error } = await dataQuery.range(startRow, endRow);
-
-    if (error) {
-      console.error("❌ Supabase Fetch Error:", error);
-      toast.error("Failed to load agreements");
-      return { data: [], count: 0 };
-    }
-
-    console.log(`✅ Fetched ${data?.length || 0} agreements for page ${page}`);
-    console.log(`✅ Total agreements: ${totalCount || 0}`);
-    
-    return { 
-      data: data as unknown as Agreement[] || [], 
-      count: totalCount || 0 
-    };
-  } catch (error) {
-    console.error("❌ Exception in fetchAgreements:", error);
-    toast.error("An unexpected error occurred while loading agreements");
-    return { data: [], count: 0 };
-  }
-}
+// fetchAgreements function removed - now using useAgreementsFetching hook
 
 async function fetchDealers() {
   try {
@@ -239,24 +146,22 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     return ["agreements-data", from, to, dealerFilter, page, pageSize, statusFilters];
   }, [dateRange, dealerFilter, page, pageSize, statusFilters]);
   
+  // Use the new shared agreements fetching hook
   const { 
     data: agreementsData = { data: [], count: 0 }, 
     isFetching: isFetchingAgreements,
     error: agreementsError,
     refetch: refetchAgreements
-  } = useQuery({
-    queryKey: agreementsQueryKey,
-    queryFn: async () => {
-      console.log(`🔍 Executing agreements query for page ${page} with status filters:`, statusFilters);
-      return fetchAgreements(page, pageSize, dateRange, dealerFilter, statusFilters);
-    },
-    staleTime: 1000 * 60 * 10,
-    gcTime: 1000 * 60 * 30,
-    refetchOnWindowFocus: false,
-    retry: 2,
-    retryDelay: (attempt) => Math.min(attempt * 1000, 3000),
-    enabled: !isIdSearch, // Only fetch regular data when not doing an ID search
-  });
+  } = useAgreementsFetching(
+    page, 
+    pageSize, 
+    dealerFilter, 
+    dateRange, 
+    statusFilters
+  ) as any; // Enable only when not doing an ID search
+
+  // Disable the fetching when doing ID search to avoid conflicts
+  const isRegularFetchEnabled = !isIdSearch;
 
   useEffect(() => {
     if (agreementsError) {
