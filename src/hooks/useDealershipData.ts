@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import MockDataService from '@/lib/mockDataService';
 
 type Dealership = {
   id: string;
@@ -9,6 +10,16 @@ type Dealership = {
 
 export const useDealershipData = () => {
   const fetchDealershipNames = async (): Promise<Dealership[]> => {
+    // Use mock data in development mode
+    if (shouldUseMockData()) {
+      console.log('🔍 Using mock dealership data in development mode');
+      const dealers = MockDataService.getDealersData();
+      return dealers.map(dealer => ({
+        id: dealer.DealerUUID,
+        name: dealer.Payee
+      }));
+    }
+
     console.log('🔍 Fetching dealership names from Supabase...');
     try {
       const PAGE_SIZE = 1000;

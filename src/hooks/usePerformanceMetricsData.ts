@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import MockDataService from '@/lib/mockDataService';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   startOfWeek, 
@@ -1344,6 +1345,12 @@ function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): Perf
   
   // Directly fetch data from the database using a consistent batched approach
   const queryFn = useCallback(async () => {
+    // Use mock data in development mode
+    if (shouldUseMockData()) {
+      console.log('[PERFORMANCE_DEBUG] 🔧 Using mock data in development mode');
+      return MockDataService.getPerformanceData(timeframe, startDate, endDate);
+    }
+
     console.log(`[PERFORMANCE_DEBUG] Fetching with:`, {
       timeframe: timeframe, 
       offset: offsetPeriods, 

@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { LeaderboardSummary } from '@/lib/types';
 import { getFormattedDateRange } from './dateRangeUtils';
 import { executeWithCSTTimezone } from '@/integrations/supabase/timezone-utils';
+import MockDataService from '@/lib/mockDataService';
 
 /**
  * Hook to fetch leaderboard summary data
@@ -12,6 +13,12 @@ export function useLeaderboardSummary({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['leaderboardSummary', dateRange.from, dateRange.to],
     queryFn: async (): Promise<LeaderboardSummary> => {
+      // Use mock data in development mode
+      if (shouldUseMockData()) {
+        console.log('[LEADERBOARD_SUMMARY] 🔧 Using mock data in development mode');
+        return MockDataService.getLeaderboardSummary();
+      }
+
       // Format date range with proper time boundaries
       const { startDate, endDate } = getFormattedDateRange(dateRange);
 

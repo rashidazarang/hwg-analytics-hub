@@ -1,15 +1,22 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
 import { executeWithCSTTimezone } from '@/integrations/supabase/timezone-utils';
 import { DateRange } from '@/lib/dateUtils';
 import { TopDealer } from '@/lib/types';
+import MockDataService from '@/lib/mockDataService';
 
 // Hook to fetch top dealers with contract status breakdown
 export function useTopDealersContractData({ dateRange }: { dateRange: DateRange }) {
   return useQuery({
     queryKey: ['topDealersContracts', dateRange.from, dateRange.to],
     queryFn: async (): Promise<TopDealer[]> => {
+      // Use mock data in development mode
+      if (shouldUseMockData()) {
+        console.log('[TOPDEALERS_CONTRACTS] 🔧 Using mock data in development mode');
+        return MockDataService.getTopDealers(50);
+      }
+
       // Import the getFormattedDateRange function to ensure consistent date handling
       const { getFormattedDateRange } = await import('@/hooks/leaderboard/dateRangeUtils');
       const { startDate, endDate } = getFormattedDateRange(dateRange);

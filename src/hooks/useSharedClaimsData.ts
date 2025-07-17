@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
+import MockDataService from '@/lib/mockDataService';
 import { getClaimStatus } from '@/utils/claimUtils';
 import { Claim } from '@/lib/types';
 import { PostgrestError } from '@supabase/supabase-js';
@@ -58,6 +59,13 @@ export async function fetchClaimsData({
   includeCount = true,
   sortByPaymentDate = false
 }: ClaimsQueryOptions): Promise<ClaimsQueryResult> {
+  // Use mock data in development mode
+  if (shouldUseMockData()) {
+    console.log('[SHARED_CLAIMS] 🔧 Using mock data in development mode');
+    const page = pagination?.page || 0;
+    const pageSize = pagination?.pageSize || 20;
+    return MockDataService.getClaimsData(page, pageSize, dealerFilter);
+  }
   try {
     // Debug log - print current time for reference
     const now = new Date();

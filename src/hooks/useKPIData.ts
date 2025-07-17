@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
 import { DateRange, setCSTHours } from '@/lib/dateUtils';
 import { KPIData } from '@/lib/types';
+import MockDataService from '@/lib/mockDataService';
 
 interface UseKPIDataProps {
   dateRange: DateRange;
@@ -12,6 +13,30 @@ export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
   return useQuery({
     queryKey: ['kpis', dateRange.from, dateRange.to, dealerFilter],
     queryFn: async (): Promise<KPIData> => {
+      // Use mock data in development mode
+      if (shouldUseMockData()) {
+        console.log('[KPI_DATA] 🔧 Using mock data in development mode');
+        const mockData = MockDataService.getKPIData();
+        return {
+          activeAgreements: mockData.activeContracts,
+          totalAgreements: mockData.totalContracts,
+          openClaims: Math.floor(mockData.totalContracts * 0.15), // Estimated open claims
+          totalClaims: Math.floor(mockData.totalContracts * 0.25), // Estimated total claims
+          activeDealers: 25, // Mock active dealers count
+          totalDealers: 50, // Mock total dealers count
+          averageClaimAmount: 2500, // Mock average claim amount
+          totalClaimsAmount: Math.floor(mockData.totalContracts * 0.25 * 2500), // Estimated total claims amount
+          pendingContracts: mockData.pendingContracts,
+          newlyActiveContracts: Math.floor(mockData.activeContracts * 0.3), // Estimated newly active
+          cancelledContracts: mockData.cancelledContracts,
+          statusBreakdown: {
+            OPEN: Math.floor(mockData.totalContracts * 0.15),
+            PENDING: mockData.pendingContracts,
+            CLOSED: Math.floor(mockData.totalContracts * 0.1)
+          }
+        };
+      }
+
       console.log('[KPI_DATA] Fetching KPIs with extremely simplified approach');
       
       try {
