@@ -109,6 +109,6 @@ export interface LeaderboardSummary {
   active_contracts: number;
   total_revenue: number;
   cancellation_rate: number;
-  top_dealer: string;
-  top_agent: string;
+  dealer_name: string;
+  agent_name: string;
 }

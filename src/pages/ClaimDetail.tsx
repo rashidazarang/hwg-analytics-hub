@@ -47,17 +47,7 @@ const ClaimDetail = () => {
     error 
   } = useClaimDetail(claimId || '');
   
-  // Check for valid session
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        navigate('/auth');
-      }
-    };
-    
-    checkSession();
-  }, [navigate]);
+  // Remove authentication check useEffect
   
   // Handle error state
   useEffect(() => {

@@ -6,58 +6,8 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 const ProtectedRoute = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        
-        if (data.session) {
-          setIsAuthenticated(true);
-        } else {
-          setIsAuthenticated(false);
-          toast.error('Please sign in to access the dashboard');
-        }
-      } catch (error) {
-        console.error('Error checking authentication:', error);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        setIsAuthenticated(true);
-      } else if (event === 'SIGNED_OUT') {
-        setIsAuthenticated(false);
-        navigate('/auth');
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-muted-foreground">Verifying your credentials...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return isAuthenticated ? <Outlet /> : <Navigate to="/auth" />;
+  // Authentication checks removed for frictionless access
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

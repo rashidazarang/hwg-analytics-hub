@@ -63,7 +63,7 @@ const Sidebar: React.FC = () => {
           <Link to="/" className="flex items-center">
             <img 
               src="/lovable-uploads/eb0ad36a-388f-454c-aaa9-4ba36c462126.png"
-              alt="HWG Logo"
+              alt="Claims Logo"
               className="h-[46px]"
             />
           </Link>

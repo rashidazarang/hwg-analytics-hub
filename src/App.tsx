@@ -5,7 +5,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
 import Account from "./pages/Account";
 import PerformanceMetrics from "./pages/PerformanceMetrics";
 import Leaderboard from "./pages/Leaderboard";
@@ -14,6 +13,7 @@ import Claims from "./pages/Claims";
 import ClaimDetail from "./pages/ClaimDetail";
 import DealerProfile from "./pages/DealerProfile";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Import Sidebar for reference
 import Sidebar from "./components/navigation/Sidebar";
@@ -37,11 +37,9 @@ const App = () => {
       <TooltipProvider>
         <Toaster position="bottom-right" closeButton expand={false} />
         <BrowserRouter>
+          <AuthProvider>
           <Routes>
-            {/* Public routes */}
-            <Route path="/auth" element={<Auth />} />
-            
-            {/* Protected routes */}
+              {/* All routes are now unprotected for local development */}
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
               <Route path="/agreements" element={<Agreements />} />
@@ -50,11 +48,13 @@ const App = () => {
               <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/dealer/:dealerId" element={<DealerProfile />} />
+                <Route path="/account" element={<Account />} />
             </Route>
             
             {/* Not found route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

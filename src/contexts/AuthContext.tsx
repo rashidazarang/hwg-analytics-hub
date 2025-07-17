@@ -17,131 +17,74 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock user for local development without authentication
+const mockUser: User = {
+  id: 'local-dev-user',
+  aud: 'authenticated',
+  role: 'authenticated',
+  email: 'local@dev.com',
+  email_confirmed_at: new Date().toISOString(),
+  phone: '',
+  confirmed_at: new Date().toISOString(),
+  last_sign_in_at: new Date().toISOString(),
+  app_metadata: {},
+  user_metadata: {},
+  identities: [],
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  is_anonymous: false
+};
+
+const mockSession: Session = {
+  access_token: 'mock-access-token',
+  refresh_token: 'mock-refresh-token',
+  expires_in: 3600,
+  expires_at: Date.now() / 1000 + 3600,
+  token_type: 'bearer',
+  user: mockUser
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  // For local development, always use mock authenticated user
+  const [user, setUser] = useState<User | null>(mockUser);
+  const [session, setSession] = useState<Session | null>(mockSession);
+  const [isLoading, setIsLoading] = useState(false); // No loading for mock auth
+  const [isAdmin, setIsAdmin] = useState(true); // Always admin for local dev
 
   useEffect(() => {
-    const setupAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setUser(data.session?.user || null);
-      
-      if (data.session?.user) {
-        // Check if user is admin
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', data.session.user.id)
-          .single();
-          
-        setIsAdmin(profileData?.is_admin || false);
-      }
-      
+    // Set mock authenticated state immediately for local development
+    setUser(mockUser);
+    setSession(mockSession);
+    setIsAdmin(true);
       setIsLoading(false);
-    };
-    
-    setupAuth();
-
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
-      setSession(session);
-      setUser(session?.user || null);
-      
-      if (session?.user) {
-        // Check if user is admin when auth state changes
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single();
-          
-        setIsAdmin(profileData?.is_admin || false);
-      } else {
-        setIsAdmin(false);
-      }
-    });
-
-    return () => {
-      data.subscription.unsubscribe();
-    };
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
+    // For local development, always succeed and use mock user
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Login failed",
-          description: error.message
-        });
-        throw error;
-      }
-
-      if (data.user) {
-        // Check if user is admin
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', data.user.id)
-          .single();
-        
-        if (profileError) {
-          toast({
-            variant: "destructive",
-            title: "Error verifying admin status",
-            description: profileError.message
-          });
-          await supabase.auth.signOut();
-          throw new Error('Failed to verify admin status');
-        }
-        
-        if (!profileData?.is_admin) {
-          toast({
-            variant: "destructive",
-            title: "Access denied",
-            description: "You don't have administrator privileges"
-          });
-          await supabase.auth.signOut();
-          throw new Error('Not an admin user');
-        }
-        
+      setUser(mockUser);
+      setSession(mockSession);
         setIsAdmin(true);
         toast({
-          title: "Login successful",
-          description: "Welcome back, admin!"
+        title: "Development Mode",
+        description: "Authentication bypassed for local development"
         });
         navigate('/');
-      }
     } catch (error) {
-      console.error('Sign in error:', error);
+      console.error('Mock sign in error:', error);
     }
   };
 
   const signOut = async () => {
+    // For local development, just show message but keep user authenticated
     try {
-      await supabase.auth.signOut();
-      setIsAdmin(false);
-      navigate('/login');
       toast({
-        title: "Logged out",
-        description: "You have been logged out successfully"
+        title: "Development Mode",
+        description: "Sign out disabled in local development"
       });
     } catch (error) {
-      console.error('Sign out error:', error);
-      toast({
-        variant: "destructive",
-        title: "Logout failed",
-        description: "Failed to log out. Please try again."
-      });
+      console.error('Mock sign out error:', error);
     }
   };
 

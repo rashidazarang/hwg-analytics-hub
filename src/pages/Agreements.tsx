@@ -17,16 +17,7 @@ const Agreements = () => {
   const [dealershipName, setDealershipName] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        navigate('/auth');
-      }
-    };
-    
-    checkSession();
-  }, [navigate]);
+  // Remove authentication check useEffect
 
   const handleDateRangeChange = (range: DateRange) => {
     console.log("📅 Date range changed in Agreements:", range);

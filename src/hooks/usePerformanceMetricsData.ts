@@ -23,6 +23,7 @@ import {
 import { toCSTISOString, setCSTHours, CST_TIMEZONE, toCSTDate } from '@/lib/dateUtils';
 import { TimeframeOption } from '@/components/filters/TimeframeFilter';
 import { assertCountAgreementsByDateResult, assertCountAgreementsByStatusResult, assertFetchMonthlyAgreementCountsResult, assertFetchMonthlyAgreementCountsWithStatusResult } from '@/integrations/supabase/rpc-types';
+import { formatDealerUUID, isValidUUID } from '@/utils/uuidUtils';
 
 // New optimized data processing functions
 // These take the raw agreements data and process it into the appropriate format for each timeframe
@@ -1382,10 +1383,18 @@ function usePerformanceMetricsDataImpl(options: PerformanceMetricsOptions): Perf
         ORDER BY COUNT(*) DESC;
       `);
       
+      // Validate dealerFilter as UUID for backend call
+      let dealerUUIDParam: string | null = null;
+      if (dealerFilter && isValidUUID(formatDealerUUID(dealerFilter))) {
+        dealerUUIDParam = formatDealerUUID(dealerFilter);
+      } else if (dealerFilter) {
+        console.warn(`[PERFORMANCE] Invalid dealer ID for uuid param: '${dealerFilter}'. Passing null to backend.`);
+      }
+      
       const { data: statusData, error } = await supabase.rpc('count_agreements_by_status', {
         from_date: formattedStartDate,
         to_date: formattedEndDate,
-        dealer_uuid: dealerFilter || null
+        dealer_uuid: dealerUUIDParam
       });
       
       if (error) {

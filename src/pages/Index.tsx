@@ -19,17 +19,7 @@ const Index = () => {
   const [dateRange, setDateRange] = useAtom(globalDateRangeAtom);
   const [dealerFilter, setDealerFilter] = useState<string>('');
 
-  // Check authentication
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        navigate('/auth');
-      }
-    };
-    
-    checkSession();
-  }, [navigate]);
+  // Remove authentication check useEffect
 
   const handleDateRangeChange = (range: DateRange) => {
     console.log("📅 Date range changed in Index:", range);
