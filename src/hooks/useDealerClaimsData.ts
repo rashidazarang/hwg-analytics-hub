@@ -1,9 +1,10 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { TopDealerClaims } from '@/lib/types';
 import { getClaimStatus } from '@/utils/claimUtils';
+
 
 // Hook to fetch top dealers by claims
 export function useTopDealerClaimsData({ dateRange }: { dateRange: DateRange }) {
@@ -14,6 +15,12 @@ export function useTopDealerClaimsData({ dateRange }: { dateRange: DateRange }) 
         from: dateRange.from.toISOString(),
         to: dateRange.to.toISOString()
       });
+
+      // Use mock data in development mode
+      if (shouldUseMockData()) {
+        console.log('[DEALERCLAIMS] Using mock data in development mode');
+        return [];
+      }
 
       // Fetch claims with dealer information
       const { data: claims, error } = await supabase

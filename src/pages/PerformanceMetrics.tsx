@@ -7,7 +7,7 @@ import { useSharedPerformanceData } from '@/hooks/useSharedPerformanceData';
 import { FileSignature, AlertTriangle, Clock, BarChart } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import KPICard from '@/components/metrics/KPICard';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
 import TimeframeFilter, { TimeframeOption } from '@/components/filters/TimeframeFilter';
 import DealershipSearch from '@/components/search/DealershipSearch';
 
@@ -290,6 +290,26 @@ const PerformanceMetrics: React.FC = () => {
           ORDER BY COUNT(*) DESC;
         `);
         
+        // Skip SQL query in mock mode and use data points directly
+        if (shouldUseMockData()) {
+          console.log('[PERFORMANCE] Using mock data - skipping SQL query');
+          const totalPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
+          const totalActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
+          const totalCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
+          
+          console.log("[PERFORMANCE] Mock data totals:", { 
+            totalPending, totalActive, totalCancelled 
+          });
+          
+          return {
+            pending: totalPending,
+            active: totalActive,
+            claimable: 0,
+            cancelled: totalCancelled,
+            void: 0
+          };
+        }
+
         // Execute the direct SQL query to ensure exact match with your manual query
         const { data: sqlTotals, error: sqlError } = await supabase.rpc('count_agreements_by_status', {
           from_date: formattedStartDate,
@@ -303,21 +323,19 @@ const PerformanceMetrics: React.FC = () => {
           // Fall back to summing data points if SQL query fails
           const totalPending = data.reduce((sum, point) => sum + (point.pending || 0), 0);
           const totalActive = data.reduce((sum, point) => sum + (point.active || 0), 0);
-          const totalClaimable = data.reduce((sum, point) => sum + (point.claimable || 0), 0);
           const totalCancelled = data.reduce((sum, point) => sum + (point.cancelled || 0), 0);
-          const totalVoid = data.reduce((sum, point) => sum + (point.void || 0), 0);
           
           console.log("[PERFORMANCE] Using fallback values from data points:", { 
-            totalPending, totalActive, totalClaimable, totalCancelled, totalVoid 
+            totalPending, totalActive, totalCancelled 
           });
           
           // Return the fallback values
           return {
             pending: totalPending,
             active: totalActive,
-            claimable: totalClaimable,
+            claimable: 0,
             cancelled: totalCancelled,
-            void: totalVoid
+            void: 0
           };
         }
         
