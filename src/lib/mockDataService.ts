@@ -233,7 +233,17 @@ export class MockDataService {
         totalPaid: claim.amount,
         TotalPaid: claim.amount,
         lastPaymentDate: claim.status === 'CLOSED' ? claim.updatedAt?.toISOString() : null,
-        LastPaymentDate: claim.status === 'CLOSED' ? claim.updatedAt?.toISOString() : null
+        LastPaymentDate: claim.status === 'CLOSED' ? claim.updatedAt?.toISOString() : null,
+        // Add nested structure for dealership data (expected by ClaimsTable)
+        agreements: {
+          DealerUUID: claim.dealerId,
+          dealers: {
+            Payee: claim.dealerName
+          }
+        },
+        // Also add flat dealership fields for compatibility
+        DealerName: claim.dealerName,
+        DealerUUID: claim.dealerId
       })),
       count: filteredClaims.length,
       statusBreakdown: {
