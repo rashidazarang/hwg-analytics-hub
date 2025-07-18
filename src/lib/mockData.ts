@@ -141,7 +141,15 @@ export const generateMockClaims = (count: number, agreements: Agreement[]): Clai
   
   for (let i = 0; i < count; i++) {
     const agreement = agreements[Math.floor(Math.random() * agreements.length)];
-    const dateIncurred = randomDate(agreement.startDate, new Date() < agreement.endDate ? new Date() : agreement.endDate);
+    
+    // Generate more recent claims - 80% within last year, 20% older
+    const shouldBeRecent = Math.random() < 0.8;
+    const now = new Date();
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    
+    const dateIncurred = shouldBeRecent 
+      ? randomDate(oneYearAgo, now)
+      : randomDate(agreement.startDate, now < agreement.endDate ? now : agreement.endDate);
     const dateReported = randomDate(dateIncurred, new Date(dateIncurred.getTime() + 1000 * 60 * 60 * 24 * 14)); // Report within 14 days
     
     claims.push({

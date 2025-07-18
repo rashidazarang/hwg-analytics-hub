@@ -15,6 +15,9 @@ const EXTENDED_MOCK_AGREEMENTS = generateMockAgreements(500);
 const EXTENDED_MOCK_CLAIMS = generateMockClaims(200, EXTENDED_MOCK_AGREEMENTS);
 const EXTENDED_MOCK_DEALERS = generateMockDealers(50);
 
+// Force regeneration of claims data to apply new date logic
+console.log('[MOCK_SERVICE] Generated', EXTENDED_MOCK_CLAIMS.length, 'mock claims');
+
 export interface MockKPIData {
   totalContracts: number;
   activeContracts: number;
@@ -221,11 +224,13 @@ export class MockDataService {
 
     // Apply date range filter
     if (dateRange) {
+      const beforeFiltering = filteredClaims.length;
       filteredClaims = filteredClaims.filter(claim => {
         const claimDate = claim.dateReported || claim.updatedAt || claim.createdAt;
         if (!claimDate) return false;
         return claimDate >= dateRange.from && claimDate <= dateRange.to;
       });
+      console.log(`[MOCK_CLAIMS] Date filtering: ${beforeFiltering} -> ${filteredClaims.length} claims (${dateRange.from.toDateString()} to ${dateRange.to.toDateString()})`);
     }
 
     const startIndex = page * pageSize;
