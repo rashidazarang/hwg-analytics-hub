@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
@@ -35,6 +35,12 @@ const AGREEMENT_STATUS_OPTIONS: FilterOption[] = [
 
 async function fetchDealers() {
   try {
+    // Use mock data in development mode
+    if (shouldUseMockData()) {
+      console.log("🔍 Using mock dealers data in development mode");
+      return [];
+    }
+
     console.log("🔍 Fetching dealers...");
     const PAGE_SIZE = 1000;
     let allDealers: Dealer[] = [];
