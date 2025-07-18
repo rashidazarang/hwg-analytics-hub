@@ -209,13 +209,23 @@ export class MockDataService {
   }
 
   // Claims Data
-  static getClaimsData(page: number = 0, pageSize: number = 20, dealerFilter?: string) {
+  static getClaimsData(page: number = 0, pageSize: number = 20, dealerFilter?: string, dateRange?: { from: Date; to: Date }) {
     let filteredClaims = EXTENDED_MOCK_CLAIMS;
     
+    // Apply dealer filter
     if (dealerFilter) {
-      filteredClaims = EXTENDED_MOCK_CLAIMS.filter(claim => 
+      filteredClaims = filteredClaims.filter(claim => 
         claim.dealerId === dealerFilter || claim.dealerName.toLowerCase().includes(dealerFilter.toLowerCase())
       );
+    }
+
+    // Apply date range filter
+    if (dateRange) {
+      filteredClaims = filteredClaims.filter(claim => {
+        const claimDate = claim.dateReported || claim.updatedAt || claim.createdAt;
+        if (!claimDate) return false;
+        return claimDate >= dateRange.from && claimDate <= dateRange.to;
+      });
     }
 
     const startIndex = page * pageSize;

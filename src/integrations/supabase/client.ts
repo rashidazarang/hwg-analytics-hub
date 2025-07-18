@@ -5,12 +5,11 @@ import { ExtendedDatabase } from './rpc-types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Check if we're in development mode with placeholder values or using mock data
+// Check if we're in development mode with placeholder values or missing credentials
 export const IS_DEVELOPMENT_MODE = !SUPABASE_URL || 
   !SUPABASE_ANON_KEY || 
   SUPABASE_URL.includes('placeholder') || 
-  SUPABASE_ANON_KEY.includes('placeholder') ||
-  import.meta.env.MODE === 'development';
+  SUPABASE_ANON_KEY.includes('placeholder');
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -20,9 +19,11 @@ const missingVars = [];
 if (!SUPABASE_URL) missingVars.push('VITE_SUPABASE_URL');
 if (!SUPABASE_ANON_KEY) missingVars.push('VITE_SUPABASE_ANON_KEY');
 
-// Only show one simple message for mock data mode
+// Show appropriate message based on connection status
 if (IS_DEVELOPMENT_MODE) {
-  console.log('🔧 PaperworkFlows running with mock data for demonstration');
+  console.log('🔧 PaperworkFlows running with mock data (Supabase not configured)');
+} else {
+  console.log('🔗 PaperworkFlows connected to Supabase database');
 }
 
 // Provide fallback values for development to prevent crashes,

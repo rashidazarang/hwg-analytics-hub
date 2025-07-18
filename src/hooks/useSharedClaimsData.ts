@@ -61,10 +61,10 @@ export async function fetchClaimsData({
 }: ClaimsQueryOptions): Promise<ClaimsQueryResult> {
   // Use mock data in development mode
   if (shouldUseMockData()) {
-    console.log('[SHARED_CLAIMS] 🔧 Using mock data in development mode');
+    console.log('[SHARED_CLAIMS] Using mock data with date filtering');
     const page = pagination?.page || 0;
     const pageSize = pagination?.pageSize || 20;
-    return MockDataService.getClaimsData(page, pageSize, dealerFilter);
+    return MockDataService.getClaimsData(page, pageSize, dealerFilter, dateRange);
   }
   try {
     // Debug log - print current time for reference

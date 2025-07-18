@@ -17,13 +17,9 @@ const Claims = () => {
   const [dealershipName, setDealershipName] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Debug logging for Claims page
+  // Debug logging for Claims page (simplified)
   useEffect(() => {
-    console.log('🔍 [CLAIMS_PAGE] Loading Claims page with mock data:', shouldUseMockData());
-    console.log('🔍 [CLAIMS_PAGE] Date range:', {
-      from: dateRange.from.toISOString(),
-      to: dateRange.to.toISOString()
-    });
+    console.log('📊 Claims page loaded with date range:', dateRange.from.toISOString(), 'to', dateRange.to.toISOString());
   }, [dateRange]);
 
   // Remove authentication check useEffect
