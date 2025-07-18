@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, BarChart, Home, Trophy, FileSignature, AlertTriangle, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logoImage from '/lovable-uploads/paperwork-flows-logo.png';
 
@@ -40,6 +40,11 @@ const sidebarItems = [
     name: "Claims",
     path: "/claims",
     icon: AlertTriangle
+  },
+  {
+    name: "Dealers",
+    path: "/dealers",
+    icon: Building2
   },
   {
     name: "Performance",

@@ -12,6 +12,7 @@ import Agreements from "./pages/Agreements";
 import Claims from "./pages/Claims";
 import ClaimDetail from "./pages/ClaimDetail";
 import DealerProfile from "./pages/DealerProfile";
+import Dealers from "./pages/Dealers";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -45,6 +46,7 @@ const App = () => {
               <Route path="/agreements" element={<Agreements />} />
               <Route path="/claims" element={<Claims />} />
               <Route path="/claims/:claimId" element={<ClaimDetail />} />
+              <Route path="/dealers" element={<Dealers />} />
               <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/dealer/:dealerId" element={<DealerProfile />} />
