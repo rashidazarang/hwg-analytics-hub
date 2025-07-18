@@ -32,12 +32,12 @@ const sidebarItems = [
     icon: Home
   },
   {
-    name: "Workflows",
+    name: "Agreements",
     path: "/agreements",
     icon: FileSignature
   },
   {
-    name: "Documents",
+    name: "Claims",
     path: "/claims",
     icon: AlertTriangle
   },
