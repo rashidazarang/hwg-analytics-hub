@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
-import MockDataService from '@/lib/mockDataService';
+import { supabase } from '@/integrations/supabase/client';
 import { executeWithCSTTimezone } from '@/integrations/supabase/timezone-utils';
 import { DateRange } from '@/lib/dateUtils';
 import { getFormattedDateRange } from './dateRangeUtils';
@@ -17,9 +16,10 @@ export interface TopDealerWithKPIs {
   expected_revenue: number;
   funded_revenue: number;
   cancellation_rate: number;
+  percentage_total_revenue?: number;
 }
 
-// Interface for the summary of top dealers
+// Interface for summary data
 export interface TopDealersSummary {
   total_expected_revenue: number;
   total_funded_revenue: number;
@@ -37,25 +37,6 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
       topDealers: TopDealerWithKPIs[];
       summary: TopDealersSummary;
     }> => {
-      // Use mock data in development mode
-      if (shouldUseMockData()) {
-        console.log('[LEADERBOARD] 🔧 Using mock data in development mode');
-        const mockTopDealers = MockDataService.getTopDealers(10);
-        const mockSummary = MockDataService.getLeaderboardSummary();
-        
-        return {
-          topDealers: mockTopDealers.map(dealer => ({
-            ...dealer,
-            percentage_total_revenue: Math.random() * 20 + 5 // Random percentage between 5-25%
-          })),
-          summary: {
-            total_expected_revenue: mockSummary.total_revenue * 0.3, // 30% is expected/pending
-            total_funded_revenue: mockSummary.total_revenue * 0.7, // 70% is funded/active
-            avg_cancellation_rate: mockSummary.cancellation_rate
-          }
-        };
-      }
-
       // Format date range with proper time boundaries in CST
       const { startDate, endDate } = getFormattedDateRange(dateRange);
 
@@ -64,208 +45,69 @@ export function useLeaderboardData({ dateRange }: { dateRange: DateRange }) {
         to: endDate.toISOString()
       });
 
-      // First try the optimized aggregated SQL function with pagination
       try {
-        // Use the optimized RPC function with explicit limit and timeout settings
-        // This should prevent the query from timing out
-        const result = await executeWithCSTTimezone(
+        // Use the optimized get_top_dealers_optimized function
+        const { data, error } = await executeWithCSTTimezone(
           supabase,
           async (client) => {
-            const { data, error } = await client.rpc('get_top_dealers_optimized', {
-              start_date: startDate.toISOString(),
-              end_date: endDate.toISOString(),
-              limit_count: 50 // Fetch top 50 dealers
+            return await client.rpc('get_top_dealers_optimized', {
+              start_date: startDate.toISOString().split('T')[0],
+              end_date: endDate.toISOString().split('T')[0],
+              dealer_limit: 10
             });
-            
-            if (error) throw error;
-            return data;
           }
         );
 
-        console.log('[LEADERBOARD] Successfully fetched top dealers:', result?.length || 0);
+        if (error) {
+          console.error('[LEADERBOARD] Error fetching optimized top dealers:', error);
+          throw error;
+        }
 
-        // Process the data to fit our expected structure
-        const topDealers = (result || []).map((dealer: any) => ({
-          dealer_uuid: dealer.dealer_uuid || '',
-          dealer_name: dealer.dealer_name || '',
-          total_contracts: Number(dealer.total_contracts || 0),
-          active_contracts: Number(dealer.active_contracts || 0),
-          pending_contracts: Number(dealer.pending_contracts || 0), 
-          cancelled_contracts: Number(dealer.cancelled_contracts || 0),
-          total_revenue: Number(dealer.total_revenue || 0),
-          expected_revenue: Number(dealer.expected_revenue || 0),
-          funded_revenue: Number(dealer.funded_revenue || 0),
-          cancellation_rate: Number(dealer.cancellation_rate || 0)
+        if (!data || !Array.isArray(data)) {
+          console.warn('[LEADERBOARD] No data returned from optimized query');
+          return {
+            topDealers: [],
+            summary: {
+              total_expected_revenue: 0,
+              total_funded_revenue: 0,
+              avg_cancellation_rate: 0
+            }
+          };
+        }
+
+        console.log(`[LEADERBOARD] Successfully fetched ${data.length} top dealers`);
+
+        // Calculate summary statistics
+        const totalExpectedRevenue = data.reduce((sum, dealer) => sum + (dealer.expected_revenue || 0), 0);
+        const totalFundedRevenue = data.reduce((sum, dealer) => sum + (dealer.funded_revenue || 0), 0);
+        const avgCancellationRate = data.length > 0 
+          ? data.reduce((sum, dealer) => sum + (dealer.cancellation_rate || 0), 0) / data.length
+          : 0;
+
+        // Add percentage calculation for each dealer
+        const topDealersWithPercentage = data.map(dealer => ({
+          ...dealer,
+          percentage_total_revenue: totalFundedRevenue > 0 
+            ? (dealer.funded_revenue / totalFundedRevenue) * 100 
+            : 0
         }));
 
-        // Calculate summary KPIs from top dealers
-        const summary: TopDealersSummary = {
-          total_expected_revenue: 0,
-          total_funded_revenue: 0,
-          avg_cancellation_rate: 0,
-        };
-
-        if (topDealers && topDealers.length > 0) {
-          // Calculate total expected revenue (all pending revenue from top dealers)
-          summary.total_expected_revenue = topDealers.reduce(
-            (sum, dealer) => sum + (dealer.expected_revenue || 0), 
-            0
-          );
-          
-          // Calculate total funded revenue (all active revenue from top dealers)
-          summary.total_funded_revenue = topDealers.reduce(
-            (sum, dealer) => sum + (dealer.funded_revenue || 0), 
-            0
-          );
-          
-          // Calculate weighted average cancellation rate
-          const totalDealerContracts = topDealers.reduce(
-            (sum, dealer) => sum + (dealer.total_contracts || 0), 
-            0
-          );
-          
-          if (totalDealerContracts > 0) {
-            const weightedSum = topDealers.reduce(
-              (sum, dealer) => {
-                const contracts = dealer.total_contracts || 0;
-                const rate = dealer.cancellation_rate || 0;
-                return sum + (contracts * rate);
-              }, 
-              0
-            );
-            
-            summary.avg_cancellation_rate = weightedSum / totalDealerContracts;
+        return {
+          topDealers: topDealersWithPercentage,
+          summary: {
+            total_expected_revenue: totalExpectedRevenue,
+            total_funded_revenue: totalFundedRevenue,
+            avg_cancellation_rate: avgCancellationRate
           }
-        }
-
-        return { 
-          topDealers: topDealers || [], 
-          summary 
         };
-      } catch (primaryError) {
-        console.error('[LEADERBOARD] Primary method failed, trying fallback:', primaryError);
-        
-        // Fallback to a simpler query approach that's less likely to timeout
-        try {
-          // Use a direct query with pagination that only gets the necessary fields
-          const result = await executeWithCSTTimezone(
-            supabase,
-            async (client) => {
-              const { data, error } = await client
-                .from('agreements')
-                .select(`
-                  dealers:DealerUUID (
-                    DealerUUID,
-                    Payee
-                  ),
-                  AgreementStatus
-                `)
-                .gte('EffectiveDate', startDate.toISOString())
-                .lte('EffectiveDate', endDate.toISOString())
-                .limit(5000); // Limit to a reasonable number of rows
-              
-              if (error) throw error;
-              return data;
-            }
-          );
 
-          console.log('[LEADERBOARD] Fetched agreements for fallback processing:', result?.length || 0);
-
-          // Process the data client-side
-          const dealerMap = new Map<string, {
-            uuid: string;
-            name: string;
-            total: number;
-            active: number;
-            pending: number;
-            cancelled: number;
-          }>();
-
-          // Process agreements to count by dealer
-          result?.forEach((agreement: any) => {
-            // Check if dealers exists and has the expected structure
-            const dealerUUID = agreement.dealers?.DealerUUID;
-            const dealerName = agreement.dealers?.Payee || 'Unknown Dealer';
-            
-            if (!dealerUUID) return;
-            
-            if (!dealerMap.has(dealerUUID)) {
-              dealerMap.set(dealerUUID, {
-                uuid: dealerUUID,
-                name: dealerName,
-                total: 0,
-                active: 0,
-                pending: 0,
-                cancelled: 0
-              });
-            }
-            
-            const dealer = dealerMap.get(dealerUUID)!;
-            dealer.total++;
-            
-            // Make status check case-insensitive
-            const status = (agreement.AgreementStatus || '').toUpperCase();
-            
-            if (status === 'PENDING') {
-              dealer.pending++;
-            } else if (status === 'ACTIVE' || status === 'CLAIMABLE') {
-              dealer.active++;
-            } else if (status === 'CANCELLED' || status === 'VOID') {
-              dealer.cancelled++;
-            } else {
-              // For unknown statuses, consider them active
-              dealer.active++;
-            }
-          });
-
-          // Sort dealers by total agreements and get top 50
-          const topDealers = Array.from(dealerMap.values())
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 50)
-            .map(dealer => {
-              // Calculate estimated revenue values
-              // These are rough estimates since we don't have actual revenue data
-              const avgContractValue = 1000; // Placeholder average contract value
-              const totalRevenue = dealer.total * avgContractValue;
-              
-              // Calculate cancellation rate
-              const cancellationRate = dealer.total > 0 ? (dealer.cancelled / dealer.total) * 100 : 0;
-              
-              // Estimate expected and funded revenue
-              const expectedRevenue = dealer.pending * avgContractValue;
-              const fundedRevenue = dealer.active * avgContractValue;
-              
-              return {
-                dealer_uuid: dealer.uuid,
-                dealer_name: dealer.name,
-                total_contracts: dealer.total,
-                active_contracts: dealer.active,
-                pending_contracts: dealer.pending,
-                cancelled_contracts: dealer.cancelled,
-                total_revenue: totalRevenue,
-                expected_revenue: expectedRevenue,
-                funded_revenue: fundedRevenue,
-                cancellation_rate: cancellationRate
-              };
-            });
-
-          console.log('[LEADERBOARD] Successfully processed top dealers in fallback mode:', topDealers.length);
-
-          // Calculate summary values
-          const summary: TopDealersSummary = {
-            total_expected_revenue: topDealers.reduce((sum, dealer) => sum + dealer.expected_revenue, 0),
-            total_funded_revenue: topDealers.reduce((sum, dealer) => sum + dealer.funded_revenue, 0),
-            avg_cancellation_rate: topDealers.reduce((sum, dealer) => sum + dealer.cancellation_rate, 0) / topDealers.length
-          };
-
-          return { topDealers, summary };
-        } catch (fallbackError) {
-          console.error('[LEADERBOARD] Both primary and fallback methods failed:', fallbackError);
-          throw fallbackError;
-        }
+      } catch (error) {
+        console.error('[LEADERBOARD] Exception in leaderboard data fetch:', error);
+        throw error;
       }
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    retry: 1, // Only retry once to avoid multiple timeouts
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    retryDelay: 1000,
   });
 }

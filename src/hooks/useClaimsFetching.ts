@@ -3,7 +3,7 @@ import { DateRange } from '@/lib/dateUtils';
 
 // No default page size here - we'll use the value passed from the component
 
-// Ensure date range limiting is disabled to show all claims by LastModified date
+// Disable date range limiting to show all claims 
 const USE_LIMITED_DATE_RANGE = false; // Keep this false to ensure we respect user-selected date ranges
 
 export function useClaimsFetching(
@@ -19,7 +19,7 @@ export function useClaimsFetching(
   console.log(`[CLAIMS_FETCHING] Using safe page size: ${safePageSize} for page ${page}`);
   console.log(`[CLAIMS_FETCHING] Sort by payment date: ${sortByPaymentDate}`);
   
-  // If limiting date range is enabled, limit to the last 12 months for better performance
+  // Use the provided date range without artificial limitations
   let effectiveDateRange = dateRange;
   
   if (USE_LIMITED_DATE_RANGE && !dateRange) {
@@ -34,24 +34,12 @@ export function useClaimsFetching(
     });
     
     effectiveDateRange = { from: startDate, to: endDate };
-  } else if (!dateRange) {
-    // If no date range specified and not limiting, use a very recent date range (1 month)
-    // to avoid performance issues but still show some data
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 1); // Last month
-    
-    console.log('[CLAIMS_FETCHING] Using default 1-month date range:', {
-      from: startDate.toISOString(),
-      to: endDate.toISOString()
-    });
-    
-    effectiveDateRange = { from: startDate, to: endDate };
   }
+  // REMOVED: The artificial fallback to 1-month range that was hiding historical claims
 
   // Use our shared claims data hook with pagination
   const result = useSharedClaimsData({
-    dateRange: effectiveDateRange || { from: new Date(0), to: new Date() },
+    dateRange: effectiveDateRange || { from: new Date(0), to: new Date() }, // Show all data if no range provided
     dealerFilter,
     pagination: {
       page,

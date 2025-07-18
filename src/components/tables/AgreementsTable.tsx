@@ -4,12 +4,12 @@ import { format } from 'date-fns';
 import DataTable, { Column } from './DataTable';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import { Agreement } from '@/lib/types';
 import FilterDropdown, { FilterOption } from '@/components/ui/filter-dropdown';
-import { useSearchAgreementById } from '@/hooks/useSharedAgreementsData';
+import { searchAgreementById } from '@/hooks/useSharedAgreementsData';
 import { useAgreementsFetching } from '@/hooks/useAgreementsFetching';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -35,11 +35,7 @@ const AGREEMENT_STATUS_OPTIONS: FilterOption[] = [
 
 async function fetchDealers() {
   try {
-    // Use mock data in development mode
-    if (shouldUseMockData()) {
-      console.log("🔍 Using mock dealers data in development mode");
-      return [];
-    }
+    // Fetch dealers from Supabase
 
     console.log("🔍 Fetching dealers...");
     const PAGE_SIZE = 1000;
@@ -137,7 +133,7 @@ const AgreementsTable: React.FC<AgreementsTableProps> = ({
     data: idSearchResults = { data: [], count: 0 },
     isFetching: isFetchingIdSearch,
     error: idSearchError
-  } = useSearchAgreementById(isIdSearch ? searchTerm : '');
+  } = searchAgreementById(isIdSearch ? searchTerm : '');
 
   useEffect(() => {
     if (idSearchError) {

@@ -15,9 +15,6 @@ const EXTENDED_MOCK_AGREEMENTS = generateMockAgreements(500);
 const EXTENDED_MOCK_CLAIMS = generateMockClaims(200, EXTENDED_MOCK_AGREEMENTS);
 const EXTENDED_MOCK_DEALERS = generateMockDealers(50);
 
-// Force regeneration of claims data to apply new date logic
-console.log('[MOCK_SERVICE] Generated', EXTENDED_MOCK_CLAIMS.length, 'mock claims');
-
 export interface MockKPIData {
   totalContracts: number;
   activeContracts: number;
@@ -212,25 +209,13 @@ export class MockDataService {
   }
 
   // Claims Data
-  static getClaimsData(page: number = 0, pageSize: number = 20, dealerFilter?: string, dateRange?: { from: Date; to: Date }) {
+  static getClaimsData(page: number = 0, pageSize: number = 20, dealerFilter?: string) {
     let filteredClaims = EXTENDED_MOCK_CLAIMS;
     
-    // Apply dealer filter
     if (dealerFilter) {
-      filteredClaims = filteredClaims.filter(claim => 
+      filteredClaims = EXTENDED_MOCK_CLAIMS.filter(claim => 
         claim.dealerId === dealerFilter || claim.dealerName.toLowerCase().includes(dealerFilter.toLowerCase())
       );
-    }
-
-    // Apply date range filter
-    if (dateRange) {
-      const beforeFiltering = filteredClaims.length;
-      filteredClaims = filteredClaims.filter(claim => {
-        const claimDate = claim.dateReported || claim.updatedAt || claim.createdAt;
-        if (!claimDate) return false;
-        return claimDate >= dateRange.from && claimDate <= dateRange.to;
-      });
-      console.log(`[MOCK_CLAIMS] Date filtering: ${beforeFiltering} -> ${filteredClaims.length} claims (${dateRange.from.toDateString()} to ${dateRange.to.toDateString()})`);
     }
 
     const startIndex = page * pageSize;
@@ -248,17 +233,7 @@ export class MockDataService {
         totalPaid: claim.amount,
         TotalPaid: claim.amount,
         lastPaymentDate: claim.status === 'CLOSED' ? claim.updatedAt?.toISOString() : null,
-        LastPaymentDate: claim.status === 'CLOSED' ? claim.updatedAt?.toISOString() : null,
-        // Add nested structure for dealership data (expected by ClaimsTable)
-        agreements: {
-          DealerUUID: claim.dealerId,
-          dealers: {
-            Payee: claim.dealerName
-          }
-        },
-        // Also add flat dealership fields for compatibility
-        DealerName: claim.dealerName,
-        DealerUUID: claim.dealerId
+        LastPaymentDate: claim.status === 'CLOSED' ? claim.updatedAt?.toISOString() : null
       })),
       count: filteredClaims.length,
       statusBreakdown: {

@@ -1,10 +1,9 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { TopDealerClaims } from '@/lib/types';
 import { getClaimStatus } from '@/utils/claimUtils';
-
 
 // Hook to fetch top dealers by claims
 export function useTopDealerClaimsData({ dateRange }: { dateRange: DateRange }) {
@@ -16,13 +15,7 @@ export function useTopDealerClaimsData({ dateRange }: { dateRange: DateRange }) 
         to: dateRange.to.toISOString()
       });
 
-      // Use mock data in development mode
-      if (shouldUseMockData()) {
-        console.log('[DEALERCLAIMS] Using mock data in development mode');
-        return [];
-      }
-
-      // Fetch claims with dealer information
+      // Fetch claims with dealer information using a broader date range approach
       const { data: claims, error } = await supabase
         .from('claims')
         .select(`
@@ -38,8 +31,9 @@ export function useTopDealerClaimsData({ dateRange }: { dateRange: DateRange }) 
             )
           )
         `)
-        .gte('LastModified', dateRange.from.toISOString())
-        .lte('LastModified', dateRange.to.toISOString());
+        // Use OR logic to capture claims with either ReportedDate or LastModified in range
+        .or(`and(ReportedDate.gte.${dateRange.from.toISOString()},ReportedDate.lte.${dateRange.to.toISOString()}),and(ReportedDate.is.null,LastModified.gte.${dateRange.from.toISOString()},LastModified.lte.${dateRange.to.toISOString()})`)
+        .limit(1000); // Add reasonable limit to prevent timeouts
 
       if (error) {
         console.error('[DEALERCLAIMS] Error fetching claims:', error);
@@ -55,39 +49,50 @@ export function useTopDealerClaimsData({ dateRange }: { dateRange: DateRange }) 
         total_claims: number;
       }>();
 
-      // Process claims and group by dealer
-      claims.forEach(claim => {
-        const dealerName = claim.agreements?.dealers?.Payee || 'Unknown Dealer';
+      claims?.forEach((claim: any) => {
         const dealerUUID = claim.agreements?.DealerUUID;
+        const dealerName = claim.agreements?.dealers?.Payee || 'Unknown Dealer';
         
         if (!dealerUUID) return;
-        
+
+        if (!dealerClaimsMap.has(dealerUUID)) {
+          dealerClaimsMap.set(dealerUUID, {
+            dealer_name: dealerName,
+            open_claims: 0,
+            pending_claims: 0,
+            closed_claims: 0,
+            total_claims: 0
+          });
+        }
+
+        const dealerData = dealerClaimsMap.get(dealerUUID)!;
+        dealerData.total_claims++;
+
+        // Determine claim status based on dates
         const status = getClaimStatus(claim);
         
-        const dealerData = dealerClaimsMap.get(dealerUUID) || {
-          dealer_name: dealerName,
-          open_claims: 0,
-          pending_claims: 0,
-          closed_claims: 0,
-          total_claims: 0
-        };
-        
-        // Update counts based on status
-        if (status === 'OPEN') dealerData.open_claims++;
-        else if (status === 'PENDING') dealerData.pending_claims++;
-        else if (status === 'CLOSED') dealerData.closed_claims++;
-        
-        dealerData.total_claims++;
-        dealerClaimsMap.set(dealerUUID, dealerData);
+        switch (status.toLowerCase()) {
+          case 'open':
+            dealerData.open_claims++;
+            break;
+          case 'pending':
+            dealerData.pending_claims++;
+            break;
+          case 'closed':
+            dealerData.closed_claims++;
+            break;
+        }
       });
 
-      // Convert map to array and sort by total claims
-      const dealerClaimsArray = Array.from(dealerClaimsMap.values())
-        .sort((a, b) => b.total_claims - a.total_claims);
+      // Convert to array and sort by total claims
+      const result = Array.from(dealerClaimsMap.values())
+        .sort((a, b) => b.total_claims - a.total_claims)
+        .slice(0, 10); // Top 10 dealers
 
-      console.log('[DEALERCLAIMS] Processed dealer claims:', dealerClaimsArray.length);
-      return dealerClaimsArray;
+      console.log(`[DEALERCLAIMS] Processed ${result.length} dealers with claims data`);
+      return result;
     },
     staleTime: 5 * 60 * 1000,
+    retry: 2,
   });
 }

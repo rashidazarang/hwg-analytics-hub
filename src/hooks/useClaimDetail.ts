@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
-import MockDataService from '@/lib/mockDataService';
+import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 
 // Types for the claim details page
@@ -22,51 +21,40 @@ export interface Claim {
 export interface Agreement {
   AgreementID: string;
   DealerUUID: string;
-  EffectiveDate: string;
-  ExpirationDate: string | null;
   AgreementStatus: string;
+  EffectiveDate: string;
+  ExpirationDate: string;
+  DealerCost: number;
+  HolderFirstName: string;
+  HolderLastName: string;
   dealer?: Dealer;
 }
 
 export interface Dealer {
   DealerUUID: string;
-  Name: string;
+  Payee: string;
+  Address: string;
   City: string;
-  State: string;
-  ZipCode: string;
+  Region: string;
+  Country: string;
+  PostalCode: string;
 }
 
 export interface Subclaim {
-  SubClaimID: string;
+  SubclaimID: string;
   ClaimID: string;
-  Status: string;
-  Payee: string;
-  RepairOrder: string | null;
-  Created: string | null;
-  Closed: string | null;
-  Complaint: string | null;
-  Cause: string | null;
-  Correction: string | null;
-  ServiceWriter: string | null;
-  parts?: SubclaimPart[];
-}
-
-export interface SubclaimPart {
-  PartID: string;
-  SubClaimID: string;
   PartNumber: string;
-  Description: string;
-  Quantity: number;
-  RequestedPrice: number | null;
-  ApprovedPrice: number | null;
-  PaidPrice: number | null;
+  PartDescription: string;
+  LaborDescription: string;
+  PartCost: number;
+  LaborCost: number;
+  TotalCost: number;
+  Status: string;
+  Closed: string | null;
 }
 
 export interface ClaimPaymentInfo {
-  claim_id: string;
-  total_requested_amount: number;
-  total_approved_amount: number;
-  total_paid_amount: number;
+  total_paid: number;
   last_payment_date: string | null;
 }
 
@@ -77,21 +65,6 @@ export const useClaimDetail = (claimId: string) => {
   return useQuery({
     queryKey: ['claim-detail', claimId],
     queryFn: async () => {
-      // Use mock data in development mode
-      if (shouldUseMockData()) {
-        console.log('[CLAIM_DETAIL] 🔧 Using mock data in development mode');
-        const claims = MockDataService.getClaimsData(0, 1, '');
-        if (claims.data.length > 0) {
-          const mockClaim = claims.data[0];
-          return {
-            ...mockClaim,
-            ClaimID: claimId,
-            subclaims: []
-          };
-        }
-        throw new Error(`Mock claim with ID ${claimId} not found`);
-      }
-
       console.log(`[CLAIM_DETAIL] Fetching claim detail for ID: ${claimId}`);
       
       // Fetch basic claim information with related agreement and dealer
@@ -131,68 +104,26 @@ export const useClaimDetail = (claimId: string) => {
         delete (claim.agreement as any).dealers;
       }
       
-      // Fetch subclaims
-      const { data: subclaims, error: subclaimsError } = await supabase
+      // Fetch subclaims separately
+      const { data: subclaimsData, error: subclaimsError } = await supabase
         .from('subclaims')
         .select('*')
-        .eq('ClaimID', claimId);
+        .eq('ClaimID', claimId)
+        .order('SubclaimID');
       
       if (subclaimsError) {
-        console.error('[CLAIM_DETAIL] Error fetching subclaims:', subclaimsError);
-        throw subclaimsError;
+        console.warn('[CLAIM_DETAIL] Error fetching subclaims:', subclaimsError);
+        // Don't throw, just proceed without subclaims
+      } else {
+        claim.subclaims = subclaimsData || [];
       }
       
-      claim.subclaims = subclaims || [];
-      
-      // Fetch subclaim parts if there are subclaims
-      if (claim.subclaims.length > 0) {
-        const subclaim_ids = claim.subclaims.map(sc => sc.SubClaimID);
-        
-        const { data: parts, error: partsError } = await supabase
-          .from('subclaim_parts')
-          .select('*')
-          .in('SubClaimID', subclaim_ids);
-        
-        if (partsError) {
-          console.error('[CLAIM_DETAIL] Error fetching subclaim parts:', partsError);
-          throw partsError;
-        }
-        
-        // Organize parts by subclaim ID
-        const partsBySubclaim: Record<string, SubclaimPart[]> = {};
-        (parts || []).forEach(part => {
-          if (!partsBySubclaim[part.SubClaimID]) {
-            partsBySubclaim[part.SubClaimID] = [];
-          }
-          partsBySubclaim[part.SubClaimID].push(part);
-        });
-        
-        // Add parts to each subclaim
-        claim.subclaims.forEach(subclaim => {
-          subclaim.parts = partsBySubclaim[subclaim.SubClaimID] || [];
-        });
-      }
-      
-      // Get payment information using the SQL function
-      try {
-        const { data: paymentInfo, error: paymentError } = await supabase
-          .rpc('get_claims_payment_info', { claim_ids: [claimId] });
-        
-        if (paymentError) {
-          console.error('[CLAIM_DETAIL] Error fetching payment info:', paymentError);
-          // Don't throw here, just log and continue without payment info
-        } else {
-          claim.payment_info = paymentInfo && paymentInfo.length > 0 ? paymentInfo[0] : null;
-        }
-      } catch (error) {
-        console.error('[CLAIM_DETAIL] Exception fetching payment info:', error);
-        // Continue without payment info
-      }
-      
+      console.log('[CLAIM_DETAIL] Successfully fetched claim detail');
       return claim;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: 2,
+    enabled: !!claimId, // Only run if claimId is provided
   });
 };
 
@@ -224,7 +155,7 @@ export const getClaimStatus = (claim: Claim): 'OPEN' | 'CLOSED' => {
  */
 export const getTotalPaidAmount = (claim: Claim): number => {
   if (claim.payment_info) {
-    return claim.payment_info.total_paid_amount || 0;
+    return claim.payment_info.total_paid || 0;
   }
   
   // Fallback calculation from subclaim parts if payment_info is not available
@@ -232,13 +163,7 @@ export const getTotalPaidAmount = (claim: Claim): number => {
   
   if (claim.subclaims) {
     claim.subclaims.forEach(subclaim => {
-      if (subclaim.parts) {
-        subclaim.parts.forEach(part => {
-          if (part.PaidPrice != null && !isNaN(part.PaidPrice)) {
-            total += part.PaidPrice * (part.Quantity || 1);
-          }
-        });
-      }
+      total += subclaim.TotalCost || 0;
     });
   }
   
@@ -254,25 +179,11 @@ export const getClaimFinancialSummary = (claim: Claim) => {
   let totalPaid = 0;
   
   if (claim.payment_info) {
-    totalRequested = claim.payment_info.total_requested_amount || 0;
-    totalApproved = claim.payment_info.total_approved_amount || 0;
-    totalPaid = claim.payment_info.total_paid_amount || 0;
+    totalPaid = claim.payment_info.total_paid || 0;
   } else if (claim.subclaims) {
     // Calculate from subclaim parts if payment_info is not available
     claim.subclaims.forEach(subclaim => {
-      if (subclaim.parts) {
-        subclaim.parts.forEach(part => {
-          if (part.RequestedPrice != null && !isNaN(part.RequestedPrice)) {
-            totalRequested += part.RequestedPrice * (part.Quantity || 1);
-          }
-          if (part.ApprovedPrice != null && !isNaN(part.ApprovedPrice)) {
-            totalApproved += part.ApprovedPrice * (part.Quantity || 1);
-          }
-          if (part.PaidPrice != null && !isNaN(part.PaidPrice)) {
-            totalPaid += part.PaidPrice * (part.Quantity || 1);
-          }
-        });
-      }
+      totalPaid += subclaim.TotalCost || 0;
     });
   }
   

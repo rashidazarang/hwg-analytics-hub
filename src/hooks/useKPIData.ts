@@ -1,225 +1,124 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
-import { DateRange, setCSTHours } from '@/lib/dateUtils';
+import { supabase } from '@/integrations/supabase/client';
+import { DateRange } from '@/lib/dateUtils';
 import { KPIData } from '@/lib/types';
-import MockDataService from '@/lib/mockDataService';
 
 interface UseKPIDataProps {
   dateRange: DateRange;
-  dealerFilter: string;
+  dealerFilter?: string;
 }
 
 export function useKPIData({ dateRange, dealerFilter }: UseKPIDataProps) {
   return useQuery({
     queryKey: ['kpis', dateRange.from, dateRange.to, dealerFilter],
     queryFn: async (): Promise<KPIData> => {
-      // Use mock data in development mode
-      if (shouldUseMockData()) {
-        console.log('[KPI_DATA] 🔧 Using mock data in development mode');
-        const mockData = MockDataService.getKPIData();
-        return {
-          activeAgreements: mockData.activeContracts,
-          totalAgreements: mockData.totalContracts,
-          openClaims: Math.floor(mockData.totalContracts * 0.15), // Estimated open claims
-          totalClaims: Math.floor(mockData.totalContracts * 0.25), // Estimated total claims
-          activeDealers: 25, // Mock active dealers count
-          totalDealers: 50, // Mock total dealers count
-          averageClaimAmount: 2500, // Mock average claim amount
-          totalClaimsAmount: Math.floor(mockData.totalContracts * 0.25 * 2500), // Estimated total claims amount
-          pendingContracts: mockData.pendingContracts,
-          newlyActiveContracts: Math.floor(mockData.activeContracts * 0.3), // Estimated newly active
-          cancelledContracts: mockData.cancelledContracts,
-          statusBreakdown: {
-            OPEN: Math.floor(mockData.totalContracts * 0.15),
-            PENDING: mockData.pendingContracts,
-            CLOSED: Math.floor(mockData.totalContracts * 0.1)
-          }
-        };
+      console.log('[KPI_DATA] Fetching KPIs from Supabase with date range:', {
+        from: dateRange.from,
+        to: dateRange.to,
+        dealerFilter
+      });
+
+      // Build queries for agreements and claims with date filtering
+      let agreementsQuery = supabase
+        .from('agreements')
+        .select('*')
+        .gte('EffectiveDate', dateRange.from.toISOString())
+        .lte('EffectiveDate', dateRange.to.toISOString());
+
+      let claimsQuery = supabase
+        .from('claims')
+        .select('*')
+        .gte('ReportedDate', dateRange.from.toISOString())
+        .lte('ReportedDate', dateRange.to.toISOString());
+
+      // Add dealer filter if specified
+      if (dealerFilter) {
+        agreementsQuery = agreementsQuery.eq('DealerUUID', dealerFilter);
+        claimsQuery = claimsQuery.eq('DealerUUID', dealerFilter);
       }
 
-      console.log('[KPI_DATA] Fetching KPIs with extremely simplified approach');
-      
-      try {
-        // Get date range for filtering with CST timezone
-        const startDate = setCSTHours(new Date(dateRange.from), 0, 0, 0, 0);
-        const endDate = setCSTHours(new Date(dateRange.to), 23, 59, 59, 999);
-        
-        const fromDate = startDate.toISOString();
-        const toDate = endDate.toISOString();
+      // Execute queries in parallel
+      const [agreementsResult, claimsResult, dealersResult] = await Promise.all([
+        agreementsQuery,
+        claimsQuery,
+        supabase.from('dealers').select('*')
+      ]);
 
-        // Initialize variables
-        let pendingContractsCount = 0;
-        let activeContractsCount = 0;
-        let cancelledContractsCount = 0;
-        let totalContractsCount = 0;
-        
-        // Use the fixed RPC function to get accurate counts
-        console.log('[KPI_DATA] Using fixed count_agreements_by_status RPC function');
-        
-        // Format dates properly as required by the updated function (YYYY-MM-DD)
-        const fromDateStr = startDate.toISOString().split('T')[0]; // Get just the date part (YYYY-MM-DD)
-        const toDateStr = endDate.toISOString().split('T')[0];     // Get just the date part (YYYY-MM-DD)
-        
-        // Log the exact parameters to help with debugging
-        console.log('[KPI_DATA] Calling RPC with date parameters:', {
-          from_date: fromDateStr,
-          to_date: toDateStr
-        });
-        
-        try {
-          // Use the new fixed RPC call with proper date format
-          const { data: agreementStatusCounts, error: rpcError } = await supabase.rpc(
-            'count_agreements_by_status',
-            { 
-              from_date: fromDateStr, 
-              to_date: toDateStr 
-            }
-          );
-          
-          // Check for RPC errors and log details
-          if (rpcError) {
-            console.error('[KPI_DATA] RPC error:', rpcError);
-            throw new Error(`RPC call failed: ${rpcError.message}`);
-          }
-          
-          console.log('[KPI_DATA] RPC result:', agreementStatusCounts);
-          
-          // Process the results if valid
-          if (agreementStatusCounts && Array.isArray(agreementStatusCounts)) {
-            // Map the results to our status variables
-            agreementStatusCounts.forEach(item => {
-              const count = Number(item.count) || 0;
-              
-              if (item.status === 'PENDING') pendingContractsCount = count;
-              else if (item.status === 'ACTIVE') activeContractsCount = count;
-              else if (item.status === 'CANCELLED') cancelledContractsCount = count;
-            });
-            
-            // Calculate total from all statuses
-            totalContractsCount = agreementStatusCounts.reduce((total, item) => 
-              total + (Number(item.count) || 0), 0);
-          
-            console.log('[KPI_DATA] Successfully retrieved counts with RPC:', {
-              pending: pendingContractsCount,
-              active: activeContractsCount,
-              cancelled: cancelledContractsCount,
-              total: totalContractsCount
-            });
-            
-            // Create status distribution for KPIs
-            const statusDistribution = {
-              'PENDING': pendingContractsCount,
-              'ACTIVE': activeContractsCount,
-              'CANCELLED': cancelledContractsCount
-            };
-          } else {
-            console.error('[KPI_DATA] RPC returned empty or invalid data');
-            throw new Error('RPC returned empty data');
-          }
-          
-     // Get total dealers count without filtering by IsActive since that column doesn't exist
-const activeDealers = await supabase
-.from('dealers')
-.select('*', { count: 'exact', head: true });
+      if (agreementsResult.error) {
+        console.error('[KPI_DATA] Error fetching agreements:', agreementsResult.error);
+        throw agreementsResult.error;
+      }
 
-// Obtain claims count using a very simple query
-const claimsCount = await supabase
-.from('claims')
-.select('*', { count: 'exact', head: true })
-.gte('LastModified', fromDate)
-.lte('LastModified', toDate);
+      if (claimsResult.error) {
+        console.error('[KPI_DATA] Error fetching claims:', claimsResult.error);
+        throw claimsResult.error;
+      }
 
-// Get basic claim status breakdown with separate simpler queries
-const [openClaimsCount, closedClaimsCount, pendingClaimsCount] = await Promise.all([
-// Open claims (Claims where Closed timestamp is NULL)
-supabase.from('claims')
-  .select('*', { count: 'exact', head: true })
-  .is('Closed', null)
-  .not('ReportedDate', 'is', null) // Ensures it's a reported claim
-  .gte('LastModified', fromDate)
-  .lte('LastModified', toDate),
+      if (dealersResult.error) {
+        console.error('[KPI_DATA] Error fetching dealers:', dealersResult.error);
+        throw dealersResult.error;
+      }
 
-// Closed claims (Claims where Closed timestamp is NOT NULL)
-supabase.from('claims')
-  .select('*', { count: 'exact', head: true })
-  .not('Closed', 'is', null)
-  .gte('LastModified', fromDate)
-  .lte('LastModified', toDate),
-  
-// Pending claims (Claims where ReportedDate is NULL)
-supabase.from('claims')
-  .select('*', { count: 'exact', head: true })
-  .is('Closed', null) // Still open
-  .is('ReportedDate', null) // Not reported yet
-  .gte('LastModified', fromDate)
-  .lte('LastModified', toDate)
-]);
-          
-          // Create safe status breakdown
-          const safeStatusBreakdown = {
-            OPEN: openClaimsCount.count || 0,
-            CLOSED: closedClaimsCount.count || 0,
-            PENDING: pendingClaimsCount.count || 0
-          };
-          
-          // Return simplified KPI data
-          return {
-            pendingContracts: pendingContractsCount,
-            newlyActiveContracts: activeContractsCount,
-            cancelledContracts: cancelledContractsCount,
-            openClaims: safeStatusBreakdown.OPEN,
-            activeAgreements: activeContractsCount,
-            totalAgreements: totalContractsCount,
-            totalClaims: claimsCount.count || 0,
-            activeDealers: activeDealers.count || 0,
-            totalDealers: activeDealers.count || 0,
-            averageClaimAmount: 0, // Simplified to avoid complex calculation
-            totalClaimsAmount: 0,  // Simplified to avoid complex calculation
-            statusBreakdown: safeStatusBreakdown,
-          };
-        } catch (error) {
-   
-          console.error('[KPI_DATA] Error in simplified query approach:', error);
-          
-          // Return fallback values if all else fails
-          return {
-            pendingContracts: 0,
-            newlyActiveContracts: 0,
-            cancelledContracts: 0,
-            openClaims: 0,
-            activeAgreements: 0,
-            totalAgreements: 0,
-            totalClaims: 0,
-            activeDealers: 0,
-            totalDealers: 0,
-            averageClaimAmount: 0,
-            totalClaimsAmount: 0,
-            statusBreakdown: { OPEN: 0, PENDING: 0, CLOSED: 0 },
-          };
+      const agreements = agreementsResult.data || [];
+      const claims = claimsResult.data || [];
+      const dealers = dealersResult.data || [];
+
+      // Calculate KPIs from real data
+      const totalAgreements = agreements.length;
+      const activeAgreements = agreements.filter(a => a.AgreementStatus === 'ACTIVE').length;
+      const pendingAgreements = agreements.filter(a => a.AgreementStatus === 'PENDING').length;
+      const cancelledAgreements = agreements.filter(a => a.AgreementStatus === 'CANCELLED').length;
+
+      const totalClaims = claims.length;
+      const openClaims = claims.filter(c => !c.Closed && c.ReportedDate).length;
+      const pendingClaims = claims.filter(c => !c.ReportedDate && !c.Closed).length;
+      const closedClaims = claims.filter(c => c.Closed).length;
+
+      const totalDealers = dealers.length;
+      const activeDealers = [...new Set(agreements.map(a => a.DealerUUID))].length;
+
+      // Calculate financial metrics
+      const totalClaimsAmount = claims.reduce((sum, claim) => {
+        const amount = claim.TotalPaid || claim.ClaimAmount || 0;
+        return sum + (typeof amount === 'number' ? amount : 0);
+      }, 0);
+
+      const averageClaimAmount = totalClaims > 0 ? totalClaimsAmount / totalClaims : 0;
+      const newlyActiveAgreements = agreements.filter(a => {
+        if (!a.StatusChangeDate) return false;
+        const statusChangeDate = new Date(a.StatusChangeDate);
+        return statusChangeDate >= dateRange.from && statusChangeDate <= dateRange.to && a.AgreementStatus === 'ACTIVE';
+      }).length;
+
+      console.log('[KPI_DATA] Calculated KPIs:', {
+        totalAgreements,
+        activeAgreements,
+        totalClaims,
+        openClaims,
+        activeDealers,
+        totalDealers
+      });
+
+      return {
+        activeAgreements,
+        totalAgreements,
+        openClaims,
+        totalClaims,
+        activeDealers,
+        totalDealers,
+        averageClaimAmount,
+        totalClaimsAmount,
+        pendingContracts: pendingAgreements,
+        newlyActiveContracts: newlyActiveAgreements,
+        cancelledContracts: cancelledAgreements,
+        statusBreakdown: {
+          OPEN: openClaims,
+          PENDING: pendingClaims,
+          CLOSED: closedClaims
         }
-      } catch (outerError) {
-        console.error('[KPI_DATA] Fatal error in KPI data fetch:', outerError);
-        
-        // Return empty data on fatal error
-        return {
-          pendingContracts: 0,
-          newlyActiveContracts: 0,
-          cancelledContracts: 0,
-          openClaims: 0,
-          activeAgreements: 0,
-          totalAgreements: 0,
-          totalClaims: 0,
-          activeDealers: 0,
-          totalDealers: 0,
-          averageClaimAmount: 0,
-          totalClaimsAmount: 0,
-          statusBreakdown: { OPEN: 0, PENDING: 0, CLOSED: 0 },
-        };
-      }
+      };
     },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: 1, // Only retry once to avoid hammering the server
-    retryDelay: 2000 // Wait 2 seconds before retrying
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2
   });
 }

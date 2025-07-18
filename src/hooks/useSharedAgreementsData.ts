@@ -1,11 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { DateRange } from '@/lib/dateUtils';
 import { Agreement } from '@/lib/types';
-import { toast } from 'sonner';
-import MockDataService from '@/lib/mockDataService';
 
-export interface AgreementsQueryResult {
+interface AgreementsQueryOptions {
+  dateRange: DateRange;
+  dealerFilter?: string;
+  pagination?: {
+    page: number;
+    pageSize: number;
+  };
+  includeCount?: boolean;
+  statusFilters?: string[];
+}
+
+interface AgreementsQueryResult {
   data: Agreement[];
   count: number;
 }
@@ -16,21 +25,6 @@ export interface AgreementsQueryResult {
  */
 export async function searchAgreementById(searchTerm: string): Promise<AgreementsQueryResult> {
   try {
-    // Use mock data in development mode
-    if (shouldUseMockData()) {
-      console.log('[SEARCH_AGREEMENT] 🔧 Using mock data in development mode');
-      const agreements = MockDataService.getAgreementsData(0, 20, '', ['ACTIVE', 'PENDING', 'CANCELLED']);
-      const filtered = agreements.data.filter(agreement => 
-        agreement.AgreementID?.toLowerCase().includes(searchTerm.toLowerCase())
-      ).map(agreement => ({
-        ...agreement,
-        id: agreement.id || agreement.AgreementID || `mock-${Math.random()}`,
-        EffectiveDate: agreement.EffectiveDate || new Date().toISOString(),
-        ExpireDate: agreement.ExpireDate || null
-      }));
-      return { data: filtered as unknown as Agreement[], count: filtered.length };
-    }
-
     console.log(`🔍 Searching for agreement with ID: "${searchTerm}"`);
     
     if (!searchTerm || searchTerm.trim().length < 3) {
@@ -62,49 +56,35 @@ export async function searchAgreementById(searchTerm: string): Promise<Agreement
       .ilike('AgreementID', `%${term}%`)
       .order("EffectiveDate", { ascending: false })
       .limit(100);
-    
+
     if (error) {
-      console.error("❌ Error searching for agreement by ID:", error);
-      toast.error("Failed to search for agreement");
-      return { data: [], count: 0 };
+      console.error('❌ Error searching agreements:', error);
+      throw error;
     }
+
+    console.log(`✅ Found ${data?.length || 0} agreements matching "${term}"`);
     
-    console.log(`✅ Found ${data.length} agreements matching ID "${term}"`);
-    console.log(`✅ Total count: ${count || 0}`);
-    
-    return { 
-      data: data as unknown as Agreement[] || [], 
-      count: count || 0 
+    return {
+      data: (data || []) as unknown as Agreement[],
+      count: count || 0
     };
+
   } catch (error) {
-    console.error("❌ Exception in searchAgreementById:", error);
-    toast.error("An unexpected error occurred while searching for agreement");
-    return { data: [], count: 0 };
+    console.error('❌ Exception when searching agreements:', error);
+    throw error;
   }
 }
 
 /**
- * React Query hook for searching agreements by ID
+ * Hook to search agreements by ID with React Query
  */
-export function useSearchAgreementById(searchTerm: string) {
+export function useAgreementSearch(searchTerm: string) {
   return useQuery({
-    queryKey: ['agreements-search-by-id', searchTerm],
+    queryKey: ['agreement-search', searchTerm],
     queryFn: () => searchAgreementById(searchTerm),
-    staleTime: 1000 * 60 * 2, // 2 minutes
-    retry: false, // Don't retry if the query fails
-    enabled: !!searchTerm && searchTerm.length >= 3, // Only enable if search term is at least 3 characters
+    enabled: searchTerm.length >= 3,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
-} 
-
-export interface AgreementsQueryOptions {
-  dateRange: DateRange;
-  dealerFilter?: string;
-  pagination?: {
-    page: number;
-    pageSize: number;
-  };
-  includeCount?: boolean;
-  statusFilters?: string[];
 }
 
 /**
@@ -117,52 +97,16 @@ export async function fetchAgreementsData({
   includeCount = true,
   statusFilters
 }: AgreementsQueryOptions): Promise<AgreementsQueryResult> {
-  // Use mock data in development mode
-  if (shouldUseMockData()) {
-    console.log('[SHARED_AGREEMENTS] 🔧 Using mock data in development mode');
-    const page = pagination?.page || 1;
-    const pageSize = pagination?.pageSize || 20;
-    const mockData = MockDataService.getAgreementsData(page - 1, pageSize, dealerFilter, statusFilters);
-    
-    return {
-      data: mockData.data.map(agreement => ({
-        ...agreement,
-        id: agreement.id || agreement.AgreementID || `mock-${Math.random()}`,
-        EffectiveDate: agreement.EffectiveDate || new Date().toISOString(),
-        ExpireDate: agreement.ExpireDate || null
-      })) as unknown as Agreement[],
-      count: mockData.count
-    };
-  }
-
   try {
-    console.log('[SHARED_AGREEMENTS] Fetching agreements with parameters:', {
-      dateRange,
+    console.log('[SHARED_AGREEMENTS] Fetching agreements from Supabase with filters:', {
+      dateRange: { from: dateRange.from, to: dateRange.to },
       dealerFilter,
-      pagination,
-      statusFilters
+      statusFilters,
+      pagination
     });
 
-    const from = dateRange.from.toISOString();
-    const to = dateRange.to.toISOString();
-    
-    // Build count query
-    let countQuery = supabase
-      .from("agreements")
-      .select("id", { count: 'exact', head: true })
-      .gte("EffectiveDate", from)
-      .lte("EffectiveDate", to);
-    
-    if (dealerFilter && dealerFilter.trim()) {
-      countQuery = countQuery.eq("DealerUUID", dealerFilter.trim());
-    }
-    
-    if (statusFilters && statusFilters.length > 0) {
-      countQuery = countQuery.in("AgreementStatus", statusFilters);
-    }
-    
-    // Build data query
-    let dataQuery = supabase
+    // Build the base query
+    let query = supabase
       .from("agreements")
       .select(`
         id, 
@@ -179,48 +123,48 @@ export async function fetchAgreementsData({
         ReserveAmount,
         StatusChangeDate,
         dealers(Payee)
-      `)
-      .gte("EffectiveDate", from)
-      .lte("EffectiveDate", to)
-      .order("EffectiveDate", { ascending: false });
-    
-    if (dealerFilter && dealerFilter.trim()) {
-      dataQuery = dataQuery.eq("DealerUUID", dealerFilter.trim());
+      `, { count: includeCount ? 'exact' : undefined });
+
+    // Apply date range filter
+    if (dateRange) {
+      query = query
+        .gte('EffectiveDate', dateRange.from.toISOString())
+        .lte('EffectiveDate', dateRange.to.toISOString());
     }
-    
+
+    // Apply dealer filter
+    if (dealerFilter) {
+      query = query.eq('DealerUUID', dealerFilter);
+    }
+
+    // Apply status filters
     if (statusFilters && statusFilters.length > 0) {
-      dataQuery = dataQuery.in("AgreementStatus", statusFilters);
+      query = query.in('AgreementStatus', statusFilters);
     }
-    
+
     // Apply pagination
     if (pagination) {
-      const startRow = (pagination.page - 1) * pagination.pageSize;
-      const endRow = startRow + pagination.pageSize - 1;
-      dataQuery = dataQuery.range(startRow, endRow);
-    }
-    
-    // Execute queries
-    const [countResult, dataResult] = await Promise.all([
-      includeCount ? countQuery : Promise.resolve({ count: 0, error: null }),
-      dataQuery
-    ]);
-
-    if (countResult.error) {
-      console.error('[SHARED_AGREEMENTS] Count error:', countResult.error);
-      throw new Error(`Count query failed: ${countResult.error.message}`);
+      const startIndex = (pagination.page - 1) * pagination.pageSize;
+      const endIndex = startIndex + pagination.pageSize - 1;
+      query = query.range(startIndex, endIndex);
     }
 
-    if (dataResult.error) {
-      console.error('[SHARED_AGREEMENTS] Data error:', dataResult.error);
-      throw new Error(`Data query failed: ${dataResult.error.message}`);
+    // Order by effective date
+    query = query.order("EffectiveDate", { ascending: false });
+
+    const result = await query;
+
+    if (result.error) {
+      console.error('[SHARED_AGREEMENTS] Error fetching agreements:', result.error);
+      throw new Error(`Data query failed: ${result.error.message}`);
     }
 
-    console.log(`[SHARED_AGREEMENTS] Retrieved ${dataResult.data?.length || 0} agreements`);
-    console.log(`[SHARED_AGREEMENTS] Total count: ${countResult.count || 0}`);
+    console.log(`[SHARED_AGREEMENTS] Retrieved ${result.data?.length || 0} agreements`);
+    console.log(`[SHARED_AGREEMENTS] Total count: ${result.count || 0}`);
 
     return {
-      data: (dataResult.data || []) as unknown as Agreement[],
-      count: countResult.count || 0
+      data: (result.data || []) as unknown as Agreement[],
+      count: result.count || 0
     };
 
   } catch (error) {
@@ -270,22 +214,21 @@ export async function fetchAgreementsData({
 }
 
 /**
- * React Query hook for agreements data
+ * Hook to fetch agreements data with React Query
  */
 export function useSharedAgreementsData(options: AgreementsQueryOptions) {
   return useQuery({
     queryKey: [
-      'agreements', 
+      'shared-agreements', 
       options.dateRange.from, 
       options.dateRange.to, 
-      options.dealerFilter, 
-      options.pagination?.page, 
-      options.pagination?.pageSize, 
-      options.includeCount,
+      options.dealerFilter,
+      options.pagination?.page,
+      options.pagination?.pageSize,
       options.statusFilters
     ],
     queryFn: () => fetchAgreementsData(options),
-    staleTime: 1000 * 60 * 2, // 2 minutes
-    retry: false, // Don't retry if the query fails
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2
   });
 } 

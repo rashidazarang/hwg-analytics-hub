@@ -18,8 +18,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 
-// Set a significantly larger page size to ensure we can display more claims
-const DEFAULT_PAGE_SIZE = 500; // Keep this at 500 for performance reasons
+// Set a reasonable page size to prevent query timeouts
+const DEFAULT_PAGE_SIZE = 100; // Reduced from 500 to prevent timeout issues
 
 interface ClaimsTableProps {
   className?: string; 
@@ -211,7 +211,9 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         // Fully redesigned payment display with better error handling, consistent formatting and fallbacks
         const PaymentDisplay = React.memo(({ claim, isSortingByPayment }: { claim: any, isSortingByPayment: boolean }) => {
           // First try to get payment data from the custom hook
-          const { totalPaidValue, isLoading } = useClaimPaymentData(claim.ClaimID);
+          const paymentResult = useClaimPaymentData(claim.ClaimID);
+          const totalPaidValue = paymentResult?.data?.totalPaid;
+          const isLoading = paymentResult?.isLoading;
           
           // Helper function to extract payment value from various formats
           const extractPaymentValue = (value: any): number => {
@@ -337,7 +339,9 @@ const ClaimsTable: React.FC<ClaimsTableProps> = ({
         // Fully redesigned payment date display with better error handling, consistent formatting and fallbacks
         const PaymentDateDisplay = React.memo(({ claim, isSortingByPayment }: { claim: any, isSortingByPayment: boolean }) => {
           // First try to get payment data from the custom hook
-          const { lastPaymentDate, isLoading } = useClaimPaymentData(claim.ClaimID);
+          const paymentResult = useClaimPaymentData(claim.ClaimID);
+          const lastPaymentDate = paymentResult?.data?.lastPaymentDate;
+          const isLoading = paymentResult?.isLoading;
           
           // Enhanced function to extract and validate a date
           const extractAndValidateDate = (value: any): Date | null => {

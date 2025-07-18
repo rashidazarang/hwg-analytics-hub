@@ -17,74 +17,97 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user for local development without authentication
-const mockUser: User = {
-  id: 'local-dev-user',
-  aud: 'authenticated',
-  role: 'authenticated',
-  email: 'local@dev.com',
-  email_confirmed_at: new Date().toISOString(),
-  phone: '',
-  confirmed_at: new Date().toISOString(),
-  last_sign_in_at: new Date().toISOString(),
-  app_metadata: {},
-  user_metadata: {},
-  identities: [],
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-  is_anonymous: false
-};
-
-const mockSession: Session = {
-  access_token: 'mock-access-token',
-  refresh_token: 'mock-refresh-token',
-  expires_in: 3600,
-  expires_at: Date.now() / 1000 + 3600,
-  token_type: 'bearer',
-  user: mockUser
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
-  // For local development, always use mock authenticated user
-  const [user, setUser] = useState<User | null>(mockUser);
-  const [session, setSession] = useState<Session | null>(mockSession);
-  const [isLoading, setIsLoading] = useState(false); // No loading for mock auth
-  const [isAdmin, setIsAdmin] = useState(true); // Always admin for local dev
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Set mock authenticated state immediately for local development
-    setUser(mockUser);
-    setSession(mockSession);
-    setIsAdmin(true);
-      setIsLoading(false);
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsAdmin(!!session?.user); // Set admin status based on authentication
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsAdmin(!!session?.user);
+
+        if (event === 'SIGNED_IN') {
+          navigate('/');
+        } else if (event === 'SIGNED_OUT') {
+          navigate('/auth');
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
-    // For local development, always succeed and use mock user
     try {
-      setUser(mockUser);
-      setSession(mockSession);
-        setIsAdmin(true);
+      setIsLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
         toast({
-        title: "Development Mode",
-        description: "Authentication bypassed for local development"
+          title: "Authentication failed",
+          description: error.message,
+          variant: "destructive"
         });
-        navigate('/');
+        throw error;
+      }
+
+      toast({
+        title: "Welcome back!",
+        description: "You have been signed in successfully."
+      });
     } catch (error) {
-      console.error('Mock sign in error:', error);
+      console.error('Sign in error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
-    // For local development, just show message but keep user authenticated
     try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast({
+          title: "Sign out failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        throw error;
+      }
+
       toast({
-        title: "Development Mode",
-        description: "Sign out disabled in local development"
+        title: "Signed out",
+        description: "You have been signed out successfully."
       });
     } catch (error) {
-      console.error('Mock sign out error:', error);
+      console.error('Sign out error:', error);
+      throw error;
     }
   };
 

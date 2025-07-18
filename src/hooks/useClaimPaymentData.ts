@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
-import MockDataService from '@/lib/mockDataService';
+import { supabase } from '@/integrations/supabase/client';
 
 // Function to get the last payment date for a claim
 export function getLastPaymentDate(claimId: string, subclaims: any[]) {
@@ -448,40 +447,79 @@ export async function fetchSubclaimsForClaims(claimIds: string[]) {
   }
 }
 
-// Custom hook to get payment information for a claim
+// Hook to get payment data for all claims with optimized caching
+export function useAllClaimsPaymentData() {
+  return useQuery({
+    queryKey: ['all-claims-payment'],
+    queryFn: async () => {
+      console.log('[CLAIM_PAYMENT] Fetching payment data for all claims');
+      
+      try {
+        const { data, error } = await supabase.rpc(
+          'get_claims_payment_info',
+          { 
+            claim_ids: [], // Empty array means get all claims
+            max_results: 10000 // Large number to get all claims
+          }
+        );
+
+        if (error) {
+          console.error('[CLAIM_PAYMENT] Error fetching all claims payment data:', error);
+          throw error;
+        }
+
+        if (!data || !Array.isArray(data)) {
+          console.log('[CLAIM_PAYMENT] No payment data returned');
+          return {};
+        }
+
+        // Convert array to object keyed by claim_id for fast lookup
+        const paymentMap: Record<string, { totalPaid: number; lastPaymentDate: string | null }> = {};
+        
+        data.forEach((item: any) => {
+          paymentMap[item.claim_id] = {
+            totalPaid: item.total_paid_amount || 0,
+            lastPaymentDate: item.last_payment_date
+          };
+        });
+
+        console.log(`[CLAIM_PAYMENT] Successfully cached payment data for ${Object.keys(paymentMap).length} claims`);
+        return paymentMap;
+
+      } catch (error) {
+        console.error('[CLAIM_PAYMENT] Exception fetching all claims payment data:', error);
+        throw error;
+      }
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: 2,
+    retryDelay: 1000,
+  });
+}
+
 export function useClaimPaymentData(claimId: string) {
   const queryClient = useQueryClient();
   
-  // Look for pre-fetched batch data first
-  const batchQueryKey = ['claims-payment-batch'];
-  const batchData = queryClient.getQueryData(batchQueryKey) as any[];
+  // First try to get data from the all-claims cache
+  const allClaimsData = queryClient.getQueryData(['all-claims-payment']) as Record<string, { totalPaid: number; lastPaymentDate: string | null }> | undefined;
   
-  // If we already have the data for this claim in the batch cache, use it
-  const cachedClaimData = batchData?.find(item => item.ClaimID === claimId);
-  
-  if (cachedClaimData) {
-    console.log(`[CLAIM_PAYMENT] Using cached payment data for ${claimId}:`, {
-      totalPaid: cachedClaimData.totalPaid,
-      hasLastPaymentDate: !!cachedClaimData.lastPaymentDate
-    });
-    
-    return {
-      lastPaymentDate: cachedClaimData.lastPaymentDate,
-      totalPaidValue: cachedClaimData.totalPaid,
-      isLoading: false
-    };
-  }
-  
+  // If we have cached data for this specific claim, return it directly
+  const cachedPaymentData = useMemo(() => {
+    if (allClaimsData && allClaimsData[claimId]) {
+      console.log(`[CLAIM_PAYMENT] Using cached data for claim ${claimId}`);
+      return {
+        data: allClaimsData[claimId],
+        isLoading: false,
+        error: null
+      };
+    }
+    return null;
+  }, [allClaimsData, claimId]);
+
   // Otherwise fall back to individual claim query with enhanced error handling
   const { data, isLoading, error } = useQuery({
     queryKey: ['claim-payment', claimId],
     queryFn: async () => {
-      // Use mock data in development mode
-      if (shouldUseMockData()) {
-        console.log('[CLAIM_PAYMENT] 🔧 Using mock data in development mode');
-        return { totalPaid: Math.floor(Math.random() * 5000) + 500, lastPaymentDate: new Date().toISOString() };
-      }
-
       console.log(`[CLAIM_PAYMENT] Fetching payment data for individual claim: ${claimId}`);
       
       // ALWAYS use the SQL function - prioritize RPC
@@ -515,220 +553,79 @@ export function useClaimPaymentData(claimId: string) {
         console.log(`[CLAIM_PAYMENT] SQL function succeeded for claim ${claimId}`, data[0]);
         
         const item = data[0];
-        
-        // Enhanced function to extract payment values consistently
-        const extractTotalPaid = (value: any): number => {
-          // If value is null or undefined, return 0
-          if (value === null || value === undefined) return 0;
-          
-          // Handle numeric type directly
-          if (typeof value === 'number') {
-            return isNaN(value) ? 0 : value;
-          }
-          
-          // Handle string representation
-          if (typeof value === 'string') {
-            const parsed = parseFloat(value);
-            return isNaN(parsed) ? 0 : parsed;
-          }
-          
-          // Handle Postgres numeric type (object with value property)
-          if (typeof value === 'object') {
-            // If the object has a value property
-            if (value && 'value' in value) {
-              const parsed = parseFloat(value.value);
-              return isNaN(parsed) ? 0 : parsed;
-            }
-            
-            // Try JSON value if present
-            if (value && 'json' in value) {
-              try {
-                const jsonVal = JSON.parse(value.json);
-                return typeof jsonVal === 'number' ? jsonVal : 0;
-              } catch (e) {
-                console.error('[CLAIM_PAYMENT] Error parsing JSON value:', e);
-                return 0;
-              }
-            }
-            
-            // Last resort - try to stringify and parse the object
-            try {
-              const strValue = String(value);
-              const parsed = parseFloat(strValue);
-              return isNaN(parsed) ? 0 : parsed;
-            } catch (e) {
-              console.error('[CLAIM_PAYMENT] Error parsing object as string:', e);
-              return 0;
-            }
-          }
-          
-          // Default fallback
-          return 0;
-        };
-        
-        // Check all possible property names for the total paid value
-        const possibleTotalPaidProps = ['totalpaid', 'TotalPaid', 'totalPaid', 'total_paid'];
-        let totalPaidValue = 0;
-        
-        for (const prop of possibleTotalPaidProps) {
-          if (item[prop] !== undefined) {
-            const extractedValue = extractTotalPaid(item[prop]);
-            if (extractedValue > 0) {
-              totalPaidValue = extractedValue;
-              console.log(`[CLAIM_PAYMENT] Found total paid value in property '${prop}': ${totalPaidValue}`);
-              break;
-            }
-          }
-        }
-        
-        // If we still don't have a value, try one more time with the first property
-        if (totalPaidValue === 0 && item.totalpaid !== undefined) {
-          totalPaidValue = extractTotalPaid(item.totalpaid);
-        }
-        
-        console.log(`[CLAIM_PAYMENT] Total paid for claim ${claimId} from SQL: $${totalPaidValue.toFixed(2)}`);
-        
-        // Check all possible property names for the last payment date
-        const possibleDateProps = ['lastpaymentdate', 'LastPaymentDate', 'lastPaymentDate', 'last_payment_date'];
-        let lastPaymentDate = null;
-        
-        for (const prop of possibleDateProps) {
-          if (item[prop]) {
-            try {
-              const date = new Date(item[prop]);
-              if (!isNaN(date.getTime())) {
-                lastPaymentDate = date;
-                console.log(`[CLAIM_PAYMENT] Found last payment date in property '${prop}': ${lastPaymentDate.toISOString()}`);
-                break;
-              }
-            } catch (e) {
-              console.error(`[CLAIM_PAYMENT] Error parsing date from property '${prop}':`, e);
-            }
-          }
-        }
-        
         return {
-          totalPaid: totalPaidValue,
-          lastPaymentDate: lastPaymentDate
+          totalPaid: item.total_paid_amount || 0,
+          lastPaymentDate: item.last_payment_date
         };
-      } catch (sqlErr) {
-        console.error(`[CLAIM_PAYMENT] Error using SQL function for claim ${claimId}:`, sqlErr);
         
-        // Fall back to direct data fetching as a last resort
-        console.log(`[CLAIM_PAYMENT] Falling back to direct query for claim ${claimId}`);
+      } catch (rpcError) {
+        console.error(`[CLAIM_PAYMENT] RPC function failed for claim ${claimId}:`, rpcError);
         
+        // Fallback to direct subclaims query
         try {
-          // Only get PAID subclaims for efficiency
+          console.log(`[CLAIM_PAYMENT] Trying fallback subclaims query for claim ${claimId}`);
+          
           const { data: subclaims, error: subclaimsError } = await supabase
             .from('subclaims')
-            .select('*')
-            .eq('ClaimID', claimId)
-            .eq('Status', 'PAID'); // Only get PAID subclaims
-            
+            .select('TotalCost, Status, Closed')
+            .eq('ClaimID', claimId);
+          
           if (subclaimsError) {
-            console.error(`[CLAIM_PAYMENT] Error fetching subclaims for claim ${claimId}:`, subclaimsError);
-            return { totalPaid: 0, lastPaymentDate: null };
+            console.error(`[CLAIM_PAYMENT] Subclaims fallback error for claim ${claimId}:`, subclaimsError);
+            throw subclaimsError;
           }
           
-          console.log(`[CLAIM_PAYMENT] Found ${subclaims?.length || 0} PAID subclaims for claim ${claimId}`);
-          
-          const subclaimIds = subclaims?.map(s => s.SubClaimID) || [];
-          
-          if (subclaimIds.length === 0) {
-            console.log(`[CLAIM_PAYMENT] No subclaims found for claim ${claimId}, returning zero`);
-            return { totalPaid: 0, lastPaymentDate: null };
-          }
-          
-          // Get the last payment date
-          let lastPaymentDate = null;
+          let totalPaid = 0;
+          let lastPaymentDate: Date | null = null;
           
           if (subclaims && subclaims.length > 0) {
-            const closedDates = subclaims
-              .filter(sc => sc.Closed)
-              .map(sc => new Date(sc.Closed));
-            
-            if (closedDates.length > 0) {
-              lastPaymentDate = new Date(Math.max(...closedDates.map(d => d.getTime())));
-            }
-          }
-          
-          // Fetch subclaim parts to calculate payment amounts
-          const { data: subclaimParts, error: partsError } = await supabase
-            .from('subclaim_parts')
-            .select('*')
-            .in('SubClaimID', subclaimIds);
-            
-          if (partsError) {
-            console.error(`[CLAIM_PAYMENT] Error fetching parts for claim ${claimId}:`, partsError);
-            return { 
-              totalPaid: 0, 
-              lastPaymentDate: lastPaymentDate // Still return the date if we have it
-            };
-          }
-          
-          console.log(`[CLAIM_PAYMENT] Found ${subclaimParts?.length || 0} parts for claim ${claimId}`);
-          
-          // Calculate total paid amount
-          let totalPaid = 0;
-          
-          if (subclaimParts && subclaimParts.length > 0) {
-            for (const part of subclaimParts) {
-              if (part.PaidPrice !== null && part.PaidPrice !== undefined) {
-                // Handle different formats of PaidPrice
-                let partAmount = 0;
+            subclaims.forEach((subclaim: any) => {
+              // Only count paid subclaims
+              if (subclaim.Status === 'PAID') {
+                totalPaid += subclaim.TotalCost || 0;
                 
-                if (typeof part.PaidPrice === 'number') {
-                  partAmount = part.PaidPrice;
-                } else if (typeof part.PaidPrice === 'string') {
-                  partAmount = parseFloat(part.PaidPrice) || 0;
-                } else if (typeof part.PaidPrice === 'object' && part.PaidPrice !== null) {
-                  if ('value' in part.PaidPrice) {
-                    partAmount = parseFloat(part.PaidPrice.value) || 0;
-                  } else {
-                    // Try to convert the object to a string and parse it
-                    const strValue = String(part.PaidPrice);
-                    partAmount = parseFloat(strValue) || 0;
+                // Track the most recent payment date
+                if (subclaim.Closed) {
+                  const closedDate = new Date(subclaim.Closed);
+                  if (!lastPaymentDate || closedDate > lastPaymentDate) {
+                    lastPaymentDate = closedDate;
                   }
                 }
-                
-                totalPaid += partAmount;
               }
-            }
+            });
           }
           
-          console.log(`[CLAIM_PAYMENT] Calculated total paid for claim ${claimId} from direct query: $${totalPaid.toFixed(2)}`);
+          console.log(`[CLAIM_PAYMENT] Fallback calculation for claim ${claimId}: totalPaid=${totalPaid}, lastPaymentDate=${lastPaymentDate?.toISOString()}`);
           
           return {
             totalPaid,
-            lastPaymentDate
+            lastPaymentDate: lastPaymentDate?.toISOString() || null
           };
-        } catch (directQueryError) {
-          console.error(`[CLAIM_PAYMENT] Fatal error fetching payment data for claim ${claimId}:`, directQueryError);
-          return { totalPaid: 0, lastPaymentDate: null };
+          
+        } catch (fallbackError) {
+          console.error(`[CLAIM_PAYMENT] Both RPC and fallback failed for claim ${claimId}:`, fallbackError);
+          
+          // Return default values instead of throwing
+          console.warn(`[CLAIM_PAYMENT] Returning default payment data for claim ${claimId}`);
+          return {
+            totalPaid: 0,
+            lastPaymentDate: null
+          };
         }
       }
     },
-    // Don't retry too many times to avoid rate limits
-    retry: 1,
-    // Cache the result longer to improve performance
-    staleTime: 1000 * 60 * 10, // 10 minutes
+    enabled: !cachedPaymentData && !!claimId, // Only run if not cached and claimId exists
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    retryDelay: 1000,
   });
-  
-  // Log any errors
-  if (error) {
-    console.error(`[CLAIM_PAYMENT] Error in useClaimPaymentData for ${claimId}:`, error);
+
+  // Return cached data if available, otherwise return query result
+  if (cachedPaymentData) {
+    return cachedPaymentData;
   }
-  
-  // Enrich the loading state with helpful debug info
-  if (isLoading) {
-    console.log(`[CLAIM_PAYMENT] Loading payment data for claim ${claimId}...`);
-  }
-  
-  return {
-    lastPaymentDate: data?.lastPaymentDate || null,
-    totalPaidValue: data?.totalPaid || 0,
-    isLoading
-  };
+
+  return { data, isLoading, error };
 }
 
 // Hook to prefetch payment data for a batch of claims
