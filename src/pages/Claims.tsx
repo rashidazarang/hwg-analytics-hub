@@ -6,7 +6,7 @@ import { DateRange } from '@/lib/dateUtils';
 import ClaimKPISection from '@/components/metrics/ClaimKPISection';
 import ClaimsTable from '@/components/tables/ClaimsTable';
 import DealershipSearch from '@/components/search/DealershipSearch';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, shouldUseMockData } from '@/integrations/supabase/client';
 import { useAtom } from 'jotai';
 import { globalDateRangeAtom } from '@/contexts/DateFilterContext';
 
@@ -16,6 +16,15 @@ const Claims = () => {
   const [dealershipUUID, setDealershipUUID] = useState<string>('');
   const [dealershipName, setDealershipName] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Debug logging for Claims page
+  useEffect(() => {
+    console.log('🔍 [CLAIMS_PAGE] Loading Claims page with mock data:', shouldUseMockData());
+    console.log('🔍 [CLAIMS_PAGE] Date range:', {
+      from: dateRange.from.toISOString(),
+      to: dateRange.to.toISOString()
+    });
+  }, [dateRange]);
 
   // Remove authentication check useEffect
 
@@ -60,7 +69,7 @@ const Claims = () => {
         />
       }
       subnavbar={subnavbarContent}
-              pageTitle="Claims"
+      pageTitle="Claims"
     >
       <div className="w-full overflow-x-hidden">
         <ClaimsTable
